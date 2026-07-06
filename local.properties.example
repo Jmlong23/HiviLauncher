@@ -1,0 +1,6 @@
+# Copy this file to local.properties if Android Studio does not create it.
+# Linux example:
+# sdk.dir=/home/long/Android/Sdk
+#
+# Windows example:
+# sdk.dir=C\:\\Users\\long\\AppData\\Local\\Android\\Sdk
