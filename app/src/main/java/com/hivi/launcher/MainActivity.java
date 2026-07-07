@@ -1,6 +1,7 @@
 package com.hivi.launcher;
 
 import android.app.Activity;
+import android.app.Dialog;
 import android.bluetooth.BluetoothAdapter;
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
@@ -8,6 +9,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.graphics.drawable.Drawable;
 import android.media.AudioManager;
 import android.media.session.MediaController;
 import android.media.session.MediaSessionManager;
@@ -27,13 +30,19 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.ImageView;
+import android.widget.GridLayout;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.Space;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.text.Collator;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -331,10 +340,159 @@ public class MainActivity extends Activity {
         bar.addView(appButton("切换", "switch", new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                launchFirstAvailableMusicApp();
+                showInstalledAppsDialog();
             }
         }), new LinearLayout.LayoutParams(dp(96), dp(122)));
         return bar;
+    }
+
+    private void showInstalledAppsDialog() {
+        final List<AppEntry> apps = loadLaunchableApps();
+        if (apps.isEmpty()) {
+            toast("没有找到可启动的应用");
+            return;
+        }
+
+        final Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(createAppsDialogView(dialog, apps));
+
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new RoundRectDrawable(0xff2f2f2f, dp(8)));
+            WindowManager.LayoutParams params = new WindowManager.LayoutParams();
+            params.copyFrom(window.getAttributes());
+            params.width = getAppsDialogWidth();
+            params.height = Math.min(getResources().getDisplayMetrics().heightPixels - dp(64), dp(600));
+            params.gravity = Gravity.CENTER;
+            window.setAttributes(params);
+        }
+        dialog.show();
+    }
+
+    private View createAppsDialogView(final Dialog dialog, List<AppEntry> apps) {
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(26), dp(22), dp(26), dp(24));
+        root.setBackground(new DashedBorderDrawable(0x55ffffff, 0xee303030, dp(2), dp(8)));
+
+        LinearLayout header = new LinearLayout(this);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        TextView title = text("全部应用", 24, 0xffffffff, true);
+        header.addView(title, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView close = text("关闭", 18, 0xffffffff, true);
+        close.setGravity(Gravity.CENTER);
+        close.setBackground(new RoundRectDrawable(0x66454545, dp(20)));
+        close.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialog.dismiss();
+            }
+        });
+        header.addView(close, new LinearLayout.LayoutParams(dp(86), dp(42)));
+        root.addView(header, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
+
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(false);
+
+        GridLayout grid = new GridLayout(this);
+        int contentWidth = getAppsDialogWidth() - dp(52);
+        int columnCount = Math.max(3, Math.min(6, contentWidth / dp(142)));
+        int itemWidth = Math.max(dp(112), (contentWidth - columnCount * dp(16)) / columnCount);
+        grid.setColumnCount(columnCount);
+        grid.setPadding(0, dp(18), 0, 0);
+
+        for (final AppEntry app : apps) {
+            View item = createAppGridItem(app, dialog);
+            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+            params.width = itemWidth;
+            params.height = dp(116);
+            params.setMargins(dp(8), dp(8), dp(8), dp(8));
+            grid.addView(item, params);
+        }
+
+        scrollView.addView(grid, new ScrollView.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        root.addView(scrollView, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        TextView count = text("共 " + apps.size() + " 个应用", 16, 0xffcfcfcf, false);
+        count.setGravity(Gravity.RIGHT);
+        root.addView(count, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(26)));
+        return root;
+    }
+
+    private View createAppGridItem(final AppEntry app, final Dialog dialog) {
+        LinearLayout item = new LinearLayout(this);
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setGravity(Gravity.CENTER);
+        item.setPadding(dp(8), dp(10), dp(8), dp(8));
+        item.setBackground(new DashedBorderDrawable(0x44ffffff, 0x24454545, dp(1), dp(8)));
+        item.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialog.dismiss();
+                launchApp(app);
+            }
+        });
+
+        ImageView icon = new ImageView(this);
+        icon.setImageDrawable(app.icon);
+        icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        item.addView(icon, new LinearLayout.LayoutParams(dp(54), dp(54)));
+
+        TextView label = text(app.label, 16, 0xffffffff, true);
+        label.setGravity(Gravity.CENTER);
+        label.setSingleLine(true);
+        label.setEllipsize(TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(34));
+        labelParams.setMargins(0, dp(10), 0, 0);
+        item.addView(label, labelParams);
+        return item;
+    }
+
+    private List<AppEntry> loadLaunchableApps() {
+        PackageManager pm = getPackageManager();
+        Intent intent = new Intent(Intent.ACTION_MAIN);
+        intent.addCategory(Intent.CATEGORY_LAUNCHER);
+        List<ResolveInfo> activities = pm.queryIntentActivities(intent, 0);
+        final Collator collator = Collator.getInstance(Locale.CHINA);
+        List<AppEntry> apps = new ArrayList<>();
+
+        for (ResolveInfo info : activities) {
+            if (info.activityInfo == null || TextUtils.isEmpty(info.activityInfo.packageName)
+                    || TextUtils.isEmpty(info.activityInfo.name)) {
+                continue;
+            }
+            String label = String.valueOf(info.loadLabel(pm));
+            if (TextUtils.isEmpty(label)) {
+                label = info.activityInfo.packageName;
+            }
+            apps.add(new AppEntry(label, info.activityInfo.packageName, info.activityInfo.name,
+                    info.loadIcon(pm)));
+        }
+
+        Collections.sort(apps, new Comparator<AppEntry>() {
+            @Override
+            public int compare(AppEntry left, AppEntry right) {
+                return collator.compare(left.label, right.label);
+            }
+        });
+        return apps;
+    }
+
+    private void launchApp(AppEntry app) {
+        Intent intent = new Intent(Intent.ACTION_MAIN);
+        intent.addCategory(Intent.CATEGORY_LAUNCHER);
+        intent.setClassName(app.packageName, app.activityName);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+        startActivitySafe(intent, "无法打开 " + app.label);
     }
 
     private LinearLayout cardContainer() {
@@ -550,5 +708,23 @@ public class MainActivity extends Activity {
 
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private int getAppsDialogWidth() {
+        return Math.min(getResources().getDisplayMetrics().widthPixels - dp(72), dp(980));
+    }
+
+    private static class AppEntry {
+        final String label;
+        final String packageName;
+        final String activityName;
+        final Drawable icon;
+
+        AppEntry(String label, String packageName, String activityName, Drawable icon) {
+            this.label = label;
+            this.packageName = packageName;
+            this.activityName = activityName;
+            this.icon = icon;
+        }
     }
 }
