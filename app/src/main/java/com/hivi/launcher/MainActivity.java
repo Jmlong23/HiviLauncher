@@ -98,6 +98,7 @@ public class MainActivity extends Activity {
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
                 WindowManager.LayoutParams.FLAG_FULLSCREEN);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        enterFullscreen();
 
         mAudioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         mWifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
@@ -114,9 +115,18 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        enterFullscreen();
         registerSystemReceiver();
         mHandler.removeCallbacks(mTicker);
         mTicker.run();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            enterFullscreen();
+        }
     }
 
     @Override
@@ -129,30 +139,36 @@ public class MainActivity extends Activity {
     private View createContentView() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(36), dp(24), dp(36), dp(26));
+        root.setPadding(ui(50), ui(34), ui(50), ui(26));
         root.setBackgroundColor(0xff303030);
 
         root.addView(createTopBar(), new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(44)));
+                ViewGroup.LayoutParams.MATCH_PARENT, ui(54)));
+
+        root.addView(new Space(this), new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ui(104)));
 
         LinearLayout cards = new LinearLayout(this);
         cards.setOrientation(LinearLayout.HORIZONTAL);
         cards.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-        cardParams.setMargins(0, dp(6), 0, dp(10));
+        cardParams.setMargins(0, 0, 0, 0);
         root.addView(cards, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+                ViewGroup.LayoutParams.MATCH_PARENT, ui(325)));
 
         cards.addView(createClockCard(), cardParams);
         LinearLayout.LayoutParams middleCardParams = new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-        middleCardParams.setMargins(dp(28), dp(6), dp(28), dp(10));
+        middleCardParams.setMargins(ui(40), 0, ui(40), 0);
         cards.addView(createWeatherCard(), middleCardParams);
         cards.addView(createVolumeCard(), cardParams);
 
+        root.addView(new Space(this), new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ui(38)));
+
         root.addView(createBottomBar(), new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(132)));
+                ViewGroup.LayoutParams.MATCH_PARENT, ui(190)));
         return root;
     }
 
@@ -171,12 +187,12 @@ public class MainActivity extends Activity {
         bar.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1f));
 
         TextView mode = pillText("当前模式： WiFi", 18, true);
-        bar.addView(mode, new LinearLayout.LayoutParams(dp(146), dp(42)));
+        bar.addView(mode, new LinearLayout.LayoutParams(ui(216), ui(54)));
         addGap(bar, 26, 1);
         TextView account = pillText("账号", 18, true);
         account.setCompoundDrawablesWithIntrinsicBounds(new CircleDrawable(0xffd9a35c), null, null, null);
         account.setCompoundDrawablePadding(dp(8));
-        bar.addView(account, new LinearLayout.LayoutParams(dp(96), dp(42)));
+        bar.addView(account, new LinearLayout.LayoutParams(ui(147), ui(54)));
         return bar;
     }
 
@@ -187,7 +203,7 @@ public class MainActivity extends Activity {
 
         ImageView icon = new ImageView(this);
         icon.setImageDrawable(new StatusIconDrawable(iconType));
-        box.addView(icon, new LinearLayout.LayoutParams(dp(36), dp(36)));
+        box.addView(icon, new LinearLayout.LayoutParams(ui(44), ui(44)));
         addGap(box, 8, 1);
         box.addView(label, wrapContent());
         return box;
@@ -196,7 +212,7 @@ public class MainActivity extends Activity {
     private View createClockCard() {
         LinearLayout card = cardContainer();
         ClockFaceView face = new ClockFaceView(this);
-        LinearLayout.LayoutParams faceParams = new LinearLayout.LayoutParams(dp(150), dp(150));
+        LinearLayout.LayoutParams faceParams = new LinearLayout.LayoutParams(ui(170), ui(170));
         faceParams.gravity = Gravity.CENTER_HORIZONTAL;
         card.addView(face, faceParams);
 
@@ -211,8 +227,8 @@ public class MainActivity extends Activity {
 
         mDateText = pillText("----.--.--   --", 18, false);
         LinearLayout.LayoutParams dateParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(46));
-        dateParams.setMargins(dp(26), dp(12), dp(26), 0);
+                ViewGroup.LayoutParams.MATCH_PARENT, ui(46));
+        dateParams.setMargins(ui(26), ui(12), ui(26), 0);
         card.addView(mDateText, dateParams);
         return card;
     }
@@ -220,7 +236,7 @@ public class MainActivity extends Activity {
     private View createWeatherCard() {
         LinearLayout card = cardContainer();
         WeatherView weather = new WeatherView(this);
-        LinearLayout.LayoutParams weatherParams = new LinearLayout.LayoutParams(dp(170), dp(122));
+        LinearLayout.LayoutParams weatherParams = new LinearLayout.LayoutParams(ui(170), ui(122));
         weatherParams.gravity = Gravity.CENTER_HORIZONTAL;
         card.addView(weather, weatherParams);
 
@@ -233,8 +249,8 @@ public class MainActivity extends Activity {
 
         TextView city = pillText("珠海      空气质量良好", 18, false);
         LinearLayout.LayoutParams cityParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(46));
-        cityParams.setMargins(dp(26), dp(12), dp(26), 0);
+                ViewGroup.LayoutParams.MATCH_PARENT, ui(46));
+        cityParams.setMargins(ui(26), ui(12), ui(26), 0);
         card.addView(city, cityParams);
         return card;
     }
@@ -242,7 +258,7 @@ public class MainActivity extends Activity {
     private View createVolumeCard() {
         LinearLayout card = cardContainer();
         mVolumeDialView = new VolumeDialView(this);
-        LinearLayout.LayoutParams dialParams = new LinearLayout.LayoutParams(dp(164), dp(164));
+        LinearLayout.LayoutParams dialParams = new LinearLayout.LayoutParams(ui(190), ui(190));
         dialParams.gravity = Gravity.CENTER_HORIZONTAL;
         card.addView(mVolumeDialView, dialParams);
 
@@ -262,19 +278,19 @@ public class MainActivity extends Activity {
             public void onClick(View v) {
                 adjustVolume(AudioManager.ADJUST_RAISE);
             }
-        }), new LinearLayout.LayoutParams(dp(42), dp(42)));
+        }), new LinearLayout.LayoutParams(ui(42), ui(42)));
         TextView label = pillText("音量调节", 18, false);
-        controls.addView(label, new LinearLayout.LayoutParams(dp(92), dp(42)));
+        controls.addView(label, new LinearLayout.LayoutParams(ui(92), ui(42)));
         controls.addView(squareButton("-", new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 adjustVolume(AudioManager.ADJUST_LOWER);
             }
-        }), new LinearLayout.LayoutParams(dp(42), dp(42)));
+        }), new LinearLayout.LayoutParams(ui(42), ui(42)));
 
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, dp(42));
-        params.setMargins(0, dp(12), 0, 0);
+                ViewGroup.LayoutParams.WRAP_CONTENT, ui(42));
+        params.setMargins(0, ui(12), 0, 0);
         card.addView(controls, params);
         return card;
     }
@@ -287,8 +303,8 @@ public class MainActivity extends Activity {
         LinearLayout player = new LinearLayout(this);
         player.setOrientation(LinearLayout.HORIZONTAL);
         player.setGravity(Gravity.CENTER_VERTICAL);
-        player.setPadding(dp(18), 0, dp(18), 0);
-        player.setBackground(new DashedBorderDrawable(0x55ffffff, 0x1f8f8f8f, dp(2), dp(8)));
+        player.setPadding(ui(28), 0, ui(28), 0);
+        player.setBackground(new RoundRectDrawable(0xff45474a, ui(20)));
         player.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -297,12 +313,12 @@ public class MainActivity extends Activity {
         });
 
         RecordView record = new RecordView(this);
-        player.addView(record, new LinearLayout.LayoutParams(dp(102), dp(102)));
+        player.addView(record, new LinearLayout.LayoutParams(ui(154), ui(154)));
         LinearLayout textBox = new LinearLayout(this);
         textBox.setOrientation(LinearLayout.VERTICAL);
         textBox.setGravity(Gravity.CENTER_VERTICAL);
-        mMusicTitleText = text("暂无播放", 24, 0xffffffff, true);
-        mMusicArtistText = text("QQ音乐 / 网易云 / 酷狗", 20, 0xffbdbdbd, false);
+        mMusicTitleText = text("暂无播放", 26, 0xffffffff, true);
+        mMusicArtistText = text("QQ音乐 / 网易云 / 酷狗", 22, 0xffbdbdbd, false);
         mMusicTitleText.setSingleLine(true);
         mMusicTitleText.setEllipsize(TextUtils.TruncateAt.END);
         mMusicArtistText.setSingleLine(true);
@@ -311,16 +327,16 @@ public class MainActivity extends Activity {
         textBox.addView(mMusicArtistText, matchWrap());
         LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-        textParams.setMargins(dp(18), 0, dp(12), 0);
+        textParams.setMargins(ui(26), 0, ui(18), 0);
         player.addView(textBox, textParams);
 
         ImageView play = new ImageView(this);
         play.setImageDrawable(new PlayDrawable());
-        player.addView(play, new LinearLayout.LayoutParams(dp(42), dp(42)));
+        player.addView(play, new LinearLayout.LayoutParams(ui(54), ui(54)));
 
         LinearLayout.LayoutParams playerParams = new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-        playerParams.setMargins(0, 0, dp(62), 0);
+        playerParams.setMargins(0, 0, ui(99), 0);
         bar.addView(player, playerParams);
 
         bar.addView(appButton("系统设置", "gear", new View.OnClickListener() {
@@ -328,21 +344,21 @@ public class MainActivity extends Activity {
             public void onClick(View v) {
                 startActivitySafe(new Intent(Settings.ACTION_SETTINGS), "无法打开系统设置");
             }
-        }), new LinearLayout.LayoutParams(dp(96), dp(122)));
-        addGap(bar, 38, 1);
+        }), new LinearLayout.LayoutParams(ui(112), ui(176)));
+        addGap(bar, 92, 1);
         bar.addView(appButton("屏保设置", "image", new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 startActivitySafe(new Intent(Settings.ACTION_DREAM_SETTINGS), "无法打开屏保设置");
             }
-        }), new LinearLayout.LayoutParams(dp(96), dp(122)));
-        addGap(bar, 38, 1);
+        }), new LinearLayout.LayoutParams(ui(112), ui(176)));
+        addGap(bar, 92, 1);
         bar.addView(appButton("切换", "switch", new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 showInstalledAppsDialog();
             }
-        }), new LinearLayout.LayoutParams(dp(96), dp(122)));
+        }), new LinearLayout.LayoutParams(ui(112), ui(176)));
         return bar;
     }
 
@@ -499,8 +515,8 @@ public class MainActivity extends Activity {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setGravity(Gravity.CENTER);
-        card.setPadding(dp(26), dp(14), dp(26), dp(18));
-        card.setBackground(new DashedBorderDrawable(0x66ffffff, 0x11353535, dp(2), dp(8)));
+        card.setPadding(ui(26), ui(14), ui(26), ui(18));
+        card.setBackground(new RoundRectDrawable(0xff3f3f3f, ui(18)));
         return card;
     }
 
@@ -508,24 +524,24 @@ public class MainActivity extends Activity {
         LinearLayout button = new LinearLayout(this);
         button.setOrientation(LinearLayout.VERTICAL);
         button.setGravity(Gravity.CENTER);
-        button.setBackground(new DashedBorderDrawable(0x66ffffff, 0x22454545, dp(2), dp(8)));
+        button.setBackground(new RoundRectDrawable(0x00303030, ui(16)));
         button.setOnClickListener(listener);
 
         ImageView image = new ImageView(this);
         image.setImageDrawable(new AppIconDrawable(icon));
-        button.addView(image, new LinearLayout.LayoutParams(dp(74), dp(74)));
+        button.addView(image, new LinearLayout.LayoutParams(ui(112), ui(112)));
 
         TextView text = text(label, 18, 0xffffffff, true);
         text.setGravity(Gravity.CENTER);
         button.addView(text, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
+                ViewGroup.LayoutParams.MATCH_PARENT, ui(46)));
         return button;
     }
 
     private TextView squareButton(String label, View.OnClickListener listener) {
         TextView button = text(label, 28, 0xffffffff, false);
         button.setGravity(Gravity.CENTER);
-        button.setBackground(new DashedBorderDrawable(0x66ffffff, 0x22454545, dp(2), dp(4)));
+        button.setBackground(new RoundRectDrawable(0xff454545, ui(14)));
         button.setOnClickListener(listener);
         return button;
     }
@@ -551,12 +567,12 @@ public class MainActivity extends Activity {
     private TextView pillText(String value, int sp, boolean bold) {
         TextView text = text(value, sp, 0xffffffff, bold);
         text.setGravity(Gravity.CENTER);
-        text.setBackground(new RoundRectDrawable(0x66454545, dp(24)));
+        text.setBackground(new RoundRectDrawable(0x66454545, ui(24)));
         return text;
     }
 
     private void addGap(LinearLayout parent, int dp, int height) {
-        parent.addView(new Space(this), new LinearLayout.LayoutParams(dp(dp), dp(height)));
+        parent.addView(new Space(this), new LinearLayout.LayoutParams(ui(dp), ui(height)));
     }
 
     private LinearLayout.LayoutParams wrapContent() {
@@ -704,6 +720,23 @@ public class MainActivity extends Activity {
 
     private void toast(String message) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+
+    private void enterFullscreen() {
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+    }
+
+    private int ui(int value) {
+        android.util.DisplayMetrics metrics = new android.util.DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getRealMetrics(metrics);
+        float scale = Math.min(metrics.widthPixels / 1280f, metrics.heightPixels / 800f);
+        return Math.round(value * scale);
     }
 
     private int dp(int value) {
