@@ -1,21 +1,26 @@
-package com.hivi.launcher;
+package com.hivi.launcher.customview;
 
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
 import android.graphics.Paint;
+import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 
-public class CircleDrawable extends Drawable {
+public class RoundRectDrawable extends Drawable {
     private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF mRect = new RectF();
+    private final float mRadius;
 
-    public CircleDrawable(int color) {
+    public RoundRectDrawable(int color, float radius) {
         mPaint.setColor(color);
+        mPaint.setStyle(Paint.Style.FILL);
+        mRadius = radius;
     }
 
     @Override
     public void draw(Canvas canvas) {
-        float radius = Math.min(getBounds().width(), getBounds().height()) / 2f;
-        canvas.drawCircle(getBounds().centerX(), getBounds().centerY(), radius, mPaint);
+        mRect.set(getBounds());
+        canvas.drawRoundRect(mRect, mRadius, mRadius, mPaint);
     }
 
     @Override
@@ -32,14 +37,5 @@ public class CircleDrawable extends Drawable {
     public int getOpacity() {
         return android.graphics.PixelFormat.TRANSLUCENT;
     }
-
-    @Override
-    public int getIntrinsicWidth() {
-        return 28;
-    }
-
-    @Override
-    public int getIntrinsicHeight() {
-        return 28;
-    }
 }
+

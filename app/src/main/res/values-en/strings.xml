@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Hivi Launcher</string>
+
+    <!-- Main screen -->
+    <string name="main_wifi_default">WiFi</string>
+    <string name="main_bluetooth_default">Bluetooth</string>
+    <string name="main_current_mode_wifi">Current Mode: WiFi</string>
+    <string name="main_account">Account</string>
+    <string name="main_time_period_morning">AM</string>
+    <string name="main_time_placeholder">--:--</string>
+    <string name="main_date_placeholder">----.--.--   --</string>
+    <string name="main_weather_desc">Sunny to Cloudy</string>
+    <string name="main_weather_temp">25°C</string>
+    <string name="main_city_air_quality">Zhuhai      Air Quality Good</string>
+    <string name="main_volume">Volume</string>
+    <string name="main_volume_placeholder">--</string>
+    <string name="main_volume_up">+</string>
+    <string name="main_volume_adjust">Adjust</string>
+    <string name="main_volume_down">-</string>
+    <string name="main_music_empty_title">No Playing</string>
+    <string name="main_music_empty_artist">QQ Music / NetEase / Kugou</string>
+    <string name="main_settings">Settings</string>
+    <string name="main_screensaver_settings">Screensaver</string>
+    <string name="main_switch">Switch</string>
+    <string name="main_connected">Connected</string>
+    <string name="main_disconnected">Disconnected</string>
+    <string name="main_music_apps_not_installed">QQ Music, NetEase Cloud Music or Kugou Music is not installed</string>
+
+    <!-- System apps screen -->
+    <string name="system_apps_title">All Apps</string>
+    <string name="system_apps_close">Close</string>
+    <string name="system_apps_empty">No launchable apps found</string>
+    <string name="system_apps_launch_failed">Unable to open %1$s</string>
+    <plurals name="system_apps_count">
+        <item quantity="one">%1$d app</item>
+        <item quantity="other">%1$d apps</item>
+    </plurals>
+</resources>

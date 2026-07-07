@@ -1,4 +1,4 @@
-package com.hivi.launcher;
+package com.hivi.launcher.customview;
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -50,3 +50,4 @@ public class WeatherView extends View {
         return value * getResources().getDisplayMetrics().density;
     }
 }
+

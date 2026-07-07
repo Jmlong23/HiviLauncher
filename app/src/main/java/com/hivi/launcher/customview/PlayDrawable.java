@@ -1,4 +1,4 @@
-package com.hivi.launcher;
+package com.hivi.launcher.customview;
 
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
@@ -41,3 +41,4 @@ public class PlayDrawable extends Drawable {
         return android.graphics.PixelFormat.TRANSLUCENT;
     }
 }
+

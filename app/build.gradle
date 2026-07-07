@@ -14,6 +14,10 @@ android {
         versionName '1.0.0'
     }
 
+    buildFeatures {
+        viewBinding true
+    }
+
     buildTypes {
         debug {
             debuggable true
@@ -38,3 +42,4 @@ android {
         disable 'MissingTranslation'
     }
 }
+

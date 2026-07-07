@@ -1,4 +1,4 @@
-package com.hivi.launcher;
+package com.hivi.launcher.customview;
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -96,3 +96,4 @@ public class ClockFaceView extends View {
         return value * getResources().getDisplayMetrics().scaledDensity;
     }
 }
+
