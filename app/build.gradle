@@ -41,5 +41,13 @@ android {
         abortOnError false
         disable 'MissingTranslation'
     }
+
+    packagingOptions {
+        exclude 'META-INF/beans.xml'
+    }
+}
+
+dependencies {
+    implementation project(':AudioToolLib')
 }
 

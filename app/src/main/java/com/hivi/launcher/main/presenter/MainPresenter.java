@@ -19,6 +19,8 @@ import com.hivi.launcher.base.BasePresenter;
 import com.hivi.launcher.main.model.MainStatus;
 import com.hivi.launcher.main.model.MusicInfo;
 import com.hivi.launcher.main.ui.MainView;
+import com.hivi.launcher.music.model.UpnpPlaybackManager;
+import com.hivi.launcher.music.model.UpnpPlaybackState;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -59,6 +61,7 @@ public class MainPresenter extends BasePresenter<MainView> {
     }
 
     public void init() {
+        UpnpPlaybackManager.getInstance().start(mContext);
         updateClock();
         updateConnectivity();
         updateVolume();
@@ -143,6 +146,13 @@ public class MainPresenter extends BasePresenter<MainView> {
         }
     }
 
+    public void openMusicPlayer() {
+        MainView view = getView();
+        if (view != null) {
+            view.openMusicPlayer();
+        }
+    }
+
     public void openSystemApps() {
         MainView view = getView();
         if (view != null) {
@@ -190,6 +200,10 @@ public class MainPresenter extends BasePresenter<MainView> {
     }
 
     private MusicInfo getMusicInfo() {
+        UpnpPlaybackState upnpState = UpnpPlaybackManager.getInstance().getCurrentState();
+        if (upnpState != null && upnpState.hasRealSong()) {
+            return new MusicInfo(upnpState.getTitle(), upnpState.getArtist());
+        }
         if (mMediaSessionManager == null) {
             return null;
         }

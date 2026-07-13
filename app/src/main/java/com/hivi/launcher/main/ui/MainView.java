@@ -11,5 +11,7 @@ public interface MainView extends BaseView {
 
     void updateMusic(CharSequence title, CharSequence artist);
 
+    void openMusicPlayer();
+
     void openSystemApps();
 }

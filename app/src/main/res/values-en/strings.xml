@@ -2,23 +2,22 @@
 <resources>
     <string name="app_name">Hivi Launcher</string>
 
-    <!-- Main screen -->
     <string name="main_wifi_default">WiFi</string>
     <string name="main_bluetooth_default">Bluetooth</string>
-    <string name="main_current_mode_wifi">Current Mode: WiFi</string>
+    <string name="main_current_mode_wifi">Mode: WiFi</string>
     <string name="main_account">Account</string>
-    <string name="main_time_period_morning">AM</string>
+    <string name="main_time_period_morning">Morning</string>
     <string name="main_time_placeholder">--:--</string>
     <string name="main_date_placeholder">----.--.--   --</string>
-    <string name="main_weather_desc">Sunny to Cloudy</string>
+    <string name="main_weather_desc">Sunny to cloudy</string>
     <string name="main_weather_temp">25°C</string>
-    <string name="main_city_air_quality">Zhuhai      Air Quality Good</string>
+    <string name="main_city_air_quality">Zhuhai      Good air quality</string>
     <string name="main_volume">Volume</string>
     <string name="main_volume_placeholder">--</string>
     <string name="main_volume_up">+</string>
     <string name="main_volume_adjust">Adjust</string>
     <string name="main_volume_down">-</string>
-    <string name="main_music_empty_title">No Playing</string>
+    <string name="main_music_empty_title">No music</string>
     <string name="main_music_empty_artist">QQ Music / NetEase / Kugou</string>
     <string name="main_settings">Settings</string>
     <string name="main_screensaver_settings">Screensaver</string>
@@ -27,8 +26,18 @@
     <string name="main_disconnected">Disconnected</string>
     <string name="main_music_apps_not_installed">QQ Music, NetEase Cloud Music or Kugou Music is not installed</string>
 
-    <!-- System apps screen -->
-    <string name="system_apps_title">All Apps</string>
+    <string name="music_back">Back</string>
+    <string name="music_playlist">Playlist</string>
+    <string name="music_disc_mode">Disc mode</string>
+    <string name="music_previous">Previous</string>
+    <string name="music_next">Next</string>
+    <string name="music_volume">Volume</string>
+    <string name="music_play_pause">Play/Pause</string>
+    <string name="music_default_title">Sleep Music</string>
+    <string name="music_default_artist">WiiM</string>
+    <string name="music_default_lyric">Can you give me that Can</string>
+
+    <string name="system_apps_title">All apps</string>
     <string name="system_apps_close">Close</string>
     <string name="system_apps_empty">No launchable apps found</string>
     <string name="system_apps_launch_failed">Unable to open %1$s</string>

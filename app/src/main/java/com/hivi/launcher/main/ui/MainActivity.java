@@ -23,6 +23,7 @@ import com.hivi.launcher.customview.RoundRectDrawable;
 import com.hivi.launcher.customview.StatusIconDrawable;
 import com.hivi.launcher.databinding.ActivityMainBinding;
 import com.hivi.launcher.main.presenter.MainPresenter;
+import com.hivi.launcher.music.ui.MusicActivity;
 import com.hivi.launcher.systemapps.ui.SystemAppsActivity;
 import com.hivi.launcher.utils.UiUtils;
 
@@ -111,6 +112,11 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         binding.musicTitleText.setText(title);
         binding.musicArtistText.setText(artist);
+    }
+
+    @Override
+    public void openMusicPlayer() {
+        startActivity(new Intent(this, MusicActivity.class));
     }
 
     @Override
@@ -246,7 +252,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.playerContainer.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                presenter.launchFirstAvailableMusicApp();
+                presenter.openMusicPlayer();
             }
         });
         binding.settingsButton.setOnClickListener(new View.OnClickListener() {
