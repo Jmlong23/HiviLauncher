@@ -85,12 +85,13 @@ public final class PlayQueueController implements IRendererInterface.IPlayQueueC
 
 
     @Override
-    public void createQueue(String queueContext) {
+    public synchronized void createQueue(String queueContext) {
         Log.i(TAG, "createQueue queueContextLen=" + (queueContext == null ? 0 : queueContext.length()));
         logLongString("APP_PUSH_FORMAT createQueue queueContext", queueContext);
         QueueParseResult parseResult = parseQueueContext(queueContext);
         String listName = parseResult.listName;
         playMusicList.clearPQMusicList();
+        playMusicList.setCurPlayIndex(0);
         playMusicList.setCurPlayListName(listName);
         int trackNum = parseResult.tracks.size();
         Log.i(TAG, "list len: " + trackNum);
@@ -98,7 +99,7 @@ public final class PlayQueueController implements IRendererInterface.IPlayQueueC
     }
 
     @Override
-    public void AppendTracksInQueue(String queueContext) {
+    public synchronized void AppendTracksInQueue(String queueContext) {
         this.queueContext = queueContext;
         Log.i(TAG, "AppendTracksInQueue queueContextLen=" + (this.queueContext == null ? 0 : this.queueContext.length()));
         logLongString("APP_PUSH_FORMAT AppendTracksInQueue queueContext", this.queueContext);
@@ -111,10 +112,16 @@ public final class PlayQueueController implements IRendererInterface.IPlayQueueC
     }
 
     @Override
-    public void PlayQueueWithIndex(String queueName, int i) {
+    public synchronized void PlayQueueWithIndex(String queueName, int i) {
         Log.e(TAG, "PlayQueueWithIndex queueName: " + queueName + " index: " + i);
 
-        playMusicList.setCurPlayIndex(i);
+        int trackCount = playMusicList.getPQMusicList().size();
+        if (trackCount == 0) {
+            Log.w(TAG, "ignore PlayQueueWithIndex for an empty queue");
+            return;
+        }
+        int index = Math.max(0, Math.min(i - 1, trackCount - 1));
+        playMusicList.setCurPlayIndex(index);
         if (playMusicByIndexListener != null) {
             playMusicByIndexListener.onPlay(playMusicList);
         }
@@ -142,8 +149,13 @@ public final class PlayQueueController implements IRendererInterface.IPlayQueueC
     }
 
     @Override
-    public void removeTracksInQueue(String queueName, int start, int end) {
+    public synchronized void removeTracksInQueue(String queueName, int start, int end) {
         int index = start - 1;
+        int trackCount = playMusicList.getPQMusicList().size();
+        if (index < 0 || index >= trackCount) {
+            Log.w(TAG, "ignore RemoveTracksInQueue with invalid start: " + start);
+            return;
+        }
         playMusicList.removeListByIndex(index);
         if(playMusicList.getCurPlayIndex() == index && playMusicByIndexListener != null) {
             playMusicByIndexListener.onPlay(playMusicList);
@@ -154,6 +166,23 @@ public final class PlayQueueController implements IRendererInterface.IPlayQueueC
 
     public void setOnPlayMusicByIndexListener(OnPlayMusicByIndexListener listener) {
         playMusicByIndexListener = listener;
+    }
+
+    public synchronized TrackINFO_Type getCurrentTrack() {
+        List<TrackINFO_Type> tracks = playMusicList.getPQMusicList();
+        if (tracks.isEmpty()) {
+            return null;
+        }
+        int index = Math.max(0, Math.min(playMusicList.getCurPlayIndex(), tracks.size() - 1));
+        if (index != playMusicList.getCurPlayIndex()) {
+            playMusicList.setCurPlayIndex(index);
+        }
+        return tracks.get(index);
+    }
+
+    public synchronized int getCurrentTrackIndex() {
+        TrackINFO_Type track = getCurrentTrack();
+        return track == null ? -1 : playMusicList.getCurPlayIndex();
     }
 
 

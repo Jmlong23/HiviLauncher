@@ -91,12 +91,11 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
             // 视频详情仍然通过 getMediaVideoInfo()/getPositionVideoInfo() 提供。
             return new MediaInfo("", "", new UnsignedIntegerFourBytes(0), "00:00:00", StorageMedium.NONE);
         }
-        if(PlayQueueController.getInstance().getPlayMusicList().getPQMusicList().isEmpty()){
+        TrackINFO_Type info_type = PlayQueueController.getInstance().getCurrentTrack();
+        if (info_type == null) {
             mMediaInfo = new MediaInfo("", "", new UnsignedIntegerFourBytes(1), "", StorageMedium.NETWORK);
             return mMediaInfo;
         }
-        int index = PlayQueueController.getInstance().getPlayMusicList().getCurPlayIndex();
-        TrackINFO_Type info_type = PlayQueueController.getInstance().getPlayMusicList().getPQMusicList().get(index);
 
         mMediaInfo = new MediaInfo(info_type.getURL(), info_type.getMetaData(), new UnsignedIntegerFourBytes(1), "", StorageMedium.NETWORK);
         return mMediaInfo;
@@ -110,11 +109,12 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
             // 避免手机端音乐播放器继续显示 MV 标题、进度等信息。
             return new PositionInfo(0, "", "");
         }
-        if(PlayQueueController.getInstance().getPlayMusicList().getPQMusicList().isEmpty()){
+        PlayQueueController playQueueController = PlayQueueController.getInstance();
+        TrackINFO_Type info_type = playQueueController.getCurrentTrack();
+        if (info_type == null) {
             return mOriginPositionInfo;
         }
-        int index = PlayQueueController.getInstance().getPlayMusicList().getCurPlayIndex();
-        TrackINFO_Type info_type = PlayQueueController.getInstance().getPlayMusicList().getPQMusicList().get(index);
+        int index = playQueueController.getCurrentTrackIndex();
 
         if (mMediaControl != null) {
             try {
