@@ -4,14 +4,19 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#303030"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:paddingLeft="33dp"
+    android:paddingRight="33dp"
+    android:paddingTop="23dp"
+    android:paddingBottom="35dp">
 
     <LinearLayout
         android:id="@+id/top_bar"
         android:layout_width="match_parent"
-        android:layout_height="54dp"
+        android:layout_height="35dp"
         android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:layout_marginBottom="13dp">
 
         <LinearLayout
             android:id="@+id/wifi_status_pill"
@@ -22,8 +27,9 @@
 
             <ImageView
                 android:id="@+id/wifi_icon"
-                android:layout_width="44dp"
-                android:layout_height="44dp" />
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:src="@drawable/ic_wifi" />
 
             <Space
                 android:id="@+id/wifi_icon_text_gap"
@@ -37,8 +43,8 @@
                 android:gravity="center_vertical"
                 android:includeFontPadding="false"
                 android:text="@string/main_wifi_default"
-                android:textColor="#FFFFFFFF"
-                android:textSize="16sp"
+                android:textColor="@color/white"
+                android:textSize="13sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -56,8 +62,9 @@
 
             <ImageView
                 android:id="@+id/bluetooth_icon"
-                android:layout_width="44dp"
-                android:layout_height="44dp" />
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:src="@drawable/ic_bt" />
 
             <Space
                 android:id="@+id/bluetooth_icon_text_gap"
@@ -71,8 +78,8 @@
                 android:gravity="center_vertical"
                 android:includeFontPadding="false"
                 android:text="@string/main_bluetooth_default"
-                android:textColor="#FFFFFFFF"
-                android:textSize="16sp"
+                android:textColor="@color/white"
+                android:textSize="13sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -84,41 +91,39 @@
 
         <TextView
             android:id="@+id/mode_text"
-            android:layout_width="216dp"
-            android:layout_height="54dp"
+            android:layout_width="wrap_content"
+            android:layout_height="35dp"
+            android:background="@drawable/main_status_pill_background"
             android:gravity="center"
-            android:includeFontPadding="false"
             android:text="@string/main_current_mode_wifi"
-            android:textColor="#FFFFFFFF"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <Space
-            android:id="@+id/top_action_gap"
-            android:layout_width="26dp"
-            android:layout_height="1dp" />
+            android:textColor="@color/white"
+            android:textSize="15sp"
+            android:paddingRight="20dp"
+            android:paddingLeft="20dp"/>
 
         <TextView
             android:id="@+id/account_text"
-            android:layout_width="147dp"
-            android:layout_height="54dp"
+            android:layout_width="wrap_content"
+            android:layout_height="35dp"
+            android:background="@drawable/main_status_pill_background"
+            android:drawableLeft="@drawable/main_account_indicator"
+            android:drawablePadding="8dp"
             android:gravity="center"
             android:includeFontPadding="false"
             android:text="@string/main_account"
-            android:textColor="#FFFFFFFF"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:textColor="@color/white"
+            android:textSize="15sp"
+            android:paddingRight="20dp"
+            android:paddingLeft="20dp"
+            android:layout_marginLeft="25dp"/>
     </LinearLayout>
 
-    <Space
-        android:id="@+id/top_to_cards_gap"
-        android:layout_width="match_parent"
-        android:layout_height="104dp" />
+
 
     <LinearLayout
         android:id="@+id/cards_row"
         android:layout_width="match_parent"
-        android:layout_height="325dp"
+        android:layout_height="273dp"
         android:gravity="center"
         android:orientation="horizontal">
 
@@ -127,8 +132,10 @@
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
+            android:background="@drawable/main_card_bg"
             android:gravity="center"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            >
 
             <com.hivi.launcher.customview.ClockFaceView
                 android:id="@+id/clock_face"
@@ -147,39 +154,32 @@
                     android:id="@+id/time_period_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:includeFontPadding="false"
                     android:text="@string/main_time_period_morning"
-                    android:textColor="#FFE9E9E9"
-                    android:textSize="18sp" />
-
-                <Space
-                    android:id="@+id/time_gap"
-                    android:layout_width="16dp"
-                    android:layout_height="1dp" />
+                    android:textColor="@color/white"
+                    android:textSize="15sp"
+                    android:layout_marginRight="17dp"/>
 
                 <TextView
                     android:id="@+id/time_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:includeFontPadding="false"
                     android:text="@string/main_time_placeholder"
-                    android:textColor="#FFFFFFFF"
-                    android:textSize="30sp"
-                    android:textStyle="bold" />
+                    android:textColor="@color/white"
+                    android:textSize="27sp"/>
             </LinearLayout>
 
             <TextView
                 android:id="@+id/date_text"
                 android:layout_width="match_parent"
-                android:layout_height="46dp"
-                android:layout_marginLeft="26dp"
-                android:layout_marginTop="12dp"
-                android:layout_marginRight="26dp"
+                android:layout_height="44dp"
+                android:background="@drawable/main_card_pill_bg"
+                android:layout_marginLeft="27dp"
+                android:layout_marginTop="9dp"
+                android:layout_marginRight="27dp"
                 android:gravity="center"
-                android:includeFontPadding="false"
                 android:text="@string/main_date_placeholder"
-                android:textColor="#FFFFFFFF"
-                android:textSize="18sp" />
+                android:textColor="@color/text_color2"
+                android:textSize="16sp" />
         </LinearLayout>
 
         <LinearLayout
@@ -189,59 +189,55 @@
             android:layout_marginLeft="40dp"
             android:layout_marginRight="40dp"
             android:layout_weight="1"
+            android:background="@drawable/main_card_bg"
             android:gravity="center"
             android:orientation="vertical">
 
             <com.hivi.launcher.customview.WeatherView
                 android:id="@+id/weather_icon"
-                android:layout_width="170dp"
-                android:layout_height="122dp"
-                android:layout_gravity="center_horizontal" />
+                android:layout_width="129dp"
+                android:layout_height="99dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="35dp"/>
 
             <LinearLayout
                 android:id="@+id/weather_row"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:layout_marginTop="30dp">
 
                 <TextView
                     android:id="@+id/weather_desc_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:includeFontPadding="false"
                     android:text="@string/main_weather_desc"
-                    android:textColor="#FFEDEDED"
-                    android:textSize="18sp" />
-
-                <Space
-                    android:id="@+id/weather_gap"
-                    android:layout_width="24dp"
-                    android:layout_height="1dp" />
+                    android:textColor="@color/white"
+                    android:textSize="15sp"
+                    android:layout_marginRight="17dp"/>
 
                 <TextView
                     android:id="@+id/weather_temp_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:includeFontPadding="false"
                     android:text="@string/main_weather_temp"
-                    android:textColor="#FFFFFFFF"
-                    android:textSize="31sp"
-                    android:textStyle="bold" />
+                    android:textColor="@color/white"
+                    android:textSize="27sp" />
             </LinearLayout>
 
             <TextView
                 android:id="@+id/city_text"
                 android:layout_width="match_parent"
-                android:layout_height="46dp"
-                android:layout_marginLeft="26dp"
-                android:layout_marginTop="12dp"
-                android:layout_marginRight="26dp"
+                android:layout_height="44dp"
+                android:background="@drawable/main_card_pill_bg"
+                android:layout_marginLeft="27dp"
+                android:layout_marginTop="9dp"
+                android:layout_marginRight="27dp"
                 android:gravity="center"
-                android:includeFontPadding="false"
                 android:text="@string/main_city_air_quality"
-                android:textColor="#FFFFFFFF"
-                android:textSize="18sp" />
+                android:textColor="@color/text_color2"
+                android:textSize="16sp" />
         </LinearLayout>
 
         <LinearLayout
@@ -249,13 +245,14 @@
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
+            android:background="@drawable/main_card_bg"
             android:gravity="center"
             android:orientation="vertical">
 
             <com.hivi.launcher.customview.VolumeDialView
                 android:id="@+id/volume_dial_view"
-                android:layout_width="190dp"
-                android:layout_height="190dp"
+                android:layout_width="165dp"
+                android:layout_height="165dp"
                 android:layout_gravity="center_horizontal" />
 
             <LinearLayout
@@ -269,116 +266,104 @@
                     android:id="@+id/volume_label_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:includeFontPadding="false"
                     android:text="@string/main_volume"
-                    android:textColor="#FFEDEDED"
-                    android:textSize="18sp" />
+                    android:textColor="@color/white"
+                    android:textSize="15sp"
+                    android:layout_marginRight="46dp"/>
 
-                <Space
-                    android:id="@+id/volume_gap"
-                    android:layout_width="28dp"
-                    android:layout_height="1dp" />
 
                 <TextView
                     android:id="@+id/volume_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:includeFontPadding="false"
                     android:text="@string/main_volume_placeholder"
-                    android:textColor="#FFFFFFFF"
-                    android:textSize="31sp"
-                    android:textStyle="bold" />
+                    android:textColor="@color/white"
+                    android:textSize="27sp" />
             </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/volume_controls"
-                android:layout_width="wrap_content"
-                android:layout_height="42dp"
-                android:layout_marginTop="12dp"
-                android:gravity="center"
-                android:orientation="horizontal">
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:background="@drawable/main_card_pill_bg"
+                android:layout_marginLeft="27dp"
+                android:layout_marginTop="9dp"
+                android:layout_marginRight="27dp">
 
-                <TextView
+                <ImageView
                     android:id="@+id/volume_up_button"
-                    android:layout_width="42dp"
-                    android:layout_height="42dp"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:text="@string/main_volume_up"
-                    android:textColor="#FFFFFFFF"
-                    android:textSize="28sp" />
+                    android:layout_width="50dp"
+                    android:layout_height="41dp"
+                    android:src="@drawable/ic_volume_up"
+                    android:paddingTop="3dp"
+                    android:paddingLeft="3dp"/>
 
                 <TextView
                     android:id="@+id/volume_adjust_label"
-                    android:layout_width="92dp"
-                    android:layout_height="42dp"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:text="@string/main_volume_adjust"
-                    android:textColor="#FFFFFFFF"
-                    android:textSize="18sp" />
+                    android:textColor="@color/text_color2"
+                    android:textSize="16sp"
+                    android:layout_marginLeft="7dp"
+                    android:layout_marginRight="7dp"/>
 
-                <TextView
+                <ImageView
                     android:id="@+id/volume_down_button"
-                    android:layout_width="42dp"
-                    android:layout_height="42dp"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:text="@string/main_volume_down"
-                    android:textColor="#FFFFFFFF"
-                    android:textSize="28sp" />
+                    android:layout_width="50dp"
+                    android:layout_height="41dp"
+                    android:src="@drawable/ic_volume_down"
+                    android:paddingTop="3dp"/>
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 
-    <Space
-        android:id="@+id/cards_bottom_gap"
-        android:layout_width="match_parent"
-        android:layout_height="38dp" />
-
-    <LinearLayout
+    <RelativeLayout
         android:id="@+id/bottom_bar"
         android:layout_width="match_parent"
-        android:layout_height="190dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:layout_height="140dp"
+        android:orientation="horizontal"
+        android:layout_marginTop="11dp">
 
-        <LinearLayout
+        <RelativeLayout
             android:id="@+id/player_container"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_width="374dp"
+            android:layout_height="127dp"
             android:layout_marginRight="99dp"
-            android:layout_weight="1"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingLeft="28dp"
-            android:paddingRight="28dp">
+            android:background="@drawable/main_player_background"
+            android:paddingLeft="18dp"
+            android:paddingRight="28dp"
+            android:layout_alignParentBottom="true"
+            >
 
-            <com.hivi.launcher.customview.RecordView
-                android:id="@+id/record_view"
-                android:layout_width="154dp"
-                android:layout_height="154dp" />
+            <ImageView
+                android:id="@+id/play_icon"
+                android:layout_width="21dp"
+                android:layout_height="25dp"
+                android:src="@drawable/ic_play"
+                android:layout_alignParentRight="true"
+                android:layout_centerVertical="true"/>
 
             <LinearLayout
                 android:id="@+id/music_text_box"
-                android:layout_width="0dp"
+                android:layout_width="149dp"
                 android:layout_height="match_parent"
-                android:layout_marginLeft="26dp"
-                android:layout_marginRight="18dp"
-                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_toLeftOf="@+id/play_icon"
                 android:gravity="center_vertical"
-                android:orientation="vertical">
+                android:layout_marginRight="36dp">
 
                 <TextView
                     android:id="@+id/music_title_text"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
-                    android:includeFontPadding="false"
                     android:singleLine="true"
                     android:text="@string/main_music_empty_title"
-                    android:textColor="#FFFFFFFF"
-                    android:textSize="26sp"
+                    android:textColor="@color/white"
+                    android:textSize="21sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -386,100 +371,101 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
-                    android:includeFontPadding="false"
                     android:singleLine="true"
                     android:text="@string/main_music_empty_artist"
-                    android:textColor="#FFBDBDBD"
-                    android:textSize="22sp" />
+                    android:textColor="#919191"
+                    android:textSize="19sp" />
             </LinearLayout>
 
-            <ImageView
-                android:id="@+id/play_icon"
-                android:layout_width="54dp"
-                android:layout_height="54dp" />
-        </LinearLayout>
 
-        <LinearLayout
-            android:id="@+id/settings_button"
-            android:layout_width="112dp"
-            android:layout_height="176dp"
-            android:gravity="center"
-            android:orientation="vertical">
+        </RelativeLayout>
 
-            <ImageView
-                android:id="@+id/settings_icon"
-                android:layout_width="112dp"
-                android:layout_height="112dp" />
+        <ImageView
+            android:id="@+id/record_view"
+            android:layout_width="103dp"
+            android:layout_height="129dp"
+            android:src="@drawable/ic_record"
+            android:layout_marginLeft="18dp"/>
 
-            <TextView
-                android:id="@+id/settings_text"
-                android:layout_width="match_parent"
-                android:layout_height="46dp"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:text="@string/main_settings"
-                android:textColor="#FFFFFFFF"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <Space
-            android:id="@+id/settings_screensaver_gap"
-            android:layout_width="92dp"
-            android:layout_height="1dp" />
-
-        <LinearLayout
-            android:id="@+id/screensaver_button"
-            android:layout_width="112dp"
-            android:layout_height="176dp"
-            android:gravity="center"
-            android:orientation="vertical">
-
-            <ImageView
-                android:id="@+id/screensaver_icon"
-                android:layout_width="112dp"
-                android:layout_height="112dp" />
-
-            <TextView
-                android:id="@+id/screensaver_text"
-                android:layout_width="match_parent"
-                android:layout_height="46dp"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:text="@string/main_screensaver_settings"
-                android:textColor="#FFFFFFFF"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <Space
-            android:id="@+id/screensaver_switch_gap"
-            android:layout_width="92dp"
-            android:layout_height="1dp" />
-
-        <LinearLayout
+        <RelativeLayout
             android:id="@+id/switch_button"
-            android:layout_width="112dp"
-            android:layout_height="176dp"
-            android:gravity="center"
-            android:orientation="vertical">
+            android:layout_width="75dp"
+            android:layout_height="119dp"
+            android:layout_alignParentRight="true"
+            android:layout_marginTop="24dp">
 
             <ImageView
                 android:id="@+id/switch_icon"
-                android:layout_width="112dp"
-                android:layout_height="112dp" />
+                android:layout_width="75dp"
+                android:layout_height="119dp"
+                android:src="@drawable/ic_switch" />
 
             <TextView
                 android:id="@+id/switch_text"
-                android:layout_width="match_parent"
-                android:layout_height="46dp"
-                android:gravity="center"
-                android:includeFontPadding="false"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="@string/main_switch"
-                android:textColor="#FFFFFFFF"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-    </LinearLayout>
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:layout_alignParentBottom="true"
+                android:layout_centerHorizontal="true"
+                android:layout_marginBottom="9dp"/>
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:id="@+id/screensaver_button"
+            android:layout_width="75dp"
+            android:layout_height="119dp"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:layout_toLeftOf="@+id/switch_button"
+            android:layout_marginTop="24dp"
+            android:layout_marginRight="61dp">
+
+            <ImageView
+                android:id="@+id/screensaver_icon"
+                android:layout_width="75dp"
+                android:layout_height="119dp"
+                android:src="@drawable/ic_screensaver" />
+
+            <TextView
+                android:id="@+id/screensaver_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/main_screensaver_settings"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:layout_alignParentBottom="true"
+                android:layout_centerHorizontal="true"
+                android:layout_marginBottom="9dp"/>
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:id="@+id/settings_button"
+            android:layout_width="75dp"
+            android:layout_height="119dp"
+            android:layout_toLeftOf="@+id/screensaver_button"
+            android:layout_marginTop="24dp"
+            android:layout_marginRight="61dp">
+
+            <ImageView
+                android:id="@+id/settings_icon"
+                android:layout_width="75dp"
+                android:layout_height="119dp"
+                android:src="@drawable/ic_settings" />
+
+            <TextView
+                android:id="@+id/settings_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/main_settings"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:layout_alignParentBottom="true"
+                android:layout_centerHorizontal="true"
+                android:layout_marginBottom="9dp"/>
+        </RelativeLayout>
+
+    </RelativeLayout>
 </LinearLayout>
 
