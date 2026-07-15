@@ -11,6 +11,8 @@ import android.provider.Settings;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.util.DisplayMetrics;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 
@@ -237,6 +239,12 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     private void bindMainClickListeners() {
+        binding.accountText.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                presenter.showAuthorizationDialog();
+            }
+        });
         binding.volumeUpButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {

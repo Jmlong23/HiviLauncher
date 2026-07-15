@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/authorization_dialog_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/dialog_background"
+    android:orientation="vertical"
+    android:gravity="center">
+
+    <ImageView
+        android:id="@+id/authorization_qr_code"
+        android:layout_width="133dp"
+        android:layout_height="133dp"
+        android:contentDescription="@null"
+        android:scaleType="centerInside" />
+
+    <TextView
+        android:id="@+id/authorization_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="36dp"
+        android:text="@string/auth"
+        android:textColor="@color/text_color"
+        android:textSize="33sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/authorization_hint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="7dp"
+        android:gravity="center"
+        android:textColor="@color/text_color"
+        android:textSize="21sp" />
+
+    <TextView
+        android:id="@+id/authorization_cancel_button"
+        android:layout_width="163dp"
+        android:layout_height="59dp"
+        android:layout_marginTop="24dp"
+        android:background="@drawable/authorization_cancel_button"
+        android:clickable="true"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:gravity="center"
+        android:text="@string/auth_cancel"
+        android:textColor="#363636"
+        android:textSize="21sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+</LinearLayout>

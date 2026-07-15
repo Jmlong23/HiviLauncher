@@ -1,5 +1,6 @@
 package com.hivi.launcher.main.presenter;
 
+import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
@@ -15,6 +16,7 @@ import android.net.wifi.WifiManager;
 import android.text.TextUtils;
 
 import com.hivi.launcher.R;
+import com.hivi.launcher.account.ui.AuthorizationDialog;
 import com.hivi.launcher.base.BasePresenter;
 import com.hivi.launcher.main.model.MainStatus;
 import com.hivi.launcher.main.model.MusicInfo;
@@ -37,10 +39,12 @@ public class MainPresenter extends BasePresenter<MainView> {
     };
 
     private final Context mContext;
+    private final Activity mActivity;
     private final AudioManager mAudioManager;
     private final WifiManager mWifiManager;
     private final ConnectivityManager mConnectivityManager;
     private final MediaSessionManager mMediaSessionManager;
+    private AuthorizationDialog mAuthorizationDialog;
 
     private final Runnable mTicker = new Runnable() {
         @Override
@@ -54,6 +58,7 @@ public class MainPresenter extends BasePresenter<MainView> {
     public MainPresenter(Context context, MainView view) {
         super(view);
         mContext = context.getApplicationContext();
+        mActivity = context instanceof Activity ? (Activity) context : null;
         mAudioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
         mWifiManager = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         mConnectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -158,6 +163,25 @@ public class MainPresenter extends BasePresenter<MainView> {
         if (view != null) {
             view.openSystemApps();
         }
+    }
+
+    public void showAuthorizationDialog() {
+        if (mActivity == null || mActivity.isFinishing() || mActivity.isDestroyed()) {
+            return;
+        }
+        if (mAuthorizationDialog == null) {
+            mAuthorizationDialog = new AuthorizationDialog(mActivity);
+        }
+        mAuthorizationDialog.show();
+    }
+
+    @Override
+    public void detach() {
+        if (mAuthorizationDialog != null) {
+            mAuthorizationDialog.dismiss();
+            mAuthorizationDialog = null;
+        }
+        super.detach();
     }
 
     private String getWifiLabel() {

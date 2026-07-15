@@ -45,4 +45,18 @@
         <item quantity="one">%1$d app</item>
         <item quantity="other">%1$d apps</item>
     </plurals>
+
+    <string name="auth">AI Authorization</string>
+    <string name="auth_hint1">Please use the mobile app to scan the QR code to connect to the network</string>
+    <string name="auth_hint2">Obtaining the authorization QR code…</string>
+    <string name="auth_hint3">Scanned, please confirm authorization in the mobile app</string>
+    <string name="auth_hint4">Authorization successful!</string>
+    <string name="auth_hint5">The QR code has expired, refreshing now…</string>
+    <string name="auth_hint6">Authorization has been canceled, refreshing QR code…</string>
+    <string name="auth_hint7">Network connection failed, retrying…</string>
+    <string name="auth_hint8">Successfully authorized!</string>
+
+    <string name="auth_cancel">Cancel authorization</string>
+    <string name="auth_hint_canceling">Canceling authorization…</string>
+    <string name="auth_hint_cancel_failed">Unable to cancel authorization. Please try again later.</string>
 </resources>
