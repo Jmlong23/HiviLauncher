@@ -14,4 +14,6 @@ public interface MainView extends BaseView {
     void openMusicPlayer();
 
     void openSystemApps();
+
+    void showAuthorization();
 }

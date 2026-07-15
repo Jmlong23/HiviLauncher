@@ -1,32 +1,20 @@
 package com.hivi.launcher.main.presenter;
 
-import android.app.Activity;
-import android.bluetooth.BluetoothAdapter;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
-import android.media.AudioManager;
-import android.media.session.MediaController;
-import android.media.session.MediaSessionManager;
-import android.net.ConnectivityManager;
-import android.net.Network;
-import android.net.NetworkCapabilities;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
-import android.text.TextUtils;
 
 import com.hivi.launcher.R;
-import com.hivi.launcher.account.ui.AuthorizationDialog;
 import com.hivi.launcher.base.BasePresenter;
+import com.hivi.launcher.main.data.MainStatusRepository;
 import com.hivi.launcher.main.model.MainStatus;
 import com.hivi.launcher.main.model.MusicInfo;
 import com.hivi.launcher.main.ui.MainView;
 import com.hivi.launcher.music.model.UpnpPlaybackManager;
-import com.hivi.launcher.music.model.UpnpPlaybackState;
+import com.hivi.launcher.settings.data.SystemSettingsNavigator;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.List;
 import java.util.Locale;
 
 public class MainPresenter extends BasePresenter<MainView> {
@@ -39,12 +27,8 @@ public class MainPresenter extends BasePresenter<MainView> {
     };
 
     private final Context mContext;
-    private final Activity mActivity;
-    private final AudioManager mAudioManager;
-    private final WifiManager mWifiManager;
-    private final ConnectivityManager mConnectivityManager;
-    private final MediaSessionManager mMediaSessionManager;
-    private AuthorizationDialog mAuthorizationDialog;
+    private final MainStatusRepository mStatusRepository;
+    private final SystemSettingsNavigator mSettingsNavigator;
 
     private final Runnable mTicker = new Runnable() {
         @Override
@@ -58,18 +42,14 @@ public class MainPresenter extends BasePresenter<MainView> {
     public MainPresenter(Context context, MainView view) {
         super(view);
         mContext = context.getApplicationContext();
-        mActivity = context instanceof Activity ? (Activity) context : null;
-        mAudioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-        mWifiManager = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-        mConnectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-        mMediaSessionManager = (MediaSessionManager) context.getSystemService(Context.MEDIA_SESSION_SERVICE);
+        mStatusRepository = new MainStatusRepository(mContext);
+        mSettingsNavigator = new SystemSettingsNavigator(mContext);
     }
 
     public void init() {
         UpnpPlaybackManager.getInstance().start(mContext);
         updateClock();
-        updateConnectivity();
-        updateVolume();
+        updateDeviceStatus();
         updateMedia();
     }
 
@@ -83,8 +63,7 @@ public class MainPresenter extends BasePresenter<MainView> {
     }
 
     public void onSystemStateChanged() {
-        updateConnectivity();
-        updateVolume();
+        updateDeviceStatus();
     }
 
     public void updateClock() {
@@ -104,27 +83,24 @@ public class MainPresenter extends BasePresenter<MainView> {
     public void updateConnectivity() {
         MainView view = getView();
         if (view != null) {
-            view.updateConnectivity(getWifiLabel(), isBluetoothConnected());
+            view.updateConnectivity(mStatusRepository.getWifiLabel(),
+                    mStatusRepository.isBluetoothConnected());
         }
     }
 
     public void updateVolume() {
         MainView view = getView();
         if (view != null) {
-            view.updateVolume(getVolumePercent());
+            view.updateVolume(mStatusRepository.getVolumePercent());
         }
     }
 
     public MainStatus getCurrentStatus() {
-        return new MainStatus(getWifiLabel(), isBluetoothConnected(), getVolumePercent(), getMusicInfo());
+        return mStatusRepository.loadStatus();
     }
 
     public void adjustVolume(int direction) {
-        if (mAudioManager == null) {
-            return;
-        }
-        mAudioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction,
-                AudioManager.FLAG_PLAY_SOUND);
+        mStatusRepository.adjustVolume(direction);
         updateVolume();
     }
 
@@ -133,7 +109,7 @@ public class MainPresenter extends BasePresenter<MainView> {
         if (view == null) {
             return;
         }
-        MusicInfo musicInfo = getMusicInfo();
+        MusicInfo musicInfo = mStatusRepository.getMusicInfo();
         if (musicInfo != null) {
             view.updateMusic(musicInfo.getTitle(), musicInfo.getArtist());
         }
@@ -166,89 +142,38 @@ public class MainPresenter extends BasePresenter<MainView> {
     }
 
     public void showAuthorizationDialog() {
-        if (mActivity == null || mActivity.isFinishing() || mActivity.isDestroyed()) {
-            return;
+        MainView view = getView();
+        if (view != null) {
+            view.showAuthorization();
         }
-        if (mAuthorizationDialog == null) {
-            mAuthorizationDialog = new AuthorizationDialog(mActivity);
-        }
-        mAuthorizationDialog.show();
     }
 
-    @Override
-    public void detach() {
-        if (mAuthorizationDialog != null) {
-            mAuthorizationDialog.dismiss();
-            mAuthorizationDialog = null;
+    public void openSystemSettings() {
+        if (!mSettingsNavigator.openSystemSettings()) {
+            showSettingsUnavailable();
         }
-        super.detach();
     }
 
-    private String getWifiLabel() {
-        if (mConnectivityManager != null) {
-            Network network = mConnectivityManager.getActiveNetwork();
-            NetworkCapabilities capabilities = mConnectivityManager.getNetworkCapabilities(network);
-            if (capabilities == null || !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-                return mContext.getString(R.string.main_disconnected);
-            }
+    public void openScreensaverSettings() {
+        if (!mSettingsNavigator.openScreensaverSettings()) {
+            showSettingsUnavailable();
         }
-
-        if (mWifiManager == null) {
-            return "WiFi";
-        }
-        WifiInfo wifiInfo = mWifiManager.getConnectionInfo();
-        if (wifiInfo == null) {
-            return mContext.getString(R.string.main_connected);
-        }
-        String ssid = wifiInfo.getSSID();
-        if (TextUtils.isEmpty(ssid) || "<unknown ssid>".equals(ssid)) {
-            return mContext.getString(R.string.main_connected);
-        }
-        return ssid.replace("\"", "");
     }
 
-    private boolean isBluetoothConnected() {
-        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-        return adapter != null && adapter.isEnabled()
-                && adapter.getProfileConnectionState(android.bluetooth.BluetoothProfile.A2DP)
-                == android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+    private void updateDeviceStatus() {
+        MainStatus status = mStatusRepository.loadStatus();
+        MainView view = getView();
+        if (view != null) {
+            view.updateConnectivity(status.getWifiLabel(), status.isBluetoothConnected());
+            view.updateVolume(status.getVolumePercent());
+        }
     }
 
-    private int getVolumePercent() {
-        if (mAudioManager == null) {
-            return 0;
+    private void showSettingsUnavailable() {
+        MainView view = getView();
+        if (view != null) {
+            view.showToast(mContext.getString(R.string.main_settings));
         }
-        int current = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-        int max = Math.max(1, mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
-        return Math.round(current * 100f / max);
-    }
-
-    private MusicInfo getMusicInfo() {
-        UpnpPlaybackState upnpState = UpnpPlaybackManager.getInstance().getCurrentState();
-        if (upnpState != null && upnpState.hasRealSong()) {
-            return new MusicInfo(upnpState.getTitle(), upnpState.getArtist());
-        }
-        if (mMediaSessionManager == null) {
-            return null;
-        }
-        try {
-            List<MediaController> controllers = mMediaSessionManager.getActiveSessions(null);
-            for (MediaController controller : controllers) {
-                if (controller.getMetadata() == null) {
-                    continue;
-                }
-                CharSequence title = controller.getMetadata().getText(
-                        android.media.MediaMetadata.METADATA_KEY_TITLE);
-                CharSequence artist = controller.getMetadata().getText(
-                        android.media.MediaMetadata.METADATA_KEY_ARTIST);
-                if (!TextUtils.isEmpty(title)) {
-                    return new MusicInfo(title,
-                            TextUtils.isEmpty(artist) ? controller.getPackageName() : artist);
-                }
-            }
-        } catch (SecurityException ignored) {
-        }
-        return null;
     }
 
     private boolean launchPackage(String packageName) {

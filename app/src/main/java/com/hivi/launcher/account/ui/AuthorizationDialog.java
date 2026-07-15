@@ -5,9 +5,6 @@ import android.app.Dialog;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
-import android.os.Handler;
-import android.os.Looper;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -21,62 +18,26 @@ import com.google.zxing.EncodeHintType;
 import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.common.BitMatrix;
 import com.hivi.launcher.R;
+import com.hivi.launcher.account.model.AuthorizationUiState;
+import com.hivi.launcher.account.presenter.AuthorizationPresenter;
 import com.hivi.launcher.utils.UiUtils;
-import com.hivi.launcher.utils.network.ApiService;
-import com.hivi.launcher.utils.network.AuthorizationStore;
-import com.hivi.launcher.utils.network.NetworkCallback;
-import com.hivi.launcher.utils.network.NetworkManager;
-import com.ljm.audiotoollib.upnpserver.entity.SWDeviceStatus;
-
-import org.json.JSONObject;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
-import io.reactivex.Observable;
-import io.reactivex.disposables.Disposable;
-
-public class AuthorizationDialog {
-    private static final String TAG = "AuthorizationDialog";
-    private static final int QR_STATUS_WAITING = 1;
-    private static final int QR_STATUS_SCANNED = 2;
-    private static final int QR_STATUS_CONFIRMED = 3;
-    private static final int QR_STATUS_CANCELLED = 4;
-    private static final int QR_STATUS_EXPIRED = 5;
-    private static final int MAX_POLL_COUNT = 300;
-    private static final long POLL_INTERVAL_MS = 2000L;
-    private static final long RETRY_DELAY_MS = 1600L;
-
+/**
+ * Renders the account authorization flow. Networking, polling, and token persistence belong to
+ * {@link AuthorizationPresenter}; this class only manages the dialog and QR bitmap.
+ */
+public class AuthorizationDialog implements AuthorizationView {
     private final Activity mActivity;
-    private final Handler mMainHandler = new Handler(Looper.getMainLooper());
-    private final ApiService mApiService = NetworkManager.getApiService();
 
-    private Disposable mQrRequest;
-    private Disposable mLogoutRequest;
     private Dialog mDialog;
+    private AuthorizationPresenter mPresenter;
     private ImageView mQrCodeView;
     private TextView mHintView;
     private TextView mCancelAuthorizationButton;
-    private String mQrId;
-    private int mPollCount;
-    private boolean mStopped;
-    private boolean mLogoutInProgress;
-
-    private final Runnable mPollRunnable = new Runnable() {
-        @Override
-        public void run() {
-            if (mStopped || mQrId == null) {
-                return;
-            }
-            if (mPollCount >= MAX_POLL_COUNT) {
-                reloadQrCode(mActivity.getString(R.string.auth_hint5));
-                return;
-            }
-            mPollCount++;
-            requestQrState(mQrId);
-        }
-    };
 
     public AuthorizationDialog(Activity activity) {
         mActivity = activity;
@@ -86,20 +47,16 @@ public class AuthorizationDialog {
         if (isShowing()) {
             return;
         }
-        mStopped = false;
         mDialog = new Dialog(mActivity);
         mDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         mDialog.setContentView(createContentView());
         mDialog.setCanceledOnTouchOutside(true);
-        mDialog.setOnDismissListener(dialog -> stopRequests());
+        mDialog.setOnDismissListener(dialog -> stopPresenter());
         mDialog.show();
         configureWindow();
 
-        if (hasAuthorization()) {
-            showAuthorizedState();
-        } else {
-            requestNewQrCode();
-        }
+        mPresenter = new AuthorizationPresenter(mActivity, this);
+        mPresenter.start();
     }
 
     public boolean isShowing() {
@@ -112,6 +69,59 @@ public class AuthorizationDialog {
         }
     }
 
+    @Override
+    public void renderAuthorization(AuthorizationUiState state) {
+        if (!isShowing() || state == null) {
+            return;
+        }
+        switch (state.getPhase()) {
+            case LOADING:
+                mCancelAuthorizationButton.setVisibility(View.GONE);
+                mQrCodeView.setImageBitmap(createQrCode("HiviLauncher", ui(170)));
+                mQrCodeView.setVisibility(View.VISIBLE);
+                updateHint(R.string.auth_hint2);
+                break;
+            case WAITING_FOR_SCAN:
+                mCancelAuthorizationButton.setVisibility(View.GONE);
+                mQrCodeView.setImageBitmap(createQrCode(state.getQrPayload(), ui(170)));
+                mQrCodeView.setVisibility(View.VISIBLE);
+                updateHint(R.string.auth_hint1);
+                break;
+            case SCANNED:
+                mQrCodeView.setVisibility(View.INVISIBLE);
+                updateHint(R.string.auth_hint3);
+                break;
+            case AUTHORIZED:
+                mQrCodeView.setVisibility(View.INVISIBLE);
+                mCancelAuthorizationButton.setEnabled(true);
+                mCancelAuthorizationButton.setVisibility(View.VISIBLE);
+                updateHint(R.string.auth_hint4);
+                break;
+            case RETRYING:
+                mQrCodeView.setVisibility(View.INVISIBLE);
+                mCancelAuthorizationButton.setVisibility(View.GONE);
+                updateRetryHint(state.getRetryReason());
+                break;
+            case CANCELING:
+                mCancelAuthorizationButton.setEnabled(false);
+                mCancelAuthorizationButton.setVisibility(View.VISIBLE);
+                updateHint(R.string.auth_hint_canceling);
+                break;
+            case CANCEL_FAILED:
+                mCancelAuthorizationButton.setEnabled(true);
+                mCancelAuthorizationButton.setVisibility(View.VISIBLE);
+                updateHint(R.string.auth_hint_cancel_failed);
+                break;
+            default:
+                break;
+        }
+    }
+
+    @Override
+    public void showToast(String message) {
+        // The authorization dialog uses explicit state messages instead of transient toasts.
+    }
+
     private View createContentView() {
         View root = LayoutInflater.from(mActivity).inflate(R.layout.dialog_authorization, null);
         mQrCodeView = root.findViewById(R.id.authorization_qr_code);
@@ -120,7 +130,9 @@ public class AuthorizationDialog {
         mCancelAuthorizationButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                cancelAuthorization();
+                if (mPresenter != null) {
+                    mPresenter.cancelAuthorization();
+                }
             }
         });
         return root;
@@ -148,224 +160,20 @@ public class AuthorizationDialog {
         window.setGravity(Gravity.CENTER);
     }
 
-    private void requestNewQrCode() {
-        if (mStopped) {
-            return;
-        }
-        mMainHandler.removeCallbacks(mPollRunnable);
-        mQrId = null;
-        mPollCount = 0;
-        mCancelAuthorizationButton.setVisibility(View.GONE);
-        mQrCodeView.setImageBitmap(createLoadingQrCode());
-        mQrCodeView.setVisibility(View.VISIBLE);
-        updateHint(mActivity.getString(R.string.auth_hint2));
-        requestQrState(null);
-    }
-
-    private void requestQrState(final String qrId) {
-        disposeQrRequest();
-        Observable<String> request = qrId == null ? mApiService.getQr() : mApiService.getQr(qrId);
-        mQrRequest = NetworkManager.execute(request, new NetworkCallback<String>() {
-            @Override
-            public void onSuccess(String response) {
-                try {
-                    handleQrState(readQrState(response), qrId == null);
-                } catch (Exception e) {
-                    Log.e(TAG, "Unable to parse QR response", e);
-                    handleRequestFailure();
-                }
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {
-                handleRequestFailure();
-            }
-        });
-    }
-
-    private QrState readQrState(String responseText) throws Exception {
-        JSONObject response = new JSONObject(responseText);
-        JSONObject data = response.optJSONObject("data");
-        if (data == null) {
-            throw new IllegalStateException("Invalid authorization response");
-        }
-        return new QrState(data.optString("id"), data.optInt("status"), data.optString("token"));
-    }
-
-    private void handleQrState(QrState state, boolean isInitialRequest) {
-        if (mStopped || !isShowing()) {
-            return;
-        }
-        if (state.status == QR_STATUS_WAITING && !isEmpty(state.id)) {
-            mQrId = state.id;
-            mQrCodeView.setImageBitmap(createQrCode(state.id + "&MG100"
-                    + SWDeviceStatus.getUUID().toString(), ui(170)));
-            mQrCodeView.setVisibility(View.VISIBLE);
-            updateHint(mActivity.getString(R.string.auth_hint1));
-            mMainHandler.removeCallbacks(mPollRunnable);
-            mMainHandler.postDelayed(mPollRunnable, POLL_INTERVAL_MS);
-            return;
-        }
-        if (state.status == QR_STATUS_SCANNED) {
-            mQrCodeView.setVisibility(View.INVISIBLE);
-            updateHint(mActivity.getString(R.string.auth_hint3));
-            mMainHandler.postDelayed(mPollRunnable, POLL_INTERVAL_MS);
-            return;
-        }
-        if (state.status == QR_STATUS_CONFIRMED && !isEmpty(state.token)) {
-            saveAuthorization(state.token);
-            mMainHandler.removeCallbacks(mPollRunnable);
-            showAuthorizedState(mActivity.getString(R.string.auth_hint4));
-            return;
-        }
-        if (state.status == QR_STATUS_CANCELLED) {
-            reloadQrCode(mActivity.getString(R.string.auth_hint6));
-            return;
-        }
-        if (state.status == QR_STATUS_EXPIRED) {
-            reloadQrCode(mActivity.getString(R.string.auth_hint5));
-            return;
-        }
-        if (isInitialRequest) {
-            handleRequestFailure();
+    private void updateRetryHint(AuthorizationUiState.RetryReason reason) {
+        if (reason == AuthorizationUiState.RetryReason.EXPIRED) {
+            updateHint(R.string.auth_hint5);
+        } else if (reason == AuthorizationUiState.RetryReason.CANCELED) {
+            updateHint(R.string.auth_hint6);
+        } else {
+            updateHint(R.string.auth_hint7);
         }
     }
 
-    private void handleRequestFailure() {
-        if (mStopped || !isShowing()) {
-            return;
-        }
-        mQrCodeView.setVisibility(View.INVISIBLE);
-        updateHint(mActivity.getString(R.string.auth_hint7));
-        mMainHandler.removeCallbacks(mPollRunnable);
-        mMainHandler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                requestNewQrCode();
-            }
-        }, RETRY_DELAY_MS);
-    }
-
-    private void reloadQrCode(String hint) {
-        if (mStopped || !isShowing()) {
-            return;
-        }
-        mQrCodeView.setVisibility(View.INVISIBLE);
-        updateHint(hint);
-        mMainHandler.removeCallbacks(mPollRunnable);
-        mMainHandler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                requestNewQrCode();
-            }
-        }, RETRY_DELAY_MS);
-    }
-
-    private void showAuthorizedState() {
-        showAuthorizedState(mActivity.getString(R.string.auth_hint8));
-    }
-
-    private void showAuthorizedState(String hint) {
-        mQrCodeView.setVisibility(View.INVISIBLE);
-        updateHint(hint);
-        mCancelAuthorizationButton.setEnabled(true);
-        mCancelAuthorizationButton.setVisibility(View.VISIBLE);
-    }
-
-    private void cancelAuthorization() {
-        if (mStopped || !isShowing() || mLogoutInProgress || !hasAuthorization()) {
-            return;
-        }
-        mLogoutInProgress = true;
-        mCancelAuthorizationButton.setEnabled(false);
-        updateHint(mActivity.getString(R.string.auth_hint_canceling));
-        mLogoutRequest = NetworkManager.execute(
-                mApiService.qrLogout(SWDeviceStatus.getUUID().toString()),
-                new NetworkCallback<String>() {
-                    @Override
-                    public void onSuccess(String response) {
-                        mLogoutRequest = null;
-                        if (mStopped || !isShowing()) {
-                            return;
-                        }
-                        try {
-                            if (isLogoutSuccess(response)
-                                    || shouldTreatLogoutFailureAsCancelled(response)) {
-                                finishCancelAuthorization();
-                            } else {
-                                Log.e(TAG, "Cancel authorization was rejected: " + response);
-                                handleCancelAuthorizationFailure();
-                            }
-                        } catch (Exception e) {
-                            Log.e(TAG, "Unable to parse cancel authorization response", e);
-                            handleCancelAuthorizationFailure();
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(Throwable throwable) {
-                        mLogoutRequest = null;
-                        if (mStopped || !isShowing()) {
-                            return;
-                        }
-                        Log.e(TAG, "Unable to cancel authorization", throwable);
-                        handleCancelAuthorizationFailure();
-                    }
-                });
-    }
-
-    private boolean isLogoutSuccess(String responseText) throws Exception {
-        JSONObject response = new JSONObject(responseText);
-        return response.optBoolean("success") || response.optInt("code") == 200;
-    }
-
-    private boolean shouldTreatLogoutFailureAsCancelled(String responseText) throws Exception {
-        String message = new JSONObject(responseText).optString("message");
-        return message.contains("登录状态过期")
-                || message.contains("已解绑")
-                || message.contains("未绑定")
-                || message.contains("无效token")
-                || message.contains("token失效");
-    }
-
-    private void finishCancelAuthorization() {
-        AuthorizationStore.clearToken(mActivity);
-        mLogoutInProgress = false;
-        requestNewQrCode();
-    }
-
-    private void handleCancelAuthorizationFailure() {
-        mLogoutInProgress = false;
-        mCancelAuthorizationButton.setEnabled(true);
-        updateHint(mActivity.getString(R.string.auth_hint_cancel_failed));
-    }
-
-    private boolean hasAuthorization() {
-        return AuthorizationStore.hasToken(mActivity);
-    }
-
-    private void saveAuthorization(String token) {
-        AuthorizationStore.saveToken(mActivity, token);
-    }
-
-    private void stopRequests() {
-        mStopped = true;
-        mQrId = null;
-        mLogoutInProgress = false;
-        mMainHandler.removeCallbacksAndMessages(null);
-        disposeQrRequest();
-        disposeLogoutRequest();
-        mDialog = null;
-    }
-
-    private void updateHint(String hint) {
+    private void updateHint(int stringRes) {
         if (mHintView != null) {
-            mHintView.setText(hint);
+            mHintView.setText(stringRes);
         }
-    }
-
-    private Bitmap createLoadingQrCode() {
-        return createQrCode("HiviLauncher", ui(170));
     }
 
     private Bitmap createQrCode(String value, int size) {
@@ -390,37 +198,15 @@ public class AuthorizationDialog {
         }
     }
 
-    private void disposeQrRequest() {
-        if (mQrRequest != null && !mQrRequest.isDisposed()) {
-            mQrRequest.dispose();
+    private void stopPresenter() {
+        if (mPresenter != null) {
+            mPresenter.detach();
+            mPresenter = null;
         }
-        mQrRequest = null;
-    }
-
-    private void disposeLogoutRequest() {
-        if (mLogoutRequest != null && !mLogoutRequest.isDisposed()) {
-            mLogoutRequest.dispose();
-        }
-        mLogoutRequest = null;
+        mDialog = null;
     }
 
     private int ui(int value) {
         return UiUtils.ui(mActivity, value);
-    }
-
-    private static boolean isEmpty(String value) {
-        return value == null || value.length() == 0;
-    }
-
-    private static final class QrState {
-        private final String id;
-        private final int status;
-        private final String token;
-
-        private QrState(String id, int status, String token) {
-            this.id = id;
-            this.status = status;
-            this.token = token;
-        }
     }
 }

@@ -7,16 +7,14 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
-import android.util.DisplayMetrics;
-import android.util.Log;
 
 import androidx.annotation.Nullable;
 
 import com.hivi.launcher.R;
+import com.hivi.launcher.account.ui.AuthorizationDialog;
 import com.hivi.launcher.base.BaseActivity;
 import com.hivi.launcher.customview.AppIconDrawable;
 import com.hivi.launcher.customview.CircleDrawable;
@@ -31,6 +29,7 @@ import com.hivi.launcher.utils.UiUtils;
 
 public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresenter>
         implements MainView {
+    private AuthorizationDialog mAuthorizationDialog;
 
     private final BroadcastReceiver mSystemReceiver = new BroadcastReceiver() {
         @Override
@@ -124,6 +123,26 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     @Override
     public void openSystemApps() {
         startActivity(new Intent(this, SystemAppsActivity.class));
+    }
+
+    @Override
+    public void showAuthorization() {
+        if (isFinishing() || isDestroyed()) {
+            return;
+        }
+        if (mAuthorizationDialog == null) {
+            mAuthorizationDialog = new AuthorizationDialog(this);
+        }
+        mAuthorizationDialog.show();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (mAuthorizationDialog != null) {
+            mAuthorizationDialog.dismiss();
+            mAuthorizationDialog = null;
+        }
+        super.onDestroy();
     }
 
     private void applyLocalizedTexts() {
@@ -266,13 +285,13 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.settingsButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startActivity(new Intent(Settings.ACTION_SETTINGS));
+                presenter.openSystemSettings();
             }
         });
         binding.screensaverButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startActivity(new Intent(Settings.ACTION_DREAM_SETTINGS));
+                presenter.openScreensaverSettings();
             }
         });
         binding.switchButton.setOnClickListener(new View.OnClickListener() {
