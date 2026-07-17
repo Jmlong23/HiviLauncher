@@ -1,16 +1,21 @@
 package com.hivi.launcher.customview;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.RadialGradient;
+import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.Shader;
 import android.util.AttributeSet;
 import android.view.View;
 
 public class RecordView extends View {
     private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private Bitmap mCoverBitmap;
 
     public RecordView(Context context) {
         super(context);
@@ -18,6 +23,14 @@ public class RecordView extends View {
 
     public RecordView(Context context, AttributeSet attrs) {
         super(context, attrs);
+    }
+
+    public void setCoverBitmap(Bitmap coverBitmap) {
+        if (mCoverBitmap == coverBitmap) {
+            return;
+        }
+        mCoverBitmap = coverBitmap;
+        invalidate();
     }
 
     @Override
@@ -40,9 +53,7 @@ public class RecordView extends View {
         }
 
         mPaint.setStyle(Paint.Style.FILL);
-        mPaint.setShader(new LinearGradient(cx - r * 0.3f, cy - r * 0.3f,
-                cx + r * 0.3f, cy + r * 0.3f, 0xffdceeff, 0xff5b86bd, Shader.TileMode.CLAMP));
-        canvas.drawCircle(cx, cy, r * 0.26f, mPaint);
+        drawCover(canvas, cx, cy, r * 0.26f);
         mPaint.setShader(null);
         mPaint.setColor(0xff202020);
         canvas.drawCircle(cx, cy, r * 0.06f, mPaint);
@@ -57,6 +68,30 @@ public class RecordView extends View {
                 getWidth() * 0.62f, getHeight() * 0.58f, mPaint);
         mPaint.setStyle(Paint.Style.FILL);
         canvas.drawCircle(armStartX, armStartY, dp(6), mPaint);
+    }
+
+    private void drawCover(Canvas canvas, float cx, float cy, float radius) {
+        if (mCoverBitmap == null || mCoverBitmap.isRecycled()) {
+            mPaint.setShader(new LinearGradient(cx - radius, cy - radius,
+                    cx + radius, cy + radius, 0xffdceeff, 0xff5b86bd, Shader.TileMode.CLAMP));
+            canvas.drawCircle(cx, cy, radius, mPaint);
+            return;
+        }
+
+        float left = cx - radius;
+        float top = cy - radius;
+        RectF destination = new RectF(left, top, cx + radius, cy + radius);
+        int sourceSize = Math.min(mCoverBitmap.getWidth(), mCoverBitmap.getHeight());
+        int sourceLeft = (mCoverBitmap.getWidth() - sourceSize) / 2;
+        int sourceTop = (mCoverBitmap.getHeight() - sourceSize) / 2;
+        Rect source = new Rect(sourceLeft, sourceTop, sourceLeft + sourceSize, sourceTop + sourceSize);
+        Path clipPath = new Path();
+        clipPath.addCircle(cx, cy, radius, Path.Direction.CW);
+
+        canvas.save();
+        canvas.clipPath(clipPath);
+        canvas.drawBitmap(mCoverBitmap, source, destination, mPaint);
+        canvas.restore();
     }
 
     private float dp(int value) {

@@ -69,6 +69,7 @@ public final class UpnpPlaybackManager {
     private String currentMetaData = "";
     private String title = "Sleep Music";
     private String artist = "WiiM";
+    private String album = "";
     private String lyric = "Can you give me that Can";
     private String coverUrl = "";
     private long durationFallbackMs;
@@ -124,7 +125,7 @@ public final class UpnpPlaybackManager {
         }
         long position = getCurrentPositionMs();
         long duration = getCurrentDurationMs();
-        return new UpnpPlaybackState(title, artist, getCurrentLyricLine(position), coverUrl,
+        return new UpnpPlaybackState(title, artist, album, getCurrentLyricLine(position), coverUrl,
                 position, duration, isPlaying(), preparing);
     }
 
@@ -289,10 +290,14 @@ public final class UpnpPlaybackManager {
         @Override
         public void onLyricReceived(String text, String terraceType) {
             mainHandler.post(() -> {
-                if (!TextUtils.isEmpty(text)) {
-                    lyric = normalizeLyric(text);
-                    notifyStateChanged();
+                if (TextUtils.isEmpty(text)) {
+                    Log.w(TAG, "received empty remote lyric, terraceType=" + terraceType);
+                    return;
                 }
+                lyric = normalizeLyric(text);
+                Log.i(TAG, "received remote lyric, terraceType=" + terraceType + ", "
+                        + describeLyric(lyric));
+                notifyStateChanged();
             });
         }
 
@@ -501,15 +506,35 @@ public final class UpnpPlaybackManager {
                 mediaInfo != null ? mediaInfo.getCreator() : "",
                 extractXmlTagValue(currentMetaData, "upnp:artist"),
                 extractXmlTagValue(currentMetaData, "dc:creator"),
-                "WiiM");
+                "");
+        album = firstNonEmpty(bean != null ? bean.getAlg() : "",
+                mediaInfo != null ? mediaInfo.getAlbum() : "",
+                extractXmlTagValue(currentMetaData, "upnp:album"),
+                "");
         coverUrl = firstNonEmpty(bean != null ? bean.getCoverUrl() : "",
                 mediaInfo != null ? mediaInfo.getAlbumArtURI() : "",
                 extractXmlTagValue(currentMetaData, "upnp:albumArtURI"));
-        String trackLyric = firstNonEmpty(bean != null ? bean.getMatchLyric() : "",
-                extractXmlTagValue(currentMetaData, "qq:matchLyric"),
-                extractXmlTagValue(currentMetaData, "song:matchLyric"),
-                extractXmlTagValue(currentMetaData, "song:lyric"),
-                extractXmlTagValue(currentMetaData, "lyric"));
+        lyric = "";
+        String trackLyric = "";
+        String lyricSource = "none";
+        if (bean != null && !TextUtils.isEmpty(bean.getMatchLyric())) {
+            trackLyric = bean.getMatchLyric();
+            lyricSource = "MusicDataBean.matchLyric";
+        } else if (!TextUtils.isEmpty(extractXmlTagValue(currentMetaData, "qq:matchLyric"))) {
+            trackLyric = extractXmlTagValue(currentMetaData, "qq:matchLyric");
+            lyricSource = "qq:matchLyric";
+        } else if (!TextUtils.isEmpty(extractXmlTagValue(currentMetaData, "song:matchLyric"))) {
+            trackLyric = extractXmlTagValue(currentMetaData, "song:matchLyric");
+            lyricSource = "song:matchLyric";
+        } else if (!TextUtils.isEmpty(extractXmlTagValue(currentMetaData, "song:lyric"))) {
+            trackLyric = extractXmlTagValue(currentMetaData, "song:lyric");
+            lyricSource = "song:lyric";
+        } else if (!TextUtils.isEmpty(extractXmlTagValue(currentMetaData, "lyric"))) {
+            trackLyric = extractXmlTagValue(currentMetaData, "lyric");
+            lyricSource = "lyric";
+        }
+        Log.i(TAG, "track lyric metadata source=" + lyricSource + ", "
+                + describeLyric(trackLyric));
         if (!TextUtils.isEmpty(trackLyric)) {
             lyric = normalizeLyric(trackLyric);
         }
@@ -712,6 +737,15 @@ public final class UpnpPlaybackManager {
             return "";
         }
         return htmlDecode(value.replace("\\n", "\n").replace("\\r", ""));
+    }
+
+    private static String describeLyric(String value) {
+        if (TextUtils.isEmpty(value)) {
+            return "empty";
+        }
+        boolean timed = Pattern.compile("\\[\\d{1,2}:\\d{1,2}(?:\\.\\d{1,3})?\\]")
+                .matcher(value).find();
+        return "len=" + value.length() + ", timed=" + timed + ", hash=" + value.hashCode();
     }
 
     private static String extractXmlTagValue(String xml, String tag) {

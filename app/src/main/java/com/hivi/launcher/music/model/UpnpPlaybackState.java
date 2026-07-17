@@ -5,6 +5,7 @@ import android.text.TextUtils;
 public class UpnpPlaybackState {
     private final CharSequence title;
     private final CharSequence artist;
+    private final CharSequence album;
     private final String lyric;
     private final String coverUrl;
     private final long positionMs;
@@ -12,10 +13,12 @@ public class UpnpPlaybackState {
     private final boolean playing;
     private final boolean preparing;
 
-    public UpnpPlaybackState(CharSequence title, CharSequence artist, String lyric, String coverUrl,
+    public UpnpPlaybackState(CharSequence title, CharSequence artist, CharSequence album,
+            String lyric, String coverUrl,
             long positionMs, long durationMs, boolean playing, boolean preparing) {
         this.title = TextUtils.isEmpty(title) ? "Sleep Music" : title;
-        this.artist = TextUtils.isEmpty(artist) ? "WiiM" : artist;
+        this.artist = artist == null ? "" : artist;
+        this.album = album == null ? "" : album;
         this.lyric = lyric == null ? "" : lyric;
         this.coverUrl = coverUrl == null ? "" : coverUrl;
         this.positionMs = Math.max(0L, positionMs);
@@ -25,7 +28,7 @@ public class UpnpPlaybackState {
     }
 
     public static UpnpPlaybackState empty() {
-        return new UpnpPlaybackState("Sleep Music", "WiiM", "Can you give me that Can", "",
+        return new UpnpPlaybackState("Sleep Music", "WiiM", "", "Can you give me that Can", "",
                 95_000L, 295_000L, false, false);
     }
 
@@ -35,6 +38,10 @@ public class UpnpPlaybackState {
 
     public CharSequence getArtist() {
         return artist;
+    }
+
+    public CharSequence getAlbum() {
+        return album;
     }
 
     public String getLyric() {

@@ -1,6 +1,11 @@
 package com.hivi.launcher.music.ui;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
+import android.text.TextUtils;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -17,12 +22,25 @@ import com.hivi.launcher.music.model.UpnpPlaybackState;
 import com.hivi.launcher.music.presenter.MusicPresenter;
 import com.hivi.launcher.utils.UiUtils;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MusicActivity extends BaseActivity<ActivityMusicPlayerBinding, MusicPresenter>
         implements MusicView {
+    private static final String TAG = "MusicActivity";
+    private static final int COVER_CONNECT_TIMEOUT_MS = 8_000;
+    private static final int COVER_READ_TIMEOUT_MS = 10_000;
+    private static final int COVER_MAX_SIZE_PX = 512;
+
     private boolean mUserSeeking;
     private boolean mBindingProgress;
+    private final ExecutorService mCoverExecutor = Executors.newSingleThreadExecutor();
+    private String mCoverUrl = "";
 
     @Override
     protected ActivityMusicPlayerBinding createBinding() {
@@ -51,10 +69,11 @@ public class MusicActivity extends BaseActivity<ActivityMusicPlayerBinding, Musi
             return;
         }
         binding.titleText.setText(state.getTitle());
-        binding.artistText.setText(state.getArtist());
+        binding.artistText.setText(buildArtistAndAlbumText(state));
         binding.lyricText.setText(state.getLyric());
         binding.playStateIcon.setImageResource(state.isPlaying()
                 ? R.drawable.ic_music_pause : R.mipmap.music_play);
+        loadCover(state.getCoverUrl());
         long duration = state.getDurationMs();
         long position = state.getPositionMs();
         binding.currentTimeText.setText(formatTime(position));
@@ -65,6 +84,98 @@ public class MusicActivity extends BaseActivity<ActivityMusicPlayerBinding, Musi
             binding.progressSeekBar.setProgress(Math.max(0, Math.min(1000, progress)));
             mBindingProgress = false;
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        mCoverExecutor.shutdownNow();
+        super.onDestroy();
+    }
+
+    private CharSequence buildArtistAndAlbumText(UpnpPlaybackState state) {
+        CharSequence artist = state.getArtist();
+        CharSequence album = state.getAlbum();
+        if (TextUtils.isEmpty(artist)) {
+            return album;
+        }
+        if (TextUtils.isEmpty(album)) {
+            return artist;
+        }
+        return artist + " / " + album;
+    }
+
+    private void loadCover(String coverUrl) {
+        if (TextUtils.equals(mCoverUrl, coverUrl)) {
+            return;
+        }
+        mCoverUrl = coverUrl == null ? "" : coverUrl;
+        binding.recordView.setCoverBitmap(null);
+        if (TextUtils.isEmpty(mCoverUrl)) {
+            return;
+        }
+
+        final String requestedUrl = mCoverUrl;
+        mCoverExecutor.execute(() -> {
+            Bitmap coverBitmap = downloadCover(requestedUrl);
+            runOnUiThread(() -> {
+                if (binding == null || !TextUtils.equals(mCoverUrl, requestedUrl)) {
+                    return;
+                }
+                binding.recordView.setCoverBitmap(coverBitmap);
+            });
+        });
+    }
+
+    private Bitmap downloadCover(String coverUrl) {
+        Uri uri = Uri.parse(coverUrl);
+        String scheme = uri.getScheme();
+        if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+            return null;
+        }
+        try {
+            BitmapFactory.Options bounds = new BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            decodeCover(coverUrl, bounds);
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                return null;
+            }
+
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inSampleSize = calculateInSampleSize(bounds);
+            options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+            return decodeCover(coverUrl, options);
+        } catch (IOException e) {
+            Log.w(TAG, "load cover failed", e);
+            return null;
+        }
+    }
+
+    private Bitmap decodeCover(String coverUrl, BitmapFactory.Options options) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) new URL(coverUrl).openConnection();
+        connection.setConnectTimeout(COVER_CONNECT_TIMEOUT_MS);
+        connection.setReadTimeout(COVER_READ_TIMEOUT_MS);
+        connection.setInstanceFollowRedirects(true);
+        try {
+            int responseCode = connection.getResponseCode();
+            if (responseCode < HttpURLConnection.HTTP_OK
+                    || responseCode >= HttpURLConnection.HTTP_MULT_CHOICE) {
+                throw new IOException("cover response code=" + responseCode);
+            }
+            try (InputStream inputStream = connection.getInputStream()) {
+                return BitmapFactory.decodeStream(inputStream, null, options);
+            }
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    private int calculateInSampleSize(BitmapFactory.Options options) {
+        int sampleSize = 1;
+        while (options.outWidth / sampleSize > COVER_MAX_SIZE_PX
+                || options.outHeight / sampleSize > COVER_MAX_SIZE_PX) {
+            sampleSize *= 2;
+        }
+        return sampleSize;
     }
 
     private void bindClickListeners() {
