@@ -39,6 +39,7 @@ public class MusicActivity extends BaseActivity<ActivityMusicPlayerBinding, Musi
 
     private boolean mUserSeeking;
     private boolean mBindingProgress;
+    private long mCurrentDurationMs;
     private final ExecutorService mCoverExecutor = Executors.newSingleThreadExecutor();
     private String mCoverUrl = "";
 
@@ -76,6 +77,7 @@ public class MusicActivity extends BaseActivity<ActivityMusicPlayerBinding, Musi
         loadCover(state.getCoverUrl());
         long duration = state.getDurationMs();
         long position = state.getPositionMs();
+        mCurrentDurationMs = duration;
         binding.currentTimeText.setText(formatTime(position));
         binding.remainingTimeText.setText("−" + formatTime(Math.max(0L, duration - position)));
         if (!mUserSeeking) {
@@ -203,11 +205,9 @@ public class MusicActivity extends BaseActivity<ActivityMusicPlayerBinding, Musi
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 mUserSeeking = false;
-                UpnpPlaybackState state = com.hivi.launcher.music.model.UpnpPlaybackManager
-                        .getInstance().getCurrentState();
-                long duration = state.getDurationMs();
-                if (duration > 0) {
-                    presenter.seekTo(Math.round(duration * seekBar.getProgress() / 1000f));
+                if (mCurrentDurationMs > 0) {
+                    presenter.seekTo(Math.round(mCurrentDurationMs
+                            * seekBar.getProgress() / 1000f));
                 }
             }
         });

@@ -5,7 +5,7 @@ import com.hivi.launcher.base.BaseView;
 public interface MainView extends BaseView {
     void updateClock(String time, String date);
 
-    void updateConnectivity(String wifiLabel, boolean bluetoothConnected);
+    void updateConnectivity(String wifiLabel, boolean bluetoothConnected, String bluetoothDeviceName);
 
     void updateVolume(int volumePercent);
 

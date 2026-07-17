@@ -1,6 +1,5 @@
 package com.hivi.launcher.main.data;
 
-import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.media.AudioManager;
 import android.media.session.MediaController;
@@ -15,6 +14,8 @@ import android.text.TextUtils;
 import com.hivi.launcher.R;
 import com.hivi.launcher.main.model.MainStatus;
 import com.hivi.launcher.main.model.MusicInfo;
+import com.hivi.launcher.music.model.BluetoothMediaController;
+import com.hivi.launcher.music.model.BluetoothPlaybackState;
 import com.hivi.launcher.music.model.UpnpPlaybackManager;
 import com.hivi.launcher.music.model.UpnpPlaybackState;
 
@@ -33,6 +34,7 @@ public final class MainStatusRepository {
     private final WifiManager mWifiManager;
     private final ConnectivityManager mConnectivityManager;
     private final MediaSessionManager mMediaSessionManager;
+    private final BluetoothMediaController mBluetoothMediaController;
 
     public MainStatusRepository(Context context) {
         mContext = context.getApplicationContext();
@@ -42,11 +44,12 @@ public final class MainStatusRepository {
                 Context.CONNECTIVITY_SERVICE);
         mMediaSessionManager = (MediaSessionManager) mContext.getSystemService(
                 Context.MEDIA_SESSION_SERVICE);
+        mBluetoothMediaController = BluetoothMediaController.getInstance();
     }
 
     public MainStatus loadStatus() {
-        return new MainStatus(getWifiLabel(), isBluetoothConnected(), getVolumePercent(),
-                getMusicInfo());
+        return new MainStatus(getWifiLabel(), isBluetoothConnected(), getBluetoothDeviceName(),
+                getVolumePercent(), getMusicInfo());
     }
 
     public String getWifiLabel() {
@@ -74,10 +77,11 @@ public final class MainStatusRepository {
     }
 
     public boolean isBluetoothConnected() {
-        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-        return adapter != null && adapter.isEnabled()
-                && adapter.getProfileConnectionState(android.bluetooth.BluetoothProfile.A2DP)
-                == android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+        return mBluetoothMediaController.isBluetoothAudioConnected();
+    }
+
+    public String getBluetoothDeviceName() {
+        return mBluetoothMediaController.getConnectedDeviceName();
     }
 
     public int getVolumePercent() {
@@ -98,6 +102,11 @@ public final class MainStatusRepository {
     }
 
     public MusicInfo getMusicInfo() {
+        BluetoothPlaybackState bluetoothState = mBluetoothMediaController.getCurrentState();
+        if (mBluetoothMediaController.isBluetoothAudioConnected()
+                && bluetoothState.hasMetadata()) {
+            return new MusicInfo(bluetoothState.getTitle(), bluetoothState.getArtist());
+        }
         UpnpPlaybackState upnpState = UpnpPlaybackManager.getInstance().getCurrentState();
         if (upnpState != null && upnpState.hasRealSong()) {
             return new MusicInfo(upnpState.getTitle(), upnpState.getArtist());

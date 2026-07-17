@@ -3,6 +3,7 @@ package com.hivi.launcher.main.presenter;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
+import android.bluetooth.BluetoothDevice;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.base.BasePresenter;
@@ -10,6 +11,7 @@ import com.hivi.launcher.main.data.MainStatusRepository;
 import com.hivi.launcher.main.model.MainStatus;
 import com.hivi.launcher.main.model.MusicInfo;
 import com.hivi.launcher.main.ui.MainView;
+import com.hivi.launcher.music.model.BluetoothMediaController;
 import com.hivi.launcher.music.model.UpnpPlaybackManager;
 import com.hivi.launcher.settings.data.SystemSettingsNavigator;
 
@@ -29,6 +31,7 @@ public class MainPresenter extends BasePresenter<MainView> {
     private final Context mContext;
     private final MainStatusRepository mStatusRepository;
     private final SystemSettingsNavigator mSettingsNavigator;
+    private final BluetoothMediaController mBluetoothMediaController;
 
     private final Runnable mTicker = new Runnable() {
         @Override
@@ -44,10 +47,12 @@ public class MainPresenter extends BasePresenter<MainView> {
         mContext = context.getApplicationContext();
         mStatusRepository = new MainStatusRepository(mContext);
         mSettingsNavigator = new SystemSettingsNavigator(mContext);
+        mBluetoothMediaController = BluetoothMediaController.getInstance();
     }
 
     public void init() {
         UpnpPlaybackManager.getInstance().start(mContext);
+        mBluetoothMediaController.start(mContext);
         updateClock();
         updateDeviceStatus();
         updateMedia();
@@ -64,6 +69,13 @@ public class MainPresenter extends BasePresenter<MainView> {
 
     public void onSystemStateChanged() {
         updateDeviceStatus();
+    }
+
+    public void onBluetoothStateChanged(BluetoothDevice device, String action, int connectionState) {
+        mBluetoothMediaController.onBluetoothConnectionStateChanged(device, action,
+                connectionState);
+        updateDeviceStatus();
+        updateMedia();
     }
 
     public void updateClock() {
@@ -84,7 +96,8 @@ public class MainPresenter extends BasePresenter<MainView> {
         MainView view = getView();
         if (view != null) {
             view.updateConnectivity(mStatusRepository.getWifiLabel(),
-                    mStatusRepository.isBluetoothConnected());
+                    mStatusRepository.isBluetoothConnected(),
+                    mStatusRepository.getBluetoothDeviceName());
         }
     }
 
@@ -112,6 +125,9 @@ public class MainPresenter extends BasePresenter<MainView> {
         MusicInfo musicInfo = mStatusRepository.getMusicInfo();
         if (musicInfo != null) {
             view.updateMusic(musicInfo.getTitle(), musicInfo.getArtist());
+        } else {
+            view.updateMusic(mContext.getString(R.string.main_music_empty_title),
+                    mContext.getString(R.string.main_music_empty_artist));
         }
     }
 
@@ -164,7 +180,8 @@ public class MainPresenter extends BasePresenter<MainView> {
         MainStatus status = mStatusRepository.loadStatus();
         MainView view = getView();
         if (view != null) {
-            view.updateConnectivity(status.getWifiLabel(), status.isBluetoothConnected());
+            view.updateConnectivity(status.getWifiLabel(), status.isBluetoothConnected(),
+                    status.getBluetoothDeviceName());
             view.updateVolume(status.getVolumePercent());
         }
     }
