@@ -6,6 +6,15 @@ android {
     namespace 'com.hivi.launcher'
     compileSdk 30
 
+    signingConfigs {
+        platform {
+            storeFile rootProject.file('platform.keystore')
+            storePassword 'android'
+            keyAlias 'platform'
+            keyPassword 'android'
+        }
+    }
+
     defaultConfig {
         applicationId 'com.hivi.launcher'
         minSdk 24
@@ -23,11 +32,13 @@ android {
             debuggable true
             minifyEnabled false
             versionNameSuffix '-debug'
+            signingConfig signingConfigs.platform
         }
         release {
             minifyEnabled false
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.platform
         }
     }
 
@@ -44,6 +55,12 @@ android {
 
     packagingOptions {
         exclude 'META-INF/beans.xml'
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            output.outputFileName = "hivi-launcher-v${variant.versionName}.apk".toLowerCase()
+        }
     }
 }
 

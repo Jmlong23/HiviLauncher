@@ -45,7 +45,7 @@ targetSdk 30
 Debug APK 输出：
 
 ```text
-app/build/outputs/apk/debug/app-debug.apk
+app/build/outputs/apk/debug/hivi-launcher-v1.0.0-debug.apk
 ```
 
 Release APK：
@@ -57,10 +57,10 @@ Release APK：
 Release APK 输出：
 
 ```text
-app/build/outputs/apk/release/app-release-unsigned.apk
+app/build/outputs/apk/release/hivi-launcher-v1.0.0.apk
 ```
 
-如需系统权限，量产 APK 建议使用平台签名或在系统源码中以 `LOCAL_CERTIFICATE := platform` 预置签名。
+Debug 和 Release APK 均使用项目根目录的 `platform.keystore` 签名，签名配置与 HiviAudio 保持一致。量产前需确认该证书与目标系统的 platform 证书一致；通过系统源码预置时也可由 `LOCAL_CERTIFICATE := platform` 重新签名。
 
 ## 预置到 RK356X Android 11 系统
 
@@ -76,7 +76,7 @@ app/build/outputs/apk/release/app-release-unsigned.apk
 mkdir -p /home/long/Desktop/orangecm4/RK356X_Android11/packages/apps/HiviLauncher
 cp system-prebuilt/Android.mk \
   /home/long/Desktop/orangecm4/RK356X_Android11/packages/apps/HiviLauncher/Android.mk
-cp app/build/outputs/apk/release/app-release-unsigned.apk \
+cp app/build/outputs/apk/release/hivi-launcher-v1.0.0.apk \
   /home/long/Desktop/orangecm4/RK356X_Android11/packages/apps/HiviLauncher/HiviLauncher.apk
 ```
 
