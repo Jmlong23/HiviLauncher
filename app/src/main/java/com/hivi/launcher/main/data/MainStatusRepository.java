@@ -63,15 +63,15 @@ public final class MainStatusRepository {
         }
 
         if (mWifiManager == null) {
-            return "WiFi";
+            return mContext.getString(R.string.main_wifi_default);
         }
         WifiInfo wifiInfo = mWifiManager.getConnectionInfo();
         if (wifiInfo == null) {
-            return mContext.getString(R.string.main_connected);
+            return mContext.getString(R.string.main_wifi_default);
         }
         String ssid = wifiInfo.getSSID();
         if (TextUtils.isEmpty(ssid) || "<unknown ssid>".equals(ssid)) {
-            return mContext.getString(R.string.main_connected);
+            return mContext.getString(R.string.main_wifi_default);
         }
         return ssid.replace("\"", "");
     }

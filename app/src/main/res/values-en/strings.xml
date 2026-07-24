@@ -4,7 +4,8 @@
 
     <string name="main_wifi_default">WiFi</string>
     <string name="main_bluetooth_default">Bluetooth</string>
-    <string name="main_current_mode_wifi">Mode: WiFi</string>
+    <string name="main_wifi_connected_format">%1$s · Connected</string>
+    <string name="main_current_mode_wifi">WiFi Mode</string>
     <string name="main_account">Account</string>
     <string name="main_time_period_morning">Morning</string>
     <string name="main_time_placeholder">--:--</string>
@@ -59,4 +60,26 @@
     <string name="auth_cancel">Cancel authorization</string>
     <string name="auth_hint_canceling">Canceling authorization…</string>
     <string name="auth_hint_cancel_failed">Unable to cancel authorization. Please try again later.</string>
+    <string name="select_mode">Please select mode</string>
+
+    <!-- Input mode carousel -->
+    <string name="input_mode_line">LINE</string>
+    <string name="input_mode_line_top">LINE Mode</string>
+    <string name="input_mode_microphone">Microphone</string>
+    <string name="input_mode_microphone_top">Microphone</string>
+    <string name="input_mode_bluetooth">Bluetooth</string>
+    <string name="input_mode_bluetooth_top">Bluetooth Mode</string>
+    <string name="input_mode_optical">Optical</string>
+    <string name="input_mode_optical_top">Optical Mode</string>
+    <string name="input_mode_coax">COAX</string>
+    <string name="input_mode_coax_top">COAX Mode</string>
+    <string name="input_mode_hdmi">HDMI</string>
+    <string name="input_mode_hdmi_top">HDMI Mode</string>
+    <string name="input_mode_wifi_music">WiFi Music</string>
+    <string name="input_mode_wifi_music_top">WiFi Music</string>
+    <string name="input_mode_karaoke">Karaoke</string>
+    <string name="input_mode_karaoke_top">Karaoke</string>
+    <string name="input_mode_status_no_signal">No signal</string>
+    <string name="input_mode_status_disconnected">Disconnected</string>
+    <string name="input_mode_status_connected">Connected</string>
 </resources>

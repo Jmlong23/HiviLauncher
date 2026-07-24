@@ -3,7 +3,7 @@
     android:id="@+id/launcher_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#303030"
+    android:background="#363636"
     android:orientation="vertical"
     android:paddingLeft="33dp"
     android:paddingRight="33dp"
@@ -42,8 +42,8 @@
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:includeFontPadding="false"
-                android:text="@string/main_wifi_default"
-                android:textColor="@color/white"
+                android:text="@string/main_disconnected"
+                android:textColor="@color/text_color"
                 android:textSize="13sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -77,8 +77,8 @@
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:includeFontPadding="false"
-                android:text="@string/main_bluetooth_default"
-                android:textColor="@color/white"
+                android:text="@string/main_disconnected"
+                android:textColor="@color/text_color"
                 android:textSize="13sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -89,6 +89,34 @@
             android:layout_height="1dp"
             android:layout_weight="1" />
 
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="35dp"
+            android:orientation="horizontal"
+            android:background="@drawable/main_status_pill_background"
+            android:gravity="center">
+
+            <ImageView
+                android:id="@+id/account_img"
+                android:layout_width="25dp"
+                android:layout_height="25dp"
+                android:background="@color/white"
+                android:paddingLeft="13dp"/>
+
+            <TextView
+                android:id="@+id/account_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/main_account"
+                android:textColor="@color/text_color"
+                android:textSize="15sp"
+                android:paddingLeft="7dp"
+                android:paddingRight="13dp"
+                android:drawableEnd="@drawable/main_account_indicator"
+                android:drawablePadding="8dp" />
+        </LinearLayout>
+
+
         <TextView
             android:id="@+id/mode_text"
             android:layout_width="wrap_content"
@@ -96,376 +124,49 @@
             android:background="@drawable/main_status_pill_background"
             android:gravity="center"
             android:text="@string/main_current_mode_wifi"
-            android:textColor="@color/white"
-            android:textSize="15sp"
-            android:paddingRight="20dp"
-            android:paddingLeft="20dp"/>
-
-        <TextView
-            android:id="@+id/account_text"
-            android:layout_width="wrap_content"
-            android:layout_height="35dp"
-            android:background="@drawable/main_status_pill_background"
-            android:drawableLeft="@drawable/main_account_indicator"
-            android:drawablePadding="8dp"
-            android:gravity="center"
-            android:includeFontPadding="false"
-            android:text="@string/main_account"
-            android:textColor="@color/white"
+            android:textColor="@color/text_color"
             android:textSize="15sp"
             android:paddingRight="20dp"
             android:paddingLeft="20dp"
-            android:layout_marginLeft="25dp"/>
+            android:layout_marginLeft="25dp"
+            android:drawableEnd="@drawable/ic_switch_mode"
+            android:drawablePadding="8dp"/>
     </LinearLayout>
-
-
 
     <LinearLayout
-        android:id="@+id/cards_row"
         android:layout_width="match_parent"
-        android:layout_height="273dp"
-        android:gravity="center"
-        android:orientation="horizontal">
-
-        <LinearLayout
-            android:id="@+id/clock_card"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="@drawable/main_card_bg"
-            android:gravity="center"
-            android:orientation="vertical"
-            >
-
-            <com.hivi.launcher.customview.ClockFaceView
-                android:id="@+id/clock_face"
-                android:layout_width="170dp"
-                android:layout_height="170dp"
-                android:layout_gravity="center_horizontal" />
-
-            <LinearLayout
-                android:id="@+id/time_row"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/time_period_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/main_time_period_morning"
-                    android:textColor="@color/white"
-                    android:textSize="15sp"
-                    android:layout_marginRight="17dp"/>
-
-                <TextView
-                    android:id="@+id/time_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/main_time_placeholder"
-                    android:textColor="@color/white"
-                    android:textSize="27sp"/>
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/date_text"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:background="@drawable/main_card_pill_bg"
-                android:layout_marginLeft="27dp"
-                android:layout_marginTop="9dp"
-                android:layout_marginRight="27dp"
-                android:gravity="center"
-                android:text="@string/main_date_placeholder"
-                android:textColor="@color/text_color2"
-                android:textSize="16sp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/weather_card"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginLeft="40dp"
-            android:layout_marginRight="40dp"
-            android:layout_weight="1"
-            android:background="@drawable/main_card_bg"
-            android:gravity="center"
-            android:orientation="vertical">
-
-            <com.hivi.launcher.customview.WeatherView
-                android:id="@+id/weather_icon"
-                android:layout_width="129dp"
-                android:layout_height="99dp"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="35dp"/>
-
-            <LinearLayout
-                android:id="@+id/weather_row"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:orientation="horizontal"
-                android:layout_marginTop="30dp">
-
-                <TextView
-                    android:id="@+id/weather_desc_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/main_weather_desc"
-                    android:textColor="@color/white"
-                    android:textSize="15sp"
-                    android:layout_marginRight="17dp"/>
-
-                <TextView
-                    android:id="@+id/weather_temp_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/main_weather_temp"
-                    android:textColor="@color/white"
-                    android:textSize="27sp" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/city_text"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:background="@drawable/main_card_pill_bg"
-                android:layout_marginLeft="27dp"
-                android:layout_marginTop="9dp"
-                android:layout_marginRight="27dp"
-                android:gravity="center"
-                android:text="@string/main_city_air_quality"
-                android:textColor="@color/text_color2"
-                android:textSize="16sp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/volume_card"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="@drawable/main_card_bg"
-            android:gravity="center"
-            android:orientation="vertical">
-
-            <com.hivi.launcher.customview.VolumeDialView
-                android:id="@+id/volume_dial_view"
-                android:layout_width="165dp"
-                android:layout_height="165dp"
-                android:layout_gravity="center_horizontal" />
-
-            <LinearLayout
-                android:id="@+id/volume_row"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/volume_label_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/main_volume"
-                    android:textColor="@color/white"
-                    android:textSize="15sp"
-                    android:layout_marginRight="46dp"/>
-
-
-                <TextView
-                    android:id="@+id/volume_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/main_volume_placeholder"
-                    android:textColor="@color/white"
-                    android:textSize="27sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/volume_controls"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:background="@drawable/main_card_pill_bg"
-                android:layout_marginLeft="27dp"
-                android:layout_marginTop="9dp"
-                android:layout_marginRight="27dp">
-
-                <ImageView
-                    android:id="@+id/volume_up_button"
-                    android:layout_width="50dp"
-                    android:layout_height="41dp"
-                    android:src="@drawable/ic_volume_up"
-                    android:paddingTop="3dp"
-                    android:paddingLeft="3dp"/>
-
-                <TextView
-                    android:id="@+id/volume_adjust_label"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/main_volume_adjust"
-                    android:textColor="@color/text_color2"
-                    android:textSize="16sp"
-                    android:layout_marginLeft="7dp"
-                    android:layout_marginRight="7dp"/>
-
-                <ImageView
-                    android:id="@+id/volume_down_button"
-                    android:layout_width="50dp"
-                    android:layout_height="41dp"
-                    android:src="@drawable/ic_volume_down"
-                    android:paddingTop="3dp"/>
-            </LinearLayout>
-        </LinearLayout>
+        android:layout_height="30dp"
+        android:orientation="horizontal"
+        android:gravity="center">
+        <View
+            android:layout_width="139dp"
+            android:layout_height="0.5dp"
+            android:background="#C5C6C6"
+            android:layout_marginRight="14dp"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/select_mode"
+            android:textSize="20sp"
+            android:textColor="@color/text_color"
+            android:layout_marginRight="14dp"/>
+        <View
+            android:layout_width="139dp"
+            android:layout_height="0.5dp"
+            android:background="#C5C6C6"/>
     </LinearLayout>
 
-    <RelativeLayout
-        android:id="@+id/bottom_bar"
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/cards_row"
         android:layout_width="match_parent"
-        android:layout_height="140dp"
-        android:orientation="horizontal"
-        android:layout_marginTop="11dp">
-
-        <RelativeLayout
-            android:id="@+id/player_container"
-            android:layout_width="374dp"
-            android:layout_height="127dp"
-            android:layout_marginRight="99dp"
-            android:background="@drawable/main_player_background"
-            android:paddingLeft="18dp"
-            android:paddingRight="28dp"
-            android:layout_alignParentBottom="true"
-            >
-
-            <ImageView
-                android:id="@+id/play_icon"
-                android:layout_width="21dp"
-                android:layout_height="25dp"
-                android:src="@drawable/ic_play"
-                android:layout_alignParentRight="true"
-                android:layout_centerVertical="true"/>
-
-            <LinearLayout
-                android:id="@+id/music_text_box"
-                android:layout_width="149dp"
-                android:layout_height="match_parent"
-                android:orientation="vertical"
-                android:layout_toLeftOf="@+id/play_icon"
-                android:gravity="center_vertical"
-                android:layout_marginRight="36dp">
-
-                <TextView
-                    android:id="@+id/music_title_text"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:singleLine="true"
-                    android:text="@string/main_music_empty_title"
-                    android:textColor="@color/white"
-                    android:textSize="21sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/music_artist_text"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:singleLine="true"
-                    android:text="@string/main_music_empty_artist"
-                    android:textColor="#919191"
-                    android:textSize="19sp" />
-            </LinearLayout>
+        android:layout_height="231dp"
+        android:layout_marginTop="47dp"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:paddingLeft="30dp"
+        android:paddingRight="30dp"
+        android:scrollbars="none" />
 
 
-        </RelativeLayout>
-
-        <ImageView
-            android:id="@+id/record_view"
-            android:layout_width="103dp"
-            android:layout_height="129dp"
-            android:src="@drawable/ic_record"
-            android:layout_marginLeft="18dp"/>
-
-        <RelativeLayout
-            android:id="@+id/switch_button"
-            android:layout_width="75dp"
-            android:layout_height="119dp"
-            android:layout_alignParentRight="true"
-            android:layout_marginTop="24dp">
-
-            <ImageView
-                android:id="@+id/switch_icon"
-                android:layout_width="75dp"
-                android:layout_height="119dp"
-                android:src="@drawable/ic_switch" />
-
-            <TextView
-                android:id="@+id/switch_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/main_switch"
-                android:textColor="@color/white"
-                android:textSize="16sp"
-                android:layout_alignParentBottom="true"
-                android:layout_centerHorizontal="true"
-                android:layout_marginBottom="9dp"/>
-        </RelativeLayout>
-
-        <RelativeLayout
-            android:id="@+id/screensaver_button"
-            android:layout_width="75dp"
-            android:layout_height="119dp"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:layout_toLeftOf="@+id/switch_button"
-            android:layout_marginTop="24dp"
-            android:layout_marginRight="61dp">
-
-            <ImageView
-                android:id="@+id/screensaver_icon"
-                android:layout_width="75dp"
-                android:layout_height="119dp"
-                android:src="@drawable/ic_screensaver" />
-
-            <TextView
-                android:id="@+id/screensaver_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/main_screensaver_settings"
-                android:textColor="@color/white"
-                android:textSize="16sp"
-                android:layout_alignParentBottom="true"
-                android:layout_centerHorizontal="true"
-                android:layout_marginBottom="9dp"/>
-        </RelativeLayout>
-
-        <RelativeLayout
-            android:id="@+id/settings_button"
-            android:layout_width="75dp"
-            android:layout_height="119dp"
-            android:layout_toLeftOf="@+id/screensaver_button"
-            android:layout_marginTop="24dp"
-            android:layout_marginRight="61dp">
-
-            <ImageView
-                android:id="@+id/settings_icon"
-                android:layout_width="75dp"
-                android:layout_height="119dp"
-                android:src="@drawable/ic_settings" />
-
-            <TextView
-                android:id="@+id/settings_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/main_settings"
-                android:textColor="@color/white"
-                android:textSize="16sp"
-                android:layout_alignParentBottom="true"
-                android:layout_centerHorizontal="true"
-                android:layout_marginBottom="9dp"/>
-        </RelativeLayout>
-
-    </RelativeLayout>
 </LinearLayout>
 

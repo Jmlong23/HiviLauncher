@@ -5,7 +5,8 @@
     <!-- Main screen -->
     <string name="main_wifi_default">WiFi</string>
     <string name="main_bluetooth_default">蓝牙</string>
-    <string name="main_current_mode_wifi">当前模式：WiFi</string>
+    <string name="main_wifi_connected_format">%1$s·连接</string>
+    <string name="main_current_mode_wifi">WiFi模式</string>
     <string name="main_account">账号</string>
     <string name="main_time_period_morning">上午</string>
     <string name="main_time_placeholder">--:--</string>
@@ -61,4 +62,26 @@
     <string name="auth_cancel">取消授权</string>
     <string name="auth_hint_canceling">正在取消授权…</string>
     <string name="auth_hint_cancel_failed">取消授权失败，请稍后重试</string>
+    <string name="select_mode">请选择模式</string>
+
+    <!-- Input mode carousel -->
+    <string name="input_mode_line">LINE 有线</string>
+    <string name="input_mode_line_top">有线模式</string>
+    <string name="input_mode_microphone">麦克风</string>
+    <string name="input_mode_microphone_top">麦克风</string>
+    <string name="input_mode_bluetooth">蓝牙</string>
+    <string name="input_mode_bluetooth_top">蓝牙模式</string>
+    <string name="input_mode_optical">光纤</string>
+    <string name="input_mode_optical_top">光纤模式</string>
+    <string name="input_mode_coax">COAX 同轴</string>
+    <string name="input_mode_coax_top">同轴模式</string>
+    <string name="input_mode_hdmi">HDMI</string>
+    <string name="input_mode_hdmi_top">HDMI 模式</string>
+    <string name="input_mode_wifi_music">WiFi 音乐</string>
+    <string name="input_mode_wifi_music_top">WiFi 音乐</string>
+    <string name="input_mode_karaoke">卡拉 OK</string>
+    <string name="input_mode_karaoke_top">卡拉 OK</string>
+    <string name="input_mode_status_no_signal">无信号</string>
+    <string name="input_mode_status_disconnected">未连接</string>
+    <string name="input_mode_status_connected">已连接</string>
 </resources>

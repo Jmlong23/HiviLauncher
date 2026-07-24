@@ -4,6 +4,8 @@
     <color name="white">#FFFFFFFF</color>
     <color name="black">#FF000000</color>
 
-    <color name="text_color">#CCD2DB</color>
+    <color name="text_color">#E1E1E1</color>
     <color name="text_color2">#ECECEC</color>
+    <color name="status_connected">#4AF317</color>
+    <color name="status_disconnect">#EC3E3E</color>
 </resources>

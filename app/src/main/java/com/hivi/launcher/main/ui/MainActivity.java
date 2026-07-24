@@ -8,11 +8,13 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.media.AudioManager;
 import android.os.Bundle;
 import android.view.View;
 
 import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.LinearSnapHelper;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.account.ui.AuthorizationDialog;
@@ -20,12 +22,11 @@ import com.hivi.launcher.base.BaseActivity;
 import com.hivi.launcher.databinding.ActivityMainBinding;
 import com.hivi.launcher.main.presenter.MainPresenter;
 import com.hivi.launcher.music.model.BluetoothMediaController;
-import com.hivi.launcher.music.ui.MusicActivity;
-import com.hivi.launcher.systemapps.ui.SystemAppsActivity;
 
 public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresenter>
         implements MainView {
     private AuthorizationDialog mAuthorizationDialog;
+    private InputModeAdapter mInputModeAdapter;
 
     private final BroadcastReceiver mSystemReceiver = new BroadcastReceiver() {
         @Override
@@ -56,6 +57,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     @Override
     protected void initView(@Nullable Bundle savedInstanceState) {
+        setupInputModeCarousel();
         bindMainClickListeners();
     }
 
@@ -82,11 +84,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     @Override
     public void updateClock(String time, String date) {
-        if (binding == null) {
-            return;
-        }
-        binding.timeText.setText(time);
-        binding.dateText.setText(date);
+        // The information cards were replaced by the input-mode carousel.
     }
 
     @Override
@@ -95,39 +93,20 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
-        binding.wifiText.setText(wifiLabel);
+        binding.wifiText.setText(formatWifiStatus(wifiLabel));
         binding.bluetoothText.setText(bluetoothConnected
                 ? (android.text.TextUtils.isEmpty(bluetoothDeviceName)
-                        ? getString(R.string.main_connected) : bluetoothDeviceName)
+                        ? getString(R.string.main_bluetooth_default) : bluetoothDeviceName)
                 : getString(R.string.main_disconnected));
+        if (mInputModeAdapter != null
+                && mInputModeAdapter.updateConnectivityState(bluetoothConnected, wifiLabel)) {
+            scrollToSelectedMode();
+        }
     }
 
     @Override
     public void updateVolume(int volumePercent) {
-        if (binding == null) {
-            return;
-        }
-        binding.volumeText.setText(String.valueOf(volumePercent));
-        binding.volumeDialView.setValue(volumePercent);
-    }
-
-    @Override
-    public void updateMusic(CharSequence title, CharSequence artist) {
-        if (binding == null) {
-            return;
-        }
-        binding.musicTitleText.setText(title);
-        binding.musicArtistText.setText(artist);
-    }
-
-    @Override
-    public void openMusicPlayer() {
-        startActivity(new Intent(this, MusicActivity.class));
-    }
-
-    @Override
-    public void openSystemApps() {
-        startActivity(new Intent(this, SystemAppsActivity.class));
+        // Volume remains available to the audio layer; its old dashboard card was removed.
     }
 
     @Override
@@ -151,21 +130,11 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     private void applyLocalizedTexts() {
-        binding.wifiText.setText(R.string.main_wifi_default);
-        binding.bluetoothText.setText(R.string.main_bluetooth_default);
-        binding.modeText.setText(R.string.main_current_mode_wifi);
+        binding.wifiText.setText(R.string.main_disconnected);
+        binding.bluetoothText.setText(R.string.main_disconnected);
+        updateModeText(mInputModeAdapter == null
+                ? 0 : mInputModeAdapter.getSelectedModeTopLabelResId());
         binding.accountText.setText(R.string.main_account);
-        binding.timePeriodText.setText(R.string.main_time_period_morning);
-        binding.weatherDescText.setText(R.string.main_weather_desc);
-        binding.weatherTempText.setText(R.string.main_weather_temp);
-        binding.cityText.setText(R.string.main_city_air_quality);
-        binding.volumeLabelText.setText(R.string.main_volume);
-        binding.volumeAdjustLabel.setText(R.string.main_volume_adjust);
-        binding.musicTitleText.setText(R.string.main_music_empty_title);
-        binding.musicArtistText.setText(R.string.main_music_empty_artist);
-        binding.settingsText.setText(R.string.main_settings);
-        binding.screensaverText.setText(R.string.main_screensaver_settings);
-        binding.switchText.setText(R.string.main_switch);
     }
 
     private void bindMainClickListeners() {
@@ -175,42 +144,52 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 presenter.showAuthorizationDialog();
             }
         });
-        binding.volumeUpButton.setOnClickListener(new View.OnClickListener() {
+    }
+
+    private void setupInputModeCarousel() {
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this,
+                RecyclerView.HORIZONTAL, false);
+        binding.cardsRow.setLayoutManager(layoutManager);
+        binding.cardsRow.setHasFixedSize(true);
+        binding.cardsRow.setItemAnimator(null);
+        mInputModeAdapter = new InputModeAdapter(this, new InputModeAdapter.OnModeSelectedListener() {
             @Override
-            public void onClick(View v) {
-                presenter.adjustVolume(AudioManager.ADJUST_RAISE);
+            public void onModeSelected(int topLabelResId) {
+                updateModeText(topLabelResId);
             }
         });
-        binding.volumeDownButton.setOnClickListener(new View.OnClickListener() {
+        binding.cardsRow.setAdapter(mInputModeAdapter);
+        new LinearSnapHelper().attachToRecyclerView(binding.cardsRow);
+    }
+
+    private void updateModeText(int topLabelResId) {
+        binding.modeText.setText(topLabelResId == 0 ? R.string.select_mode : topLabelResId);
+    }
+
+    private void scrollToSelectedMode() {
+        final int selectedPosition = mInputModeAdapter.getSelectedPosition();
+        if (selectedPosition == RecyclerView.NO_POSITION) {
+            return;
+        }
+        binding.cardsRow.post(new Runnable() {
             @Override
-            public void onClick(View v) {
-                presenter.adjustVolume(AudioManager.ADJUST_LOWER);
+            public void run() {
+                RecyclerView.LayoutManager layoutManager = binding.cardsRow.getLayoutManager();
+                if (layoutManager instanceof LinearLayoutManager) {
+                    ((LinearLayoutManager) layoutManager).scrollToPositionWithOffset(
+                            selectedPosition, binding.cardsRow.getPaddingLeft());
+                }
             }
         });
-        binding.playerContainer.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                presenter.openMusicPlayer();
-            }
-        });
-        binding.settingsButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                presenter.openSystemSettings();
-            }
-        });
-        binding.screensaverButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                presenter.openScreensaverSettings();
-            }
-        });
-        binding.switchButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                presenter.openSystemApps();
-            }
-        });
+    }
+
+    private String formatWifiStatus(String wifiLabel) {
+        if (android.text.TextUtils.isEmpty(wifiLabel)
+                || android.text.TextUtils.equals(wifiLabel,
+                getString(R.string.main_disconnected))) {
+            return getString(R.string.main_disconnected);
+        }
+        return getString(R.string.main_wifi_connected_format, wifiLabel);
     }
 
     private void registerSystemReceiver() {
