@@ -1,51 +1,394 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/authorization_dialog_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/dialog_background"
-    android:orientation="vertical"
-    android:gravity="center">
+    android:background="@drawable/dialog_background">
 
-    <ImageView
-        android:id="@+id/authorization_qr_code"
-        android:layout_width="133dp"
-        android:layout_height="133dp"
-        android:contentDescription="@null"
-        android:scaleType="centerInside" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingLeft="40dp"
+        android:paddingTop="28dp"
+        android:paddingRight="40dp"
+        android:paddingBottom="28dp">
 
-    <TextView
-        android:id="@+id/authorization_title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="36dp"
-        android:text="@string/auth"
-        android:textColor="@color/text_color"
-        android:textSize="33sp"
-        android:textStyle="bold" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-    <TextView
-        android:id="@+id/authorization_hint"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="7dp"
-        android:gravity="center"
-        android:textColor="@color/text_color"
-        android:textSize="21sp" />
+            <ImageButton
+                android:id="@+id/authorization_back_button"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:contentDescription="@string/auth_back"
+                android:background="@drawable/ic_back" />
 
-    <TextView
-        android:id="@+id/authorization_cancel_button"
-        android:layout_width="163dp"
-        android:layout_height="59dp"
-        android:layout_marginTop="24dp"
-        android:background="@drawable/authorization_cancel_button"
+            <TextView
+                android:id="@+id/authorization_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="37dp"
+                android:text="@string/auth_dialog_title"
+                android:textColor="@color/text_color"
+                android:textSize="21sp" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <LinearLayout
+                android:id="@+id/authorization_flow_content"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="275dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical">
+
+                    <FrameLayout
+                        android:layout_width="166dp"
+                        android:layout_height="166dp"
+                        android:background="@drawable/auth_qr_background">
+
+                        <ImageView
+                            android:id="@+id/authorization_qr_code"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:layout_margin="3dp"
+                            android:contentDescription="@null"
+                            android:scaleType="fitCenter" />
+
+                        <LinearLayout
+                            android:id="@+id/authorization_qr_overlay"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:background="@drawable/auth_qr_overlay_background"
+                            android:gravity="center"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <ImageView
+                                android:id="@+id/authorization_qr_overlay_icon"
+                                android:layout_width="58dp"
+                                android:layout_height="58dp"
+                                android:contentDescription="@null"
+                                android:visibility="gone" />
+
+                            <TextView
+                                android:id="@+id/authorization_qr_overlay_text"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/text_color"
+                                android:textSize="21sp"
+                                android:visibility="gone" />
+                        </LinearLayout>
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/authorization_qr_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="11dp"
+                        android:gravity="center"
+                        android:singleLine="true"
+                        android:textColor="@color/text_color"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="18dp"
+                        android:gravity="center"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/authorization_refresh_button"
+                            android:layout_width="133dp"
+                            android:layout_height="38dp"
+                            android:background="@drawable/auth_primary_button"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:text="@string/auth_refresh_qr"
+                            android:textColor="@color/text_color"
+                            android:textSize="15sp" />
+
+                        <TextView
+                            android:id="@+id/authorization_not_now_button"
+                            android:layout_width="133dp"
+                            android:layout_height="38dp"
+                            android:layout_marginLeft="9dp"
+                            android:background="@drawable/auth_secondary_button"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:text="@string/auth_not_now"
+                            android:textColor="@color/text_color"
+                            android:textSize="15sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="330dp"
+                    android:layout_height="244dp"
+                    android:layout_marginLeft="25dp"
+                    android:background="@drawable/auth_instruction_background"
+                    android:gravity="center_vertical"
+                    android:orientation="vertical"
+                    android:paddingLeft="47dp"
+                    android:paddingRight="40dp">
+
+                    <TextView
+                        android:id="@+id/authorization_instruction_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/text_color"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/authorization_instruction_step_1"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="26dp"
+                        android:textColor="@color/text_color"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/authorization_instruction_step_2"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="21dp"
+                        android:textColor="@color/text_color"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/authorization_instruction_step_3"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="21dp"
+                        android:textColor="@color/text_color"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/authorization_instruction_step_4"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="21dp"
+                        android:textColor="@color/text_color"
+                        android:textSize="13sp"
+                        android:visibility="gone" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/authorization_success_content"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="115dp"
+                    android:layout_height="115dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_success" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="@string/auth_success_title"
+                    android:textColor="@color/text_color"
+                    android:textSize="21sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="37dp"
+                    android:text="@string/auth_success_returning"
+                    android:textColor="@color/text_color"
+                    android:textSize="18sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/authorization_account_info_content"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="610dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <FrameLayout
+                        android:id="@+id/authorization_account_avatar_container"
+                        android:layout_width="118dp"
+                        android:layout_height="118dp"
+                        android:background="@drawable/auth_avatar_background">
+
+                        <TextView
+                            android:id="@+id/authorization_account_avatar"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:textColor="#F5F5F5"
+                            android:textSize="64sp" />
+
+                        <ImageView
+                            android:id="@+id/authorization_account_avatar_image"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:contentDescription="@null"
+                            android:scaleType="centerCrop"
+                            android:visibility="gone" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="56dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/authorization_account_name"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:maxLines="1"
+                            android:textColor="#F0F0F0"
+                            android:textSize="27sp"
+                            android:textStyle="bold" />
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="23dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <View
+                                android:layout_width="8dp"
+                                android:layout_height="8dp"
+                                android:background="@drawable/main_account_indicator_connected" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginLeft="15dp"
+                                android:text="@string/auth_authorized"
+                                android:textColor="#DEDEDE"
+                                android:textSize="17sp" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/authorization_account_time"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="18dp"
+                            android:textColor="#D6D6D6"
+                            android:textSize="16sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="54dp"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/authorization_exit_button"
+                        android:layout_width="160dp"
+                        android:layout_height="50dp"
+                        android:background="@drawable/auth_danger_button"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:text="@string/auth_exit_authorization"
+                        android:textColor="#FFFFFF"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
+        </FrameLayout>
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/authorization_exit_confirmation_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/auth_exit_confirmation_overlay"
         android:clickable="true"
         android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:gravity="center"
-        android:text="@string/auth_cancel"
-        android:textColor="#363636"
-        android:textSize="21sp"
-        android:textStyle="bold"
-        android:visibility="gone" />
-</LinearLayout>
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="397dp"
+            android:layout_height="182dp"
+            android:layout_gravity="center"
+            android:background="@drawable/dialog_background"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/authorization_exit_confirm_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="50dp"
+                android:gravity="center"
+                android:textColor="@color/text_color"
+                android:textSize="21sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="38dp"
+                android:layout_marginTop="42dp"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/authorization_exit_confirm_button"
+                    android:layout_width="133dp"
+                    android:layout_height="38dp"
+                    android:background="@drawable/auth_primary_button"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:text="@string/auth_confirm"
+                    android:textColor="@color/text_color"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:id="@+id/authorization_exit_cancel_button"
+                    android:layout_width="133dp"
+                    android:layout_height="38dp"
+                    android:layout_marginLeft="37dp"
+                    android:background="@drawable/auth_secondary_button"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:text="@string/auth_cancel_action"
+                    android:textColor="@color/text_color"
+                    android:textSize="15sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+</FrameLayout>

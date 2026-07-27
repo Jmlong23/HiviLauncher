@@ -16,4 +16,8 @@ public interface ApiService {
 
     @GET("user/qrLogout")
     Observable<String> qrLogout(@Query("facilityCode") String facilityCode);
+
+    @Headers("Cache-Control: no-cache")
+    @GET("user/details")
+    Observable<String> getUserDetails();
 }

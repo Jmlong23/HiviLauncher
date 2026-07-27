@@ -9,6 +9,8 @@ public final class AuthorizationUiState {
         WAITING_FOR_SCAN,
         SCANNED,
         AUTHORIZED,
+        ACCOUNT_INFO,
+        UNAUTHORIZED,
         RETRYING,
         CANCELING,
         CANCEL_FAILED
@@ -44,6 +46,14 @@ public final class AuthorizationUiState {
 
     public static AuthorizationUiState authorized() {
         return new AuthorizationUiState(Phase.AUTHORIZED, "", null);
+    }
+
+    public static AuthorizationUiState accountInfo() {
+        return new AuthorizationUiState(Phase.ACCOUNT_INFO, "", null);
+    }
+
+    public static AuthorizationUiState unauthorized() {
+        return new AuthorizationUiState(Phase.UNAUTHORIZED, "", null);
     }
 
     public static AuthorizationUiState retrying(RetryReason reason) {

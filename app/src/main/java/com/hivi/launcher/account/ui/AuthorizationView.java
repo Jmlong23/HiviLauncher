@@ -5,4 +5,6 @@ import com.hivi.launcher.base.BaseView;
 
 public interface AuthorizationView extends BaseView {
     void renderAuthorization(AuthorizationUiState state);
+
+    void onUserInfoUpdated();
 }

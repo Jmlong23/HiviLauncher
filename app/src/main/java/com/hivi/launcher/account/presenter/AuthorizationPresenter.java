@@ -4,6 +4,7 @@ import android.content.Context;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.hivi.launcher.account.model.AuthorizedUserInfo;
 import com.hivi.launcher.account.model.AuthorizationUiState;
 import com.hivi.launcher.account.model.AuthorizationUiState.RetryReason;
 import com.hivi.launcher.account.ui.AuthorizationView;
@@ -32,11 +33,15 @@ public final class AuthorizationPresenter extends BasePresenter<AuthorizationVie
     private static final int MAX_POLL_COUNT = 300;
     private static final long POLL_INTERVAL_MS = 2000L;
     private static final long RETRY_DELAY_MS = 1600L;
-
+    private static final String[] ACCOUNT_NAME_KEYS = {
+            "nickname", "nickName", "userName", "username", "name", "accountName"
+    };
     private final Context mContext;
     private final ApiService mApiService;
+    private final Runnable mUserInfoChangedCallback;
     private Disposable mQrRequest;
     private Disposable mLogoutRequest;
+    private Disposable mUserDetailsRequest;
     private String mQrId;
     private int mPollCount;
     private boolean mLogoutInProgress;
@@ -57,16 +62,38 @@ public final class AuthorizationPresenter extends BasePresenter<AuthorizationVie
     };
 
     public AuthorizationPresenter(Context context, AuthorizationView view) {
+        this(context, view, null);
+    }
+
+    public AuthorizationPresenter(Context context, AuthorizationView view,
+            Runnable userInfoChangedCallback) {
         super(view);
         mContext = context.getApplicationContext();
         mApiService = NetworkManager.getApiService();
+        mUserInfoChangedCallback = userInfoChangedCallback;
     }
 
     public void start() {
         if (AuthorizationStore.hasToken(mContext)) {
-            render(AuthorizationUiState.authorized());
+            requestUserDetails();
+            render(AuthorizationUiState.accountInfo());
         } else {
             requestNewQrCode();
+        }
+    }
+
+    public void refreshQrCode() {
+        if (mLogoutInProgress) {
+            return;
+        }
+        disposeQrRequest();
+        disposeUserDetailsRequest();
+        requestNewQrCode();
+    }
+
+    public void showAccountInfo() {
+        if (AuthorizationStore.hasToken(mContext)) {
+            render(AuthorizationUiState.accountInfo());
         }
     }
 
@@ -77,6 +104,7 @@ public final class AuthorizationPresenter extends BasePresenter<AuthorizationVie
         mLogoutInProgress = true;
         render(AuthorizationUiState.canceling());
         disposeLogoutRequest();
+        disposeUserDetailsRequest();
         mLogoutRequest = NetworkManager.execute(
                 mApiService.qrLogout(SWDeviceStatus.getUUID().toString()),
                 new NetworkCallback<String>() {
@@ -91,7 +119,9 @@ public final class AuthorizationPresenter extends BasePresenter<AuthorizationVie
                                     || shouldTreatLogoutFailureAsCancelled(response)) {
                                 AuthorizationStore.clearToken(mContext);
                                 mLogoutInProgress = false;
-                                requestNewQrCode();
+                                mQrId = null;
+                                removeUiThreadRunnable(mPollRunnable);
+                                render(AuthorizationUiState.unauthorized());
                             } else {
                                 handleCancelAuthorizationFailure();
                             }
@@ -118,6 +148,8 @@ public final class AuthorizationPresenter extends BasePresenter<AuthorizationVie
         disposeLogoutRequest();
         mQrId = null;
         mLogoutInProgress = false;
+        // Keep the in-flight details request alive so a successful authorization can still
+        // persist the user profile after the success dialog automatically closes.
         super.detach();
     }
 
@@ -172,8 +204,9 @@ public final class AuthorizationPresenter extends BasePresenter<AuthorizationVie
             return;
         }
         if (state.status == QR_STATUS_CONFIRMED && !TextUtils.isEmpty(state.token)) {
-            AuthorizationStore.saveToken(mContext, state.token);
+            AuthorizationStore.saveAuthorization(mContext, state.token, state.accountName);
             removeUiThreadRunnable(mPollRunnable);
+            requestUserDetails();
             render(AuthorizationUiState.authorized());
             return;
         }
@@ -218,6 +251,38 @@ public final class AuthorizationPresenter extends BasePresenter<AuthorizationVie
         render(AuthorizationUiState.cancelFailed());
     }
 
+    private void requestUserDetails() {
+        final String requestToken = AuthorizationStore.getToken(mContext);
+        if (TextUtils.isEmpty(requestToken)) {
+            return;
+        }
+        disposeUserDetailsRequest();
+        mUserDetailsRequest = NetworkManager.execute(mApiService.getUserDetails(),
+                new NetworkCallback<String>() {
+                    @Override
+                    public void onSuccess(String response) {
+                        mUserDetailsRequest = null;
+                        if (!TextUtils.equals(requestToken, AuthorizationStore.getToken(mContext))) {
+                            return;
+                        }
+                        try {
+                            AuthorizedUserInfo userInfo = readUserDetails(response);
+                            AuthorizationStore.saveUserInfo(mContext, userInfo);
+                            Log.d(TAG, "Authorization succeeded. userId=" + userInfo.getId());
+                            notifyUserInfoUpdated();
+                        } catch (Exception e) {
+                            Log.e(TAG, "Unable to parse user details response", e);
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Throwable throwable) {
+                        mUserDetailsRequest = null;
+                        Log.e(TAG, "Unable to load authorized user details", throwable);
+                    }
+                });
+    }
+
     private void render(AuthorizationUiState state) {
         AuthorizationView view = getView();
         if (view != null) {
@@ -231,7 +296,44 @@ public final class AuthorizationPresenter extends BasePresenter<AuthorizationVie
         if (data == null) {
             throw new IllegalStateException("Invalid authorization response");
         }
-        return new QrState(data.optString("id"), data.optInt("status"), data.optString("token"));
+        int status = data.optInt("status");
+        return new QrState(data.optString("id"), status, data.optString("token"),
+                readAccountName(data));
+    }
+
+    private String readAccountName(JSONObject data) {
+        String accountName = readAccountName(data, ACCOUNT_NAME_KEYS);
+        if (!TextUtils.isEmpty(accountName)) {
+            return accountName;
+        }
+        return readAccountName(data.optJSONObject("user"), ACCOUNT_NAME_KEYS);
+    }
+
+    private String readAccountName(JSONObject source, String[] keys) {
+        if (source == null) {
+            return "";
+        }
+        for (String key : keys) {
+            String value = source.optString(key);
+            if (!TextUtils.isEmpty(value)) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    private AuthorizedUserInfo readUserDetails(String responseText) throws Exception {
+        JSONObject response = new JSONObject(responseText);
+        if (!response.optBoolean("success") && response.optInt("code") != 200) {
+            throw new IllegalStateException("User details request was not successful");
+        }
+        JSONObject data = response.optJSONObject("data");
+        if (data == null) {
+            throw new IllegalStateException("Invalid user details response");
+        }
+        return new AuthorizedUserInfo(data.optString("id"), data.optString("name"),
+                data.optString("avatarUrl"), data.optString("area"), data.optString("phone"),
+                data.optString("preferred"), data.optString("createTime"), data.optInt("isDel"));
     }
 
     private boolean isLogoutSuccess(String responseText) throws Exception {
@@ -262,15 +364,34 @@ public final class AuthorizationPresenter extends BasePresenter<AuthorizationVie
         mLogoutRequest = null;
     }
 
+    private void disposeUserDetailsRequest() {
+        if (mUserDetailsRequest != null && !mUserDetailsRequest.isDisposed()) {
+            mUserDetailsRequest.dispose();
+        }
+        mUserDetailsRequest = null;
+    }
+
+    private void notifyUserInfoUpdated() {
+        AuthorizationView view = getView();
+        if (view != null) {
+            view.onUserInfoUpdated();
+        }
+        if (mUserInfoChangedCallback != null) {
+            mUserInfoChangedCallback.run();
+        }
+    }
+
     private static final class QrState {
         private final String id;
         private final int status;
         private final String token;
+        private final String accountName;
 
-        private QrState(String id, int status, String token) {
+        private QrState(String id, int status, String token, String accountName) {
             this.id = id;
             this.status = status;
             this.token = token;
+            this.accountName = accountName;
         }
     }
 }

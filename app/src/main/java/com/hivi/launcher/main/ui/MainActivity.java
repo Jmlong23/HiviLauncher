@@ -8,7 +8,11 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.view.View;
 
 import androidx.annotation.Nullable;
@@ -17,16 +21,31 @@ import androidx.recyclerview.widget.LinearSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.hivi.launcher.R;
+import com.hivi.launcher.account.model.AuthorizedUserInfo;
 import com.hivi.launcher.account.ui.AuthorizationDialog;
 import com.hivi.launcher.base.BaseActivity;
 import com.hivi.launcher.databinding.ActivityMainBinding;
 import com.hivi.launcher.main.presenter.MainPresenter;
 import com.hivi.launcher.music.model.BluetoothMediaController;
+import com.hivi.launcher.utils.network.AuthorizationStore;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresenter>
         implements MainView {
+    private static final int AVATAR_CONNECT_TIMEOUT_MS = 8_000;
+    private static final int AVATAR_READ_TIMEOUT_MS = 10_000;
+    private static final int AVATAR_MAX_SIZE_PX = 512;
+
     private AuthorizationDialog mAuthorizationDialog;
     private InputModeAdapter mInputModeAdapter;
+    private final ExecutorService mAccountAvatarExecutor = Executors.newSingleThreadExecutor();
+    private String mAccountAvatarUrl = "";
 
     private final BroadcastReceiver mSystemReceiver = new BroadcastReceiver() {
         @Override
@@ -57,6 +76,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     @Override
     protected void initView(@Nullable Bundle savedInstanceState) {
+        binding.accountImg.setClipToOutline(true);
         setupInputModeCarousel();
         bindMainClickListeners();
     }
@@ -115,7 +135,15 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             return;
         }
         if (mAuthorizationDialog == null) {
-            mAuthorizationDialog = new AuthorizationDialog(this);
+            mAuthorizationDialog = new AuthorizationDialog(this,
+                    new AuthorizationDialog.OnAuthorizationChangedListener() {
+                        @Override
+                        public void onAuthorizationChanged() {
+                            if (!isFinishing() && !isDestroyed()) {
+                                updateAccountText();
+                            }
+                        }
+                    });
         }
         mAuthorizationDialog.show();
     }
@@ -123,9 +151,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     @Override
     protected void onDestroy() {
         if (mAuthorizationDialog != null) {
-            mAuthorizationDialog.dismiss();
+            mAuthorizationDialog.release();
             mAuthorizationDialog = null;
         }
+        mAccountAvatarExecutor.shutdownNow();
         super.onDestroy();
     }
 
@@ -134,16 +163,118 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.bluetoothText.setText(R.string.main_disconnected);
         updateModeText(mInputModeAdapter == null
                 ? 0 : mInputModeAdapter.getSelectedModeTopLabelResId());
-        binding.accountText.setText(R.string.main_account);
+        updateAccountText();
     }
 
     private void bindMainClickListeners() {
-        binding.accountText.setOnClickListener(new View.OnClickListener() {
+        binding.authAccount.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 presenter.showAuthorizationDialog();
             }
         });
+    }
+
+    private void updateAccountText() {
+        if (binding == null) {
+            return;
+        }
+        if (!AuthorizationStore.hasToken(this)) {
+            binding.accountText.setText(R.string.auth_please_authorize);
+            binding.accountText.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                    0, 0, R.drawable.main_account_indicator, 0);
+            binding.accountImg.setVisibility(View.GONE);
+            loadAccountAvatar("");
+            return;
+        }
+        binding.accountImg.setVisibility(View.VISIBLE);
+        binding.accountText.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                0, 0, R.drawable.main_account_indicator_connected, 0);
+        String accountName = AuthorizationStore.getAccountName(this);
+        if (TextUtils.isEmpty(accountName)) {
+            binding.accountText.setText(R.string.auth_authorized_fallback);
+        } else {
+            binding.accountText.setText(accountName);
+        }
+        AuthorizedUserInfo userInfo = AuthorizationStore.getUserInfo(this);
+        loadAccountAvatar(userInfo == null ? "" : userInfo.getAvatarUrl());
+    }
+
+    private void loadAccountAvatar(String avatarUrl) {
+        String normalizedAvatarUrl = avatarUrl == null ? "" : avatarUrl.trim();
+        if (TextUtils.equals(mAccountAvatarUrl, normalizedAvatarUrl)) {
+            return;
+        }
+        mAccountAvatarUrl = normalizedAvatarUrl;
+        binding.accountImg.setImageBitmap(null);
+        if (TextUtils.isEmpty(normalizedAvatarUrl)) {
+            return;
+        }
+
+        final String requestedAvatarUrl = normalizedAvatarUrl;
+        mAccountAvatarExecutor.execute(() -> {
+            Bitmap avatarBitmap = downloadAccountAvatar(requestedAvatarUrl);
+            runOnUiThread(() -> {
+                if (binding == null || isFinishing() || isDestroyed()
+                        || !TextUtils.equals(mAccountAvatarUrl, requestedAvatarUrl)
+                        || avatarBitmap == null) {
+                    return;
+                }
+                binding.accountImg.setImageBitmap(avatarBitmap);
+            });
+        });
+    }
+
+    private Bitmap downloadAccountAvatar(String avatarUrl) {
+        Uri uri = Uri.parse(avatarUrl);
+        String scheme = uri.getScheme();
+        if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+            return null;
+        }
+        try {
+            BitmapFactory.Options bounds = new BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            decodeAccountAvatar(avatarUrl, bounds);
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                return null;
+            }
+
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inSampleSize = calculateAvatarInSampleSize(bounds);
+            options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+            return decodeAccountAvatar(avatarUrl, options);
+        } catch (IOException ignored) {
+            return null;
+        }
+    }
+
+    private Bitmap decodeAccountAvatar(String avatarUrl, BitmapFactory.Options options)
+            throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) new URL(avatarUrl).openConnection();
+        connection.setConnectTimeout(AVATAR_CONNECT_TIMEOUT_MS);
+        connection.setReadTimeout(AVATAR_READ_TIMEOUT_MS);
+        connection.setInstanceFollowRedirects(true);
+        try {
+            int responseCode = connection.getResponseCode();
+            if (responseCode < HttpURLConnection.HTTP_OK
+                    || responseCode >= HttpURLConnection.HTTP_MULT_CHOICE) {
+                throw new IOException("avatar response code=" + responseCode);
+            }
+            try (InputStream inputStream = connection.getInputStream()) {
+                return BitmapFactory.decodeStream(inputStream, null, options);
+            }
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    private int calculateAvatarInSampleSize(BitmapFactory.Options options) {
+        int sampleSize = 1;
+        while (options.outWidth / sampleSize > AVATAR_MAX_SIZE_PX
+                || options.outHeight / sampleSize > AVATAR_MAX_SIZE_PX) {
+            sampleSize *= 2;
+        }
+        return sampleSize;
     }
 
     private void setupInputModeCarousel() {

@@ -90,18 +90,21 @@
             android:layout_weight="1" />
 
         <LinearLayout
+            android:id="@+id/auth_account"
             android:layout_width="wrap_content"
             android:layout_height="35dp"
             android:orientation="horizontal"
             android:background="@drawable/main_status_pill_background"
-            android:gravity="center">
+            android:gravity="center"
+            android:paddingLeft="8dp">
 
             <ImageView
                 android:id="@+id/account_img"
                 android:layout_width="25dp"
                 android:layout_height="25dp"
-                android:background="@color/white"
-                android:paddingLeft="13dp"/>
+                android:background="@drawable/main_account_avatar_placeholder"
+                android:contentDescription="@null"
+                android:scaleType="centerCrop" />
 
             <TextView
                 android:id="@+id/account_text"
