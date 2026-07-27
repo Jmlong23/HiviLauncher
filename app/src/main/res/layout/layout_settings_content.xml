@@ -1,0 +1,776 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="30dp"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <View
+            android:layout_width="139dp"
+            android:layout_height="0.5dp"
+            android:layout_marginRight="14dp"
+            android:background="@color/line_color" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:text="@string/settings_title"
+            android:textColor="@color/text_color"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <View
+            android:layout_width="139dp"
+            android:layout_height="0.5dp"
+            android:layout_marginLeft="14dp"
+            android:background="@color/line_color" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="29dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="283dp"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:layout_marginRight="37dp">
+
+            <LinearLayout
+                android:id="@+id/settings_tab_network"
+                android:layout_width="match_parent"
+                android:layout_height="45dp"
+                android:background="@drawable/settings_menu_item_background"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingLeft="21dp"
+                android:paddingRight="21dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:includeFontPadding="false"
+                    android:text="@string/settings_network"
+                    android:textColor="@color/white"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:text="@string/settings_network_summary"
+                    android:textColor="@color/text_color2"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/settings_tab_display"
+                android:layout_width="match_parent"
+                android:layout_height="45dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/settings_menu_item_background"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingLeft="21dp"
+                android:paddingRight="21dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:includeFontPadding="false"
+                    android:text="@string/settings_display"
+                    android:textColor="@color/white"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:text="@string/settings_display_summary"
+                    android:textColor="@color/text_color2"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/settings_tab_system"
+                android:layout_width="match_parent"
+                android:layout_height="45dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/settings_menu_item_background"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingLeft="21dp"
+                android:paddingRight="21dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:includeFontPadding="false"
+                    android:text="@string/settings_system"
+                    android:textColor="@color/white"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:text="@string/settings_system_summary"
+                    android:textColor="@color/text_color2"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/settings_tab_about"
+                android:layout_width="match_parent"
+                android:layout_height="45dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/settings_menu_item_background"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingLeft="21dp"
+                android:paddingRight="21dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:includeFontPadding="false"
+                    android:text="@string/settings_about"
+                    android:textColor="@color/white"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:text="@string/settings_about_summary"
+                    android:textColor="@color/text_color2"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/settings_tab_maintenance"
+                android:layout_width="match_parent"
+                android:layout_height="45dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/settings_menu_item_background"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingLeft="21dp"
+                android:paddingRight="21dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:includeFontPadding="false"
+                    android:text="@string/settings_maintenance"
+                    android:textColor="@color/white"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:text="@string/settings_maintenance_summary"
+                    android:textColor="@color/text_color2"
+                    android:textSize="13sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginBottom="20dp">
+
+            <LinearLayout
+                android:id="@+id/settings_panel_network"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/settings_content_background"
+                android:orientation="vertical"
+                android:paddingLeft="26dp"
+                android:paddingTop="19dp"
+                android:paddingRight="30dp"
+                android:paddingBottom="16dp"
+                android:visibility="gone">
+
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="26dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:includeFontPadding="false"
+                        android:text="@string/settings_wifi_network"
+                        android:textColor="@color/text_color"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="@drawable/ic_btn_refresh" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:layout_width="79dp"
+                        android:layout_height="79dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_wifi_error"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="25dp"
+                        android:includeFontPadding="false"
+                        android:text="@string/settings_no_network_message"
+                        android:textColor="@color/text_color"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <ScrollView
+                android:id="@+id/settings_panel_display"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/settings_content_background"
+                android:fillViewport="true"
+                android:paddingLeft="26dp"
+                android:paddingTop="19dp"
+                android:paddingRight="33dp"
+                android:paddingBottom="31dp"
+                android:scrollbars="vertical"
+                android:visibility="visible">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_language"
+                        android:textColor="@color/text_color"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="42dp"
+                        android:layout_marginTop="12dp"
+                        android:background="@drawable/menu_item_long_background"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingLeft="21dp"
+                        android:paddingRight="21dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:includeFontPadding="false"
+                            android:text="@string/settings_language_value"
+                            android:textColor="@color/text_color"
+                            android:textSize="13sp" />
+
+                        <ImageView
+                            android:layout_width="13dp"
+                            android:layout_height="7dp"
+                            android:src="@drawable/ic_dropdown" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="19dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/settings_screensaver"
+                            android:textColor="@color/text_color"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+
+                        <ImageView
+                            android:layout_width="37dp"
+                            android:layout_height="19dp"
+                            android:src="@drawable/ic_screen_saver_off"
+                            android:layout_marginLeft="22dp"/>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="42dp"
+                        android:layout_marginTop="16dp"
+                        android:background="@drawable/menu_item_long_background"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingLeft="21dp"
+                        android:paddingRight="21dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/settings_screensaver_timeout_value"
+                            android:textColor="@color/text_color"
+                            android:textSize="13sp" />
+
+                        <ImageView
+                            android:layout_width="13dp"
+                            android:layout_height="7dp"
+                            android:src="@drawable/ic_dropdown" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="20dp"
+                        android:text="@string/settings_screensaver_style"
+                        android:textColor="@color/text_color"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="76dp"
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal">
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_marginRight="8dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/settings_screensaver_thumbnail" />
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_marginRight="8dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/settings_screensaver_thumbnail" />
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:background="@drawable/settings_screensaver_thumbnail" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="20dp"
+                        android:includeFontPadding="false"
+                        android:text="@string/settings_brightness"
+                        android:textColor="@color/text_color"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="81dp"
+                        android:layout_marginTop="16dp"
+                        android:background="@drawable/menu_item_long_background"
+                        android:paddingLeft="39dp"
+                        android:paddingRight="29dp"
+                        android:paddingBottom="11dp">
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="4dp"
+                            android:layout_gravity="center_vertical"
+                            android:background="@drawable/settings_slider_track" />
+
+                        <View
+                            android:layout_width="145dp"
+                            android:layout_height="4dp"
+                            android:layout_gravity="left|center_vertical"
+                            android:background="@drawable/settings_slider_fill" />
+
+                        <View
+                            android:layout_width="14dp"
+                            android:layout_height="14dp"
+                            android:layout_gravity="left|center_vertical"
+                            android:background="@drawable/settings_slider_thumb" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="16dp"
+                            android:layout_gravity="bottom"
+                            android:gravity="center_horizontal"
+                            android:orientation="horizontal"
+                            >
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/settings_brightness_low"
+                                android:textColor="@color/text_color"
+                                android:textSize="11sp" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:includeFontPadding="false"
+                                android:text="@string/settings_brightness_medium"
+                                android:textColor="@color/text_color"
+                                android:textSize="11sp" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="right"
+                                android:includeFontPadding="false"
+                                android:text="@string/settings_brightness_high"
+                                android:textColor="@color/text_color"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+                    </FrameLayout>
+                </LinearLayout>
+            </ScrollView>
+
+            <LinearLayout
+                android:id="@+id/settings_panel_system"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/settings_content_background"
+                android:orientation="vertical"
+                android:paddingLeft="26dp"
+                android:paddingTop="19dp"
+                android:paddingRight="30dp"
+                android:paddingBottom="25dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_system"
+                    android:textColor="@color/text_color"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="42dp"
+                    android:layout_marginTop="17dp"
+                    android:background="@drawable/menu_item_long_background"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingLeft="21dp"
+                    android:paddingRight="21dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/settings_system_update"
+                        android:textColor="@color/text_color"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_system_version"
+                        android:textColor="@color/text_color2"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:layout_width="40dp"
+                        android:layout_height="23dp"
+                        android:layout_marginLeft="8dp"
+                        android:background="@drawable/auth_primary_button"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:text="@string/settings_system_update_action"
+                        android:textColor="@color/text_color"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="42dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/menu_item_long_background"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingLeft="21dp"
+                    android:paddingRight="21dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/settings_time_settings"
+                        android:textColor="@color/text_color"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_time_value"
+                        android:textColor="@color/text_color2"
+                        android:textSize="13sp" />
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginLeft="11dp"
+                        android:src="@drawable/ic_enter" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="42dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/menu_item_long_background"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingLeft="21dp"
+                    android:paddingRight="21dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/settings_device_diagnosis"
+                        android:textColor="@color/text_color"
+                        android:textSize="13sp" />
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_enter" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="42dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/menu_item_long_background"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingLeft="21dp"
+                    android:paddingRight="21dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/settings_log_upload"
+                        android:textColor="@color/text_color"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:includeFontPadding="false"
+                        android:text="@string/settings_log_status"
+                        android:textColor="@color/text_color2"
+                        android:textSize="13sp" />
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginLeft="9dp"
+                        android:src="@drawable/ic_enter" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/settings_panel_about"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/settings_content_background"
+                android:orientation="vertical"
+                android:paddingLeft="26dp"
+                android:paddingTop="19dp"
+                android:paddingRight="30dp"
+                android:paddingBottom="16dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="42dp"
+                    android:gravity="center_vertical"
+                    android:includeFontPadding="false"
+                    android:text="@string/settings_about"
+                    android:textColor="@color/text_color"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="42dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/menu_item_long_background"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingLeft="21dp"
+                    android:paddingRight="21dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/settings_product_information"
+                        android:textColor="@color/text_color"
+                        android:textSize="13sp" />
+
+                    <ImageView
+                        android:layout_width="23dp"
+                        android:layout_height="23dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_enter" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="42dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/menu_item_long_background"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingLeft="21dp"
+                    android:paddingRight="21dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/settings_help"
+                        android:textColor="@color/text_color"
+                        android:textSize="13sp" />
+
+                    <ImageView
+                        android:layout_width="23dp"
+                        android:layout_height="23dp"
+                        android:src="@drawable/ic_enter" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="42dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/menu_item_long_background"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingLeft="21dp"
+                    android:paddingRight="21dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/settings_privacy"
+                        android:textColor="@color/text_color"
+                        android:textSize="13sp" />
+
+                    <ImageView
+                        android:layout_width="23dp"
+                        android:layout_height="23dp"
+                        android:src="@drawable/ic_enter" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/settings_panel_maintenance"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/settings_content_background"
+                android:orientation="vertical"
+                android:paddingLeft="26dp"
+                android:paddingTop="19dp"
+                android:paddingRight="30dp"
+                android:paddingBottom="16dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:text="@string/settings_maintenance"
+                    android:textColor="@color/text_color"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="42dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/menu_item_long_background"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingLeft="21dp"
+                    android:paddingRight="21dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/settings_restore_factory"
+                        android:textColor="@color/text_color"
+                        android:textSize="13sp" />
+
+                    <ImageView
+                        android:layout_width="23dp"
+                        android:layout_height="23dp"
+                        android:src="@drawable/ic_enter" />
+                </LinearLayout>
+            </LinearLayout>
+        </FrameLayout>
+    </LinearLayout>
+
+</LinearLayout>

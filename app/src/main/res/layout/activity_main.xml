@@ -166,18 +166,17 @@
             android:background="#C5C6C6"/>
     </LinearLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/cards_row"
-        android:layout_width="match_parent"
-        android:layout_height="231dp"
-        android:layout_marginTop="47dp"
-        android:clipToPadding="false"
-        android:overScrollMode="never"
-        android:paddingLeft="30dp"
-        android:paddingRight="30dp"
-        android:scrollbars="none" />
-
-    </LinearLayout>
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/cards_row"
+                android:layout_width="match_parent"
+                android:layout_height="231dp"
+                android:layout_marginTop="47dp"
+                android:clipToPadding="false"
+                android:overScrollMode="never"
+                android:paddingLeft="30dp"
+                android:paddingRight="30dp"
+                android:scrollbars="none" />
+        </LinearLayout>
 
     <FrameLayout
         android:id="@+id/fragment_container"
@@ -268,4 +267,3 @@
     </LinearLayout>
 
 </FrameLayout>
-

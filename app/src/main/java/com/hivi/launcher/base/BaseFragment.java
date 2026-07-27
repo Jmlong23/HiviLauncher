@@ -26,7 +26,9 @@ public abstract class BaseFragment<P extends BasePresenter<?>> extends Fragment 
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         TextView pageTitle = view.findViewById(R.id.page_title);
-        pageTitle.setText(getPageTitleResId());
+        if (pageTitle != null) {
+            pageTitle.setText(getPageTitleResId());
+        }
         mPresenter = createPresenter();
     }
 
@@ -47,6 +49,11 @@ public abstract class BaseFragment<P extends BasePresenter<?>> extends Fragment 
     }
 
     protected abstract P createPresenter();
+
+    @Nullable
+    protected final P getPresenter() {
+        return mPresenter;
+    }
 
     protected abstract int getLayoutResId();
 

@@ -2,7 +2,10 @@ package com.hivi.launcher.utils.network;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.UserManager;
 import android.text.TextUtils;
+
+import androidx.annotation.Nullable;
 
 import com.hivi.launcher.account.model.AuthorizedUserInfo;
 
@@ -23,7 +26,8 @@ public final class AuthorizationStore {
     }
 
     public static String getToken(Context context) {
-        return getPreferences(context).getString(TOKEN_KEY, "");
+        SharedPreferences preferences = getPreferencesIfUserUnlocked(context);
+        return preferences == null ? "" : preferences.getString(TOKEN_KEY, "");
     }
 
     public static boolean hasToken(Context context) {
@@ -35,8 +39,12 @@ public final class AuthorizationStore {
     }
 
     public static void saveAuthorization(Context context, String token, String accountName) {
+        SharedPreferences preferences = getPreferencesIfUserUnlocked(context);
+        if (preferences == null) {
+            return;
+        }
         String authorization = token.startsWith("Bearer ") ? token : "Bearer " + token;
-        SharedPreferences.Editor editor = getPreferences(context).edit()
+        SharedPreferences.Editor editor = preferences.edit()
                 .putString(TOKEN_KEY, authorization)
                 .putLong(AUTHORIZED_AT_KEY, System.currentTimeMillis())
                 .remove(ACCOUNT_NAME_KEY);
@@ -50,14 +58,19 @@ public final class AuthorizationStore {
     }
 
     public static String getAccountName(Context context) {
-        return getPreferences(context).getString(ACCOUNT_NAME_KEY, "");
+        SharedPreferences preferences = getPreferencesIfUserUnlocked(context);
+        return preferences == null ? "" : preferences.getString(ACCOUNT_NAME_KEY, "");
     }
 
     public static void saveUserInfo(Context context, AuthorizedUserInfo userInfo) {
         if (userInfo == null) {
             return;
         }
-        SharedPreferences.Editor editor = getPreferences(context).edit();
+        SharedPreferences preferences = getPreferencesIfUserUnlocked(context);
+        if (preferences == null) {
+            return;
+        }
+        SharedPreferences.Editor editor = preferences.edit();
         putStringOrRemove(editor, USER_ID_KEY, userInfo.getId());
         putStringOrRemove(editor, AVATAR_URL_KEY, userInfo.getAvatarUrl());
         putStringOrRemove(editor, AREA_KEY, userInfo.getArea());
@@ -72,7 +85,10 @@ public final class AuthorizationStore {
     }
 
     public static AuthorizedUserInfo getUserInfo(Context context) {
-        SharedPreferences preferences = getPreferences(context);
+        SharedPreferences preferences = getPreferencesIfUserUnlocked(context);
+        if (preferences == null) {
+            return null;
+        }
         String id = preferences.getString(USER_ID_KEY, "");
         String name = preferences.getString(ACCOUNT_NAME_KEY, "");
         String avatarUrl = preferences.getString(AVATAR_URL_KEY, "");
@@ -89,11 +105,16 @@ public final class AuthorizationStore {
     }
 
     public static long getAuthorizedAt(Context context) {
-        return getPreferences(context).getLong(AUTHORIZED_AT_KEY, 0L);
+        SharedPreferences preferences = getPreferencesIfUserUnlocked(context);
+        return preferences == null ? 0L : preferences.getLong(AUTHORIZED_AT_KEY, 0L);
     }
 
     public static void clearToken(Context context) {
-        SharedPreferences.Editor editor = getPreferences(context).edit()
+        SharedPreferences preferences = getPreferencesIfUserUnlocked(context);
+        if (preferences == null) {
+            return;
+        }
+        SharedPreferences.Editor editor = preferences.edit()
                 .putString(TOKEN_KEY, "")
                 .remove(ACCOUNT_NAME_KEY)
                 .remove(AUTHORIZED_AT_KEY);
@@ -101,9 +122,14 @@ public final class AuthorizationStore {
         editor.apply();
     }
 
-    private static SharedPreferences getPreferences(Context context) {
-        return context.getApplicationContext()
-                .getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
+    @Nullable
+    private static SharedPreferences getPreferencesIfUserUnlocked(Context context) {
+        Context appContext = context.getApplicationContext();
+        UserManager userManager = (UserManager) appContext.getSystemService(Context.USER_SERVICE);
+        if (userManager != null && !userManager.isUserUnlocked()) {
+            return null;
+        }
+        return appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
     }
 
     private static void putStringOrRemove(SharedPreferences.Editor editor, String key, String value) {

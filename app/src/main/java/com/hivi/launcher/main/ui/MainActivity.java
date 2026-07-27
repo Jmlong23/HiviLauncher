@@ -15,6 +15,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
+import android.view.animation.DecelerateInterpolator;
 
 import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -51,11 +52,16 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private static final int AVATAR_CONNECT_TIMEOUT_MS = 8_000;
     private static final int AVATAR_READ_TIMEOUT_MS = 10_000;
     private static final int AVATAR_MAX_SIZE_PX = 512;
-
+    private static final long PAGE_TRANSITION_DURATION_MS = 240L;
+    private static final float PAGE_TRANSITION_OFFSET_DP = 28f;
+    private static final float HOME_PAGE_DIMMED_ALPHA = 0.65f;
     private AuthorizationDialog mAuthorizationDialog;
     private InputModeAdapter mInputModeAdapter;
     private final ExecutorService mAccountAvatarExecutor = Executors.newSingleThreadExecutor();
+    private final DecelerateInterpolator mPageTransitionInterpolator =
+            new DecelerateInterpolator();
     private String mAccountAvatarUrl = "";
+    private int mPageTransitionGeneration;
 
     private final BroadcastReceiver mSystemReceiver = new BroadcastReceiver() {
         @Override
@@ -163,10 +169,48 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
-        binding.fragmentContainer.setVisibility(View.VISIBLE);
+        View fragmentContainer = binding.fragmentContainer;
+        boolean homePageVisible = fragmentContainer.getVisibility() != View.VISIBLE;
+        int transitionGeneration = ++mPageTransitionGeneration;
+        cancelPageAnimations();
+
+        if (homePageVisible) {
+            int transitionOffset = dp(PAGE_TRANSITION_OFFSET_DP);
+            binding.pageBody.setTranslationX(0f);
+            binding.pageBody.setAlpha(1f);
+            binding.pageBody.animate()
+                    .translationX(-transitionOffset)
+                    .alpha(HOME_PAGE_DIMMED_ALPHA)
+                    .setDuration(PAGE_TRANSITION_DURATION_MS)
+                    .setInterpolator(mPageTransitionInterpolator)
+                    .start();
+
+            fragmentContainer.setVisibility(View.VISIBLE);
+            fragmentContainer.setTranslationX(transitionOffset);
+            fragmentContainer.setAlpha(0f);
+        }
         getFragmentManager().beginTransaction()
                 .replace(R.id.fragment_container, createPageFragment(page))
                 .commit();
+
+        if (homePageVisible) {
+            fragmentContainer.animate()
+                    .translationX(0f)
+                    .alpha(1f)
+                    .setDuration(PAGE_TRANSITION_DURATION_MS)
+                    .setInterpolator(mPageTransitionInterpolator)
+                    .withEndAction(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (transitionGeneration != mPageTransitionGeneration) {
+                                return;
+                            }
+                            fragmentContainer.setTranslationX(0f);
+                            fragmentContainer.setAlpha(1f);
+                        }
+                    })
+                    .start();
+        }
     }
 
     @Override
@@ -174,11 +218,54 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
-        binding.fragmentContainer.setVisibility(View.GONE);
+        final int transitionGeneration = ++mPageTransitionGeneration;
+        final View fragmentContainer = binding.fragmentContainer;
         Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
-        if (fragment != null) {
-            getFragmentManager().beginTransaction().remove(fragment).commit();
+        cancelPageAnimations();
+        if (fragment == null || fragmentContainer.getVisibility() != View.VISIBLE) {
+            if (fragment != null) {
+                getFragmentManager().beginTransaction().remove(fragment).commit();
+            }
+            fragmentContainer.setVisibility(View.GONE);
+            fragmentContainer.setTranslationX(0f);
+            fragmentContainer.setAlpha(1f);
+            binding.pageBody.setTranslationX(0f);
+            binding.pageBody.setAlpha(1f);
+            return;
         }
+
+        int transitionOffset = dp(PAGE_TRANSITION_OFFSET_DP);
+        binding.pageBody.setTranslationX(-transitionOffset);
+        binding.pageBody.setAlpha(HOME_PAGE_DIMMED_ALPHA);
+        binding.pageBody.animate()
+                .translationX(0f)
+                .alpha(1f)
+                .setDuration(PAGE_TRANSITION_DURATION_MS)
+                .setInterpolator(mPageTransitionInterpolator)
+                .start();
+
+        fragmentContainer.animate()
+                .translationX(transitionOffset)
+                .alpha(0f)
+                .setDuration(PAGE_TRANSITION_DURATION_MS)
+                .setInterpolator(mPageTransitionInterpolator)
+                .withEndAction(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (transitionGeneration != mPageTransitionGeneration || binding == null) {
+                            return;
+                        }
+                        Fragment currentFragment = getFragmentManager()
+                                .findFragmentById(R.id.fragment_container);
+                        if (currentFragment != null) {
+                            getFragmentManager().beginTransaction().remove(currentFragment).commit();
+                        }
+                        fragmentContainer.setVisibility(View.GONE);
+                        fragmentContainer.setTranslationX(0f);
+                        fragmentContainer.setAlpha(1f);
+                    }
+                })
+                .start();
     }
 
     @Override
@@ -216,18 +303,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             @Override
             public void onClick(View v) {
                 presenter.onBottomNavigationHomeClicked();
-            }
-        });
-        binding.bottomNavigationVolume.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                presenter.onBottomNavigationRecentsClicked();
-            }
-        });
-        binding.bottomNavigationApps.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                presenter.onBottomNavigationAppsClicked();
             }
         });
         binding.bottomNavigationSettings.setOnClickListener(new View.OnClickListener() {
@@ -364,6 +439,15 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     private void updateModeText(int topLabelResId) {
         binding.modeText.setText(topLabelResId == 0 ? R.string.select_mode : topLabelResId);
+    }
+
+    private void cancelPageAnimations() {
+        binding.pageBody.animate().cancel();
+        binding.fragmentContainer.animate().cancel();
+    }
+
+    private int dp(float value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     private void scrollToSelectedMode() {
