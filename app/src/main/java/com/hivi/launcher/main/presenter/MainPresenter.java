@@ -1,6 +1,7 @@
 package com.hivi.launcher.main.presenter;
 
 import android.content.Context;
+import android.content.Intent;
 import android.bluetooth.BluetoothDevice;
 import android.util.Log;
 
@@ -9,6 +10,7 @@ import com.hivi.launcher.main.model.MainStatusRepository;
 import com.hivi.launcher.main.model.MainPage;
 import com.hivi.launcher.main.ui.MainView;
 import com.hivi.launcher.music.model.BluetoothMediaController;
+import com.hivi.launcher.systemapps.ui.SystemAppsActivity;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayDeque;
@@ -134,6 +136,13 @@ public class MainPresenter extends BasePresenter<MainView> {
 
     public void onBottomNavigationVolumeClicked() {
         Log.d(TAG, "Bottom navigation volume clicked");
+    }
+
+    public void onBottomNavigationAppsClicked() {
+        Log.d(TAG, "Bottom navigation apps clicked");
+        Intent intent = new Intent(mContext, SystemAppsActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        mContext.startActivity(intent);
     }
 
     public void onBottomNavigationSettingsClicked() {
