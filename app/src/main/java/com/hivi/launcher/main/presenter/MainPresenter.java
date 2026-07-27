@@ -1,5 +1,7 @@
 package com.hivi.launcher.main.presenter;
 
+import android.content.ActivityNotFoundException;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.bluetooth.BluetoothDevice;
@@ -20,6 +22,8 @@ import java.util.Locale;
 
 public class MainPresenter extends BasePresenter<MainView> {
     public static final String ACTION_VOLUME_CHANGED = "android.media.VOLUME_CHANGED_ACTION";
+    private static final ComponentName RECENTS_ACTIVITY = new ComponentName(
+            "com.android.launcher3", "com.android.quickstep.RecentsActivity");
 
     private final Context mContext;
     private final MainStatusRepository mStatusRepository;
@@ -134,8 +138,17 @@ public class MainPresenter extends BasePresenter<MainView> {
         }
     }
 
-    public void onBottomNavigationVolumeClicked() {
-        Log.d(TAG, "Bottom navigation volume clicked");
+    public void onBottomNavigationRecentsClicked() {
+        Log.d(TAG, "Bottom navigation recents clicked");
+        Intent intent = new Intent(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_DEFAULT)
+                .setComponent(RECENTS_ACTIVITY)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            mContext.startActivity(intent);
+        } catch (ActivityNotFoundException | SecurityException e) {
+            Log.e(TAG, "Unable to open recent apps", e);
+        }
     }
 
     public void onBottomNavigationAppsClicked() {

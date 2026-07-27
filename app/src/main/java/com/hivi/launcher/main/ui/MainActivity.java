@@ -221,7 +221,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.bottomNavigationVolume.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                presenter.onBottomNavigationVolumeClicked();
+                presenter.onBottomNavigationRecentsClicked();
             }
         });
         binding.bottomNavigationApps.setOnClickListener(new View.OnClickListener() {
