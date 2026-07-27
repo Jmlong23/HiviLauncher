@@ -173,6 +173,30 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 presenter.showAuthorizationDialog();
             }
         });
+        binding.bottomNavigationBack.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                presenter.onBottomNavigationBackClicked();
+            }
+        });
+        binding.bottomNavigationHome.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                presenter.onBottomNavigationHomeClicked();
+            }
+        });
+        binding.bottomNavigationVolume.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                presenter.onBottomNavigationVolumeClicked();
+            }
+        });
+        binding.bottomNavigationSettings.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                presenter.onBottomNavigationSettingsClicked();
+            }
+        });
     }
 
     private void updateAccountText() {

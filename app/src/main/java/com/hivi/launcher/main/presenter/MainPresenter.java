@@ -2,6 +2,7 @@ package com.hivi.launcher.main.presenter;
 
 import android.content.Context;
 import android.bluetooth.BluetoothDevice;
+import android.util.Log;
 
 import com.hivi.launcher.base.BasePresenter;
 import com.hivi.launcher.main.data.MainStatusRepository;
@@ -99,6 +100,22 @@ public class MainPresenter extends BasePresenter<MainView> {
         if (view != null) {
             view.showAuthorization();
         }
+    }
+
+    public void onBottomNavigationBackClicked() {
+        Log.d(TAG, "Bottom navigation back clicked");
+    }
+
+    public void onBottomNavigationHomeClicked() {
+        Log.d(TAG, "Bottom navigation home clicked");
+    }
+
+    public void onBottomNavigationVolumeClicked() {
+        Log.d(TAG, "Bottom navigation volume clicked");
+    }
+
+    public void onBottomNavigationSettingsClicked() {
+        Log.d(TAG, "Bottom navigation settings clicked");
     }
 
     private void updateDeviceStatus() {
