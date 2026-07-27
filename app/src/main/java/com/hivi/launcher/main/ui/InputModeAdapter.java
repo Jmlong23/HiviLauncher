@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.databinding.ItemInputModeCardBinding;
+import com.hivi.launcher.main.model.MainPage;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +18,10 @@ import java.util.List;
 final class InputModeAdapter extends RecyclerView.Adapter<InputModeAdapter.InputModeViewHolder> {
     interface OnModeSelectedListener {
         void onModeSelected(int topLabelResId);
+    }
+
+    interface OnModeClickListener {
+        void onModeClicked(MainPage page);
     }
 
     private static final int MODE_LINE = 0;
@@ -30,14 +35,17 @@ final class InputModeAdapter extends RecyclerView.Adapter<InputModeAdapter.Input
     private final Context mContext;
     private final LayoutInflater mInflater;
     private final OnModeSelectedListener mListener;
+    private final OnModeClickListener mOnModeClickListener;
     private final List<InputMode> mModes = new ArrayList<>();
 
     private int mSelectedPosition = RecyclerView.NO_POSITION;
 
-    InputModeAdapter(Context context, OnModeSelectedListener listener) {
+    InputModeAdapter(Context context, OnModeSelectedListener listener,
+            OnModeClickListener onModeClickListener) {
         mContext = context;
         mInflater = LayoutInflater.from(context);
         mListener = listener;
+        mOnModeClickListener = onModeClickListener;
         addDefaultModes();
     }
 
@@ -64,6 +72,11 @@ final class InputModeAdapter extends RecyclerView.Adapter<InputModeAdapter.Input
         holder.binding.modeStatusText.setTextColor(mContext.getColor(mode.statusColorResId));
         holder.binding.modeCard.setContentDescription(mode.title);
         holder.binding.modeCard.setSelected(selected);
+        holder.binding.modeCard.setOnClickListener(view -> {
+            if (mOnModeClickListener != null) {
+                mOnModeClickListener.onModeClicked(mode.page);
+            }
+        });
     }
 
     @Override
@@ -108,32 +121,34 @@ final class InputModeAdapter extends RecyclerView.Adapter<InputModeAdapter.Input
     private void addDefaultModes() {
         mModes.add(createMode(R.string.input_mode_line_top, R.string.input_mode_line,
                 R.string.input_mode_status_no_signal,
-                R.drawable.mode_line, R.drawable.mode_line_selected));
+                R.drawable.mode_line, R.drawable.mode_line_selected, MainPage.LINE));
         mModes.add(createMode(R.string.input_mode_microphone_top,
                 R.string.input_mode_microphone,
                 R.string.input_mode_status_no_signal,
-                R.drawable.mode_microphone, R.drawable.mode_microphone_selected));
+                R.drawable.mode_microphone, R.drawable.mode_microphone_selected,
+                MainPage.MICROPHONE));
         mModes.add(createMode(R.string.input_mode_optical_top, R.string.input_mode_optical,
                 R.string.input_mode_status_no_signal,
-                R.drawable.mode_optical, R.drawable.mode_optical_selected));
+                R.drawable.mode_optical, R.drawable.mode_optical_selected, MainPage.OPTICAL));
         mModes.add(createMode(R.string.input_mode_coax_top, R.string.input_mode_coax,
                 R.string.input_mode_status_no_signal,
-                R.drawable.mode_coax, R.drawable.mode_coax_selected));
+                R.drawable.mode_coax, R.drawable.mode_coax_selected, MainPage.COAX));
         mModes.add(createMode(R.string.input_mode_hdmi_top, R.string.input_mode_hdmi,
                 R.string.input_mode_status_no_signal,
-                R.drawable.mode_hdmi, R.drawable.mode_hdmi_selected));
+                R.drawable.mode_hdmi, R.drawable.mode_hdmi_selected, MainPage.HDMI));
         mModes.add(createMode(R.string.input_mode_bluetooth_top, R.string.input_mode_bluetooth,
                 R.string.input_mode_status_disconnected,
-                R.drawable.mode_bluetooth, R.drawable.mode_bluetooth_selected));
+                R.drawable.mode_bluetooth, R.drawable.mode_bluetooth_selected,
+                MainPage.BLUETOOTH));
         mModes.add(createMode(R.string.input_mode_wifi_music_top,
                 R.string.input_mode_wifi_music, R.string.input_mode_status_disconnected,
-                R.drawable.mode_wifi, R.drawable.mode_wifi_selected));
+                R.drawable.mode_wifi, R.drawable.mode_wifi_selected, MainPage.WIFI));
     }
 
     private InputMode createMode(int topLabelResId, int titleResId, int statusResId,
-            int unselectedCardResId, int selectedCardResId) {
+            int unselectedCardResId, int selectedCardResId, MainPage page) {
         return new InputMode(topLabelResId, mContext.getString(titleResId),
-                mContext.getString(statusResId), unselectedCardResId, selectedCardResId);
+                mContext.getString(statusResId), unselectedCardResId, selectedCardResId, page);
     }
 
     private boolean updateSelectedPosition(int position) {
@@ -175,16 +190,18 @@ final class InputModeAdapter extends RecyclerView.Adapter<InputModeAdapter.Input
         final String title;
         final int unselectedCardResId;
         final int selectedCardResId;
+        final MainPage page;
         String status;
         int statusColorResId = R.color.text_color;
 
         InputMode(int topLabelResId, String title, String status,
-                int unselectedCardResId, int selectedCardResId) {
+                int unselectedCardResId, int selectedCardResId, MainPage page) {
             this.topLabelResId = topLabelResId;
             this.title = title;
             this.status = status;
             this.unselectedCardResId = unselectedCardResId;
             this.selectedCardResId = selectedCardResId;
+            this.page = page;
         }
     }
 }

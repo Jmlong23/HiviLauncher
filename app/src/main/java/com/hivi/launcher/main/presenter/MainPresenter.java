@@ -5,12 +5,15 @@ import android.bluetooth.BluetoothDevice;
 import android.util.Log;
 
 import com.hivi.launcher.base.BasePresenter;
-import com.hivi.launcher.main.data.MainStatusRepository;
+import com.hivi.launcher.main.model.MainStatusRepository;
+import com.hivi.launcher.main.model.MainPage;
 import com.hivi.launcher.main.ui.MainView;
 import com.hivi.launcher.music.model.BluetoothMediaController;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayDeque;
 import java.util.Date;
+import java.util.Deque;
 import java.util.Locale;
 
 public class MainPresenter extends BasePresenter<MainView> {
@@ -19,6 +22,7 @@ public class MainPresenter extends BasePresenter<MainView> {
     private final Context mContext;
     private final MainStatusRepository mStatusRepository;
     private final BluetoothMediaController mBluetoothMediaController;
+    private final Deque<MainPage> mPageStack = new ArrayDeque<>();
 
     private final Runnable mTicker = new Runnable() {
         @Override
@@ -104,10 +108,28 @@ public class MainPresenter extends BasePresenter<MainView> {
 
     public void onBottomNavigationBackClicked() {
         Log.d(TAG, "Bottom navigation back clicked");
+        if (mPageStack.isEmpty()) {
+            return;
+        }
+        mPageStack.pop();
+        MainView view = getView();
+        if (view == null) {
+            return;
+        }
+        if (mPageStack.isEmpty()) {
+            view.showHomePage();
+        } else {
+            view.showPage(mPageStack.peek());
+        }
     }
 
     public void onBottomNavigationHomeClicked() {
         Log.d(TAG, "Bottom navigation home clicked");
+        mPageStack.clear();
+        MainView view = getView();
+        if (view != null) {
+            view.showHomePage();
+        }
     }
 
     public void onBottomNavigationVolumeClicked() {
@@ -116,6 +138,12 @@ public class MainPresenter extends BasePresenter<MainView> {
 
     public void onBottomNavigationSettingsClicked() {
         Log.d(TAG, "Bottom navigation settings clicked");
+        navigateToPage(MainPage.SETTINGS);
+    }
+
+    public void onInputModeClicked(MainPage page) {
+        Log.d(TAG, "Input mode clicked: " + page);
+        navigateToPage(page);
     }
 
     private void updateDeviceStatus() {
@@ -125,6 +153,17 @@ public class MainPresenter extends BasePresenter<MainView> {
                     mStatusRepository.isBluetoothConnected(),
                     mStatusRepository.getBluetoothDeviceName());
             view.updateVolume(mStatusRepository.getVolumePercent());
+        }
+    }
+
+    private void navigateToPage(MainPage page) {
+        if (page == null || (!mPageStack.isEmpty() && mPageStack.peek() == page)) {
+            return;
+        }
+        mPageStack.push(page);
+        MainView view = getView();
+        if (view != null) {
+            view.showPage(page);
         }
     }
 

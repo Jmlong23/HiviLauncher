@@ -1,4 +1,4 @@
-package com.hivi.launcher.main.data;
+package com.hivi.launcher.main.model;
 
 import android.content.Context;
 import android.media.AudioManager;
@@ -12,8 +12,6 @@ import android.net.wifi.WifiManager;
 import android.text.TextUtils;
 
 import com.hivi.launcher.R;
-import com.hivi.launcher.main.model.MainStatus;
-import com.hivi.launcher.main.model.MusicInfo;
 import com.hivi.launcher.music.model.BluetoothMediaController;
 import com.hivi.launcher.music.model.BluetoothPlaybackState;
 import com.hivi.launcher.music.model.UpnpPlaybackManager;

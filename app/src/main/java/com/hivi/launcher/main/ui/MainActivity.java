@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
+import android.app.Fragment;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -25,9 +26,18 @@ import com.hivi.launcher.account.model.AuthorizedUserInfo;
 import com.hivi.launcher.account.ui.AuthorizationDialog;
 import com.hivi.launcher.base.BaseActivity;
 import com.hivi.launcher.databinding.ActivityMainBinding;
+import com.hivi.launcher.main.model.MainPage;
 import com.hivi.launcher.main.presenter.MainPresenter;
 import com.hivi.launcher.music.model.BluetoothMediaController;
+import com.hivi.launcher.bluetooth.ui.BluetoothFragment;
+import com.hivi.launcher.coax.ui.CoaxFragment;
+import com.hivi.launcher.hdmi.ui.HdmiFragment;
+import com.hivi.launcher.line.ui.LineFragment;
+import com.hivi.launcher.microphone.ui.MicrophoneFragment;
+import com.hivi.launcher.optical.ui.OpticalFragment;
+import com.hivi.launcher.settings.ui.SettingsFragment;
 import com.hivi.launcher.utils.network.AuthorizationStore;
+import com.hivi.launcher.wifi.ui.WifiFragment;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -146,6 +156,29 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                     });
         }
         mAuthorizationDialog.show();
+    }
+
+    @Override
+    public void showPage(MainPage page) {
+        if (binding == null) {
+            return;
+        }
+        binding.fragmentContainer.setVisibility(View.VISIBLE);
+        getFragmentManager().beginTransaction()
+                .replace(R.id.fragment_container, createPageFragment(page))
+                .commit();
+    }
+
+    @Override
+    public void showHomePage() {
+        if (binding == null) {
+            return;
+        }
+        binding.fragmentContainer.setVisibility(View.GONE);
+        Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        if (fragment != null) {
+            getFragmentManager().beginTransaction().remove(fragment).commit();
+        }
     }
 
     @Override
@@ -307,12 +340,18 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.cardsRow.setLayoutManager(layoutManager);
         binding.cardsRow.setHasFixedSize(true);
         binding.cardsRow.setItemAnimator(null);
-        mInputModeAdapter = new InputModeAdapter(this, new InputModeAdapter.OnModeSelectedListener() {
-            @Override
-            public void onModeSelected(int topLabelResId) {
-                updateModeText(topLabelResId);
-            }
-        });
+        mInputModeAdapter = new InputModeAdapter(this,
+                new InputModeAdapter.OnModeSelectedListener() {
+                    @Override
+                    public void onModeSelected(int topLabelResId) {
+                        updateModeText(topLabelResId);
+                    }
+                }, new InputModeAdapter.OnModeClickListener() {
+                    @Override
+                    public void onModeClicked(MainPage page) {
+                        presenter.onInputModeClicked(page);
+                    }
+                });
         binding.cardsRow.setAdapter(mInputModeAdapter);
         new LinearSnapHelper().attachToRecyclerView(binding.cardsRow);
     }
@@ -345,6 +384,29 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             return getString(R.string.main_disconnected);
         }
         return getString(R.string.main_wifi_connected_format, wifiLabel);
+    }
+
+    private Fragment createPageFragment(MainPage page) {
+        switch (page) {
+            case LINE:
+                return new LineFragment();
+            case MICROPHONE:
+                return new MicrophoneFragment();
+            case OPTICAL:
+                return new OpticalFragment();
+            case COAX:
+                return new CoaxFragment();
+            case HDMI:
+                return new HdmiFragment();
+            case BLUETOOTH:
+                return new BluetoothFragment();
+            case WIFI:
+                return new WifiFragment();
+            case SETTINGS:
+                return new SettingsFragment();
+            default:
+                throw new IllegalArgumentException("Unsupported page: " + page);
+        }
     }
 
     private void registerSystemReceiver() {
