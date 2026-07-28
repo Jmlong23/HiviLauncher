@@ -305,7 +305,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 presenter.onBottomNavigationHomeClicked();
             }
         });
-        binding.bottomNavigationVolume.setOnClickListener(new View.OnClickListener() {
+        binding.bottomNavigationBackground.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 presenter.onBottomNavigationRecentsClicked();
