@@ -240,14 +240,23 @@
                         android:textSize="15sp"
                         android:textStyle="bold" />
 
-                    <ImageView
-                        android:id="@+id/settings_wifi_refresh"
+                    <FrameLayout
                         android:layout_width="28dp"
                         android:layout_height="28dp"
-                        android:background="@drawable/ic_btn_refresh"
-                        android:clickable="true"
-                        android:contentDescription="@string/settings_wifi_refresh"
-                        android:focusable="true" />
+                        android:background="@drawable/ic_btn_refresh_bg">
+
+                        <ImageView
+                            android:id="@+id/settings_wifi_refresh"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:clickable="true"
+                            android:contentDescription="@string/settings_wifi_refresh"
+                            android:focusable="true"
+                            android:scaleType="centerInside"
+                            android:src="@drawable/ic_refresh"
+                            android:padding="5dp"/>
+
+                    </FrameLayout>
 
                 </LinearLayout>
 

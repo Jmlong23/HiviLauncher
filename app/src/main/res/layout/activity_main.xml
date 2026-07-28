@@ -6,7 +6,7 @@
     android:background="#363636"
     android:paddingLeft="33dp"
     android:paddingRight="33dp"
-    android:paddingTop="23dp"
+    android:paddingTop="16dp"
     android:paddingBottom="35dp">
 
     <LinearLayout
