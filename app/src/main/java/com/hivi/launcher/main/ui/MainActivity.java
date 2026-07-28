@@ -56,6 +56,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private static final float PAGE_TRANSITION_OFFSET_DP = 28f;
     private static final float HOME_PAGE_DIMMED_ALPHA = 0.65f;
     private AuthorizationDialog mAuthorizationDialog;
+    private VolumeDialog mVolumeDialog;
     private InputModeAdapter mInputModeAdapter;
     private final ExecutorService mAccountAvatarExecutor = Executors.newSingleThreadExecutor();
     private final DecelerateInterpolator mPageTransitionInterpolator =
@@ -148,7 +149,21 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     @Override
     public void updateVolume(int volumePercent) {
-        // Volume remains available to the audio layer; its old dashboard card was removed.
+        if (binding == null) {
+            return;
+        }
+        binding.bottomNavigationVolume.setText(getString(
+                R.string.main_bottom_navigation_volume_format, volumePercent));
+        if (mVolumeDialog != null) {
+            mVolumeDialog.updateVolume(volumePercent);
+        }
+    }
+
+    @Override
+    public void updateVolumeMuted(boolean muted) {
+        if (mVolumeDialog != null) {
+            mVolumeDialog.updateMuted(muted);
+        }
     }
 
     @Override
@@ -168,6 +183,40 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                     });
         }
         mAuthorizationDialog.show();
+    }
+
+    @Override
+    public void showVolumeDialog(int volumePercent, boolean muted) {
+        if (isFinishing() || isDestroyed() || binding == null) {
+            return;
+        }
+        if (mVolumeDialog == null) {
+            mVolumeDialog = new VolumeDialog(this, new VolumeDialog.Listener() {
+                @Override
+                public void onVolumeAdjusted(int direction) {
+                    presenter.adjustVolume(direction);
+                }
+
+                @Override
+                public void onVolumeChanged(int volumePercent) {
+                    presenter.setVolumePercent(volumePercent);
+                }
+
+                @Override
+                public void onMuteToggleRequested() {
+                    presenter.toggleVolumeMute();
+                }
+
+                @Override
+                public void onDialogDismissed() {
+                    if (binding != null) {
+                        binding.bottomNavigationVolume.setSelected(false);
+                    }
+                }
+            });
+        }
+        binding.bottomNavigationVolume.setSelected(true);
+        mVolumeDialog.show(volumePercent, muted);
     }
 
     @Override
@@ -276,6 +325,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     @Override
     protected void onDestroy() {
+        if (mVolumeDialog != null) {
+            mVolumeDialog.dismiss();
+            mVolumeDialog = null;
+        }
         if (mAuthorizationDialog != null) {
             mAuthorizationDialog.release();
             mAuthorizationDialog = null;
@@ -315,6 +368,12 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             @Override
             public void onClick(View v) {
                 presenter.onBottomNavigationRecentsClicked();
+            }
+        });
+        binding.bottomNavigationVolume.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                presenter.onBottomNavigationVolumeClicked();
             }
         });
         binding.bottomNavigationApps.setOnClickListener(new View.OnClickListener() {

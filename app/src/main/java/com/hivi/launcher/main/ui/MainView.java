@@ -10,7 +10,11 @@ public interface MainView extends BaseView {
 
     void updateVolume(int volumePercent);
 
+    void updateVolumeMuted(boolean muted);
+
     void showAuthorization();
+
+    void showVolumeDialog(int volumePercent, boolean muted);
 
     void showPage(MainPage page);
 

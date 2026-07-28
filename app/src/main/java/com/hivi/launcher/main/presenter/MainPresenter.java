@@ -104,15 +104,31 @@ public class MainPresenter extends BasePresenter<MainView> {
     }
 
     public void updateVolume() {
-        MainView view = getView();
-        if (view != null) {
-            view.updateVolume(mStatusRepository.getVolumePercent());
-        }
+        updateAudioStatus();
     }
 
     public void adjustVolume(int direction) {
         mStatusRepository.adjustVolume(direction);
-        updateVolume();
+        updateAudioStatus();
+    }
+
+    public void setVolumePercent(int volumePercent) {
+        mStatusRepository.setVolumePercent(volumePercent);
+        updateAudioStatus();
+    }
+
+    public void toggleVolumeMute() {
+        mStatusRepository.toggleMusicStreamMute();
+        updateAudioStatus();
+    }
+
+    public void onBottomNavigationVolumeClicked() {
+        Log.d(TAG, "Bottom navigation volume clicked");
+        MainView view = getView();
+        if (view != null) {
+            view.showVolumeDialog(mStatusRepository.getVolumePercent(),
+                    mStatusRepository.isMusicStreamMuted());
+        }
     }
 
     public void showAuthorizationDialog() {
@@ -200,7 +216,15 @@ public class MainPresenter extends BasePresenter<MainView> {
             view.updateConnectivity(mStatusRepository.getWifiLabel(),
                     mStatusRepository.isBluetoothConnected(),
                     mStatusRepository.getBluetoothDeviceName());
+        }
+        updateAudioStatus();
+    }
+
+    private void updateAudioStatus() {
+        MainView view = getView();
+        if (view != null) {
             view.updateVolume(mStatusRepository.getVolumePercent());
+            view.updateVolumeMuted(mStatusRepository.isMusicStreamMuted());
         }
     }
 

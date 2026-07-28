@@ -71,6 +71,29 @@ public final class MainStatusRepository {
                 AudioManager.FLAG_PLAY_SOUND);
     }
 
+    public void setVolumePercent(int volumePercent) {
+        if (mAudioManager == null) {
+            return;
+        }
+        int max = Math.max(1, mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
+        int targetVolume = Math.round(Math.max(0, Math.min(100, volumePercent)) * max / 100f);
+        mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVolume,
+                AudioManager.FLAG_PLAY_SOUND);
+    }
+
+    public boolean isMusicStreamMuted() {
+        return mAudioManager != null
+                && mAudioManager.isStreamMute(AudioManager.STREAM_MUSIC);
+    }
+
+    public void toggleMusicStreamMute() {
+        if (mAudioManager == null) {
+            return;
+        }
+        mAudioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC,
+                AudioManager.ADJUST_TOGGLE_MUTE, AudioManager.FLAG_PLAY_SOUND);
+    }
+
     public MusicInfo getMusicInfo() {
         BluetoothPlaybackState bluetoothState = mBluetoothMediaController.getCurrentState();
         if (mBluetoothMediaController.isBluetoothAudioConnected()

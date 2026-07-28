@@ -15,6 +15,9 @@
     <string name="main_weather_temp">25°C</string>
     <string name="main_city_air_quality">珠海      空气质量良好</string>
     <string name="main_volume">音量</string>
+    <string name="main_amplifier_volume">功放音量</string>
+    <string name="main_volume_mute">静音</string>
+    <string name="main_volume_unmute">取消静音</string>
     <string name="main_volume_placeholder">--</string>
     <string name="main_volume_up">+</string>
     <string name="main_volume_adjust">音量调节</string>
@@ -31,6 +34,7 @@
     <string name="main_bottom_navigation_home">首页</string>
     <string name="main_bottom_navigation_background">后台</string>
     <string name="main_bottom_navigation_volume">音量40</string>
+    <string name="main_bottom_navigation_volume_format">音量%1$d</string>
     <string name="main_bottom_navigation_apps">应用</string>
     <string name="main_bottom_navigation_settings">设置</string>
 

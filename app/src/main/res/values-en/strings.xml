@@ -14,6 +14,9 @@
     <string name="main_weather_temp">25°C</string>
     <string name="main_city_air_quality">Zhuhai      Good air quality</string>
     <string name="main_volume">Volume</string>
+    <string name="main_amplifier_volume">Amplifier volume</string>
+    <string name="main_volume_mute">Mute</string>
+    <string name="main_volume_unmute">Unmute</string>
     <string name="main_volume_placeholder">--</string>
     <string name="main_volume_up">+</string>
     <string name="main_volume_adjust">Adjust</string>
@@ -30,6 +33,7 @@
     <string name="main_bottom_navigation_home">Home</string>
     <string name="main_bottom_navigation_background">Recent</string>
     <string name="main_bottom_navigation_volume">Volume 40</string>
+    <string name="main_bottom_navigation_volume_format">Volume %1$d</string>
     <string name="main_bottom_navigation_apps">Apps</string>
     <string name="main_bottom_navigation_settings">Settings</string>
 
