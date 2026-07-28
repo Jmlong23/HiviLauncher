@@ -28,6 +28,7 @@
     <string name="main_music_apps_not_installed">QQ Music, NetEase Cloud Music or Kugou Music is not installed</string>
     <string name="main_bottom_navigation_back">Back</string>
     <string name="main_bottom_navigation_home">Home</string>
+    <string name="main_bottom_navigation_background">Recent</string>
     <string name="main_bottom_navigation_volume">Volume 40</string>
     <string name="main_bottom_navigation_apps">Apps</string>
     <string name="main_bottom_navigation_settings">Settings</string>

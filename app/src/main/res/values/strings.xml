@@ -29,6 +29,7 @@
     <string name="main_music_apps_not_installed">未安装 QQ音乐、网易云音乐或酷狗音乐</string>
     <string name="main_bottom_navigation_back">返回</string>
     <string name="main_bottom_navigation_home">首页</string>
+    <string name="main_bottom_navigation_background">后台</string>
     <string name="main_bottom_navigation_volume">音量40</string>
     <string name="main_bottom_navigation_apps">应用</string>
     <string name="main_bottom_navigation_settings">设置</string>

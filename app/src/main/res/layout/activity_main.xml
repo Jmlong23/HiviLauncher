@@ -225,6 +225,20 @@
             android:textSize="14sp" />
 
         <TextView
+            android:id="@+id/bottom_navigation_background"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/main_bottom_navigation_item_background"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:text="@string/main_bottom_navigation_background"
+            android:textColor="@color/text_color"
+            android:textSize="14sp" />
+
+        <TextView
             android:id="@+id/bottom_navigation_volume"
             android:layout_width="0dp"
             android:layout_height="match_parent"
