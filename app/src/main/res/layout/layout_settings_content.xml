@@ -68,6 +68,7 @@
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/settings_network_summary"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:includeFontPadding="false"
@@ -241,35 +242,65 @@
                         android:textStyle="bold" />
 
                     <ImageView
+                        android:id="@+id/settings_wifi_refresh"
                         android:layout_width="28dp"
                         android:layout_height="28dp"
-                        android:background="@drawable/ic_btn_refresh" />
+                        android:background="@drawable/ic_btn_refresh"
+                        android:clickable="true"
+                        android:contentDescription="@string/settings_wifi_refresh"
+                        android:focusable="true" />
 
                 </LinearLayout>
 
-                <LinearLayout
+                <FrameLayout
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:orientation="vertical">
+                    android:layout_marginTop="10dp"
+                    android:layout_weight="1">
 
-                    <ImageView
-                        android:layout_width="79dp"
-                        android:layout_height="79dp"
-                        android:contentDescription="@null"
-                        android:src="@drawable/ic_wifi_error"/>
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/settings_wifi_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:clipToPadding="false"
+                        android:overScrollMode="never"
+                        android:scrollbars="vertical"
+                        android:visibility="gone" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="25dp"
-                        android:includeFontPadding="false"
-                        android:text="@string/settings_no_network_message"
-                        android:textColor="@color/text_color"
-                        android:textSize="15sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
+                    <LinearLayout
+                        android:id="@+id/settings_wifi_empty_state"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <ImageView
+                            android:layout_width="79dp"
+                            android:layout_height="79dp"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_wifi_error" />
+
+                        <TextView
+                            android:id="@+id/settings_wifi_empty_text"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="25dp"
+                            android:includeFontPadding="false"
+                            android:text="@string/settings_no_network_message"
+                            android:textColor="@color/text_color"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <ProgressBar
+                        android:id="@+id/settings_wifi_loading"
+                        style="?android:attr/progressBarStyleLarge"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_gravity="center"
+                        android:indeterminateTint="#4E83D8"
+                        android:visibility="gone" />
+                </FrameLayout>
             </LinearLayout>
 
             <ScrollView

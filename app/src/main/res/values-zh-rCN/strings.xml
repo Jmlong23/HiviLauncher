@@ -160,4 +160,18 @@
     <string name="settings_help">帮助</string>
     <string name="settings_privacy">隐私</string>
     <string name="settings_restore_factory">恢复出厂设置</string>
+    <string name="settings_wifi_refresh">刷新 Wi-Fi 网络</string>
+    <string name="settings_wifi_permission_required">扫描 Wi-Fi 网络需要位置权限。</string>
+    <string name="settings_wifi_enable_failed">无法打开 Wi-Fi，请重试。</string>
+    <string name="settings_wifi_connection_failed">无法连接此 Wi-Fi 网络。</string>
+    <string name="settings_wifi_authentication_failed">密码错误，请重新输入。</string>
+    <string name="settings_wifi_connected_toast">已连接 %1$s</string>
+    <string name="settings_wifi_connected_format">%1$s（已连接）</string>
+    <string name="settings_wifi_connecting_format">%1$s（正在连接...）</string>
+    <string name="settings_wifi_password_hint">请输入密码</string>
+    <string name="settings_wifi_show_password">显示密码</string>
+    <string name="settings_wifi_connect">连接</string>
+    <string name="settings_wifi_cancel">取消</string>
+    <string name="settings_wifi_password_required">请输入 Wi-Fi 密码。</string>
+    <string name="settings_wifi_unsupported_security">暂不支持企业级 Wi-Fi 网络。</string>
 </resources>
