@@ -221,7 +221,15 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         mWifiPasswordDialog = dialog;
         dialog.show();
         if (dialog.getWindow() != null) {
-            dialog.getWindow().setLayout(dp(690), WindowManager.LayoutParams.WRAP_CONTENT);
+            Window dialogWindow = dialog.getWindow();
+            dialogWindow.getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+            dialogWindow.setLayout(dp(690), WindowManager.LayoutParams.WRAP_CONTENT);
         }
     }
 
