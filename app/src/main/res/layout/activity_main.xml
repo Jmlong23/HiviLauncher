@@ -185,6 +185,7 @@
         android:layout_marginTop="48dp"
         android:layout_marginBottom="45dp"
         android:background="#363636"
+        android:clickable="true"
         android:visibility="gone" />
 
     <LinearLayout

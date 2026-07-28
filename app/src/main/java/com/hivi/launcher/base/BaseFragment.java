@@ -25,6 +25,7 @@ public abstract class BaseFragment<P extends BasePresenter<?>> extends Fragment 
     @Override
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        view.setClickable(true);
         TextView pageTitle = view.findViewById(R.id.page_title);
         if (pageTitle != null) {
             pageTitle.setText(getPageTitleResId());
