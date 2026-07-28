@@ -95,6 +95,14 @@ public class MainPresenter extends BasePresenter<MainView> {
         }
     }
 
+    public void updateConnectivity(String wifiLabel) {
+        MainView view = getView();
+        if (view != null) {
+            view.updateConnectivity(wifiLabel, mStatusRepository.isBluetoothConnected(),
+                    mStatusRepository.getBluetoothDeviceName());
+        }
+    }
+
     public void updateVolume() {
         MainView view = getView();
         if (view != null) {

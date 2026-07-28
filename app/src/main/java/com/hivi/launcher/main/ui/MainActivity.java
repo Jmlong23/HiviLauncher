@@ -140,6 +140,12 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
     }
 
+    public void updateWifiConnectionStatus(String ssid) {
+        if (presenter != null) {
+            presenter.updateConnectivity(ssid);
+        }
+    }
+
     @Override
     public void updateVolume(int volumePercent) {
         // Volume remains available to the audio layer; its old dashboard card was removed.

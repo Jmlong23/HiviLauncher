@@ -19,6 +19,7 @@ import com.hivi.launcher.R;
 import com.hivi.launcher.base.BaseFragment;
 import com.hivi.launcher.databinding.DialogWifiPasswordBinding;
 import com.hivi.launcher.databinding.LayoutSettingsContentBinding;
+import com.hivi.launcher.main.ui.MainActivity;
 import com.hivi.launcher.settings.presenter.SettingsPresenter;
 import com.hivi.launcher.wifi.model.WifiNetwork;
 import com.hivi.launcher.wifi.presenter.WifiPresenter;
@@ -130,6 +131,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         } else {
             mBinding.settingsNetworkSummary.setText(connectedSsid);
         }
+        updateTopWifiStatus(connectedSsid);
     }
 
     @Override
@@ -220,6 +222,13 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         dialog.show();
         if (dialog.getWindow() != null) {
             dialog.getWindow().setLayout(dp(690), WindowManager.LayoutParams.WRAP_CONTENT);
+        }
+    }
+
+    private void updateTopWifiStatus(String ssid) {
+        Activity activity = getActivity();
+        if (activity instanceof MainActivity) {
+            ((MainActivity) activity).updateWifiConnectionStatus(ssid);
         }
     }
 

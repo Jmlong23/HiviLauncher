@@ -1,6 +1,8 @@
 package com.hivi.launcher.wifi.ui;
 
+import android.animation.ObjectAnimator;
 import android.content.Context;
+import android.net.wifi.WifiManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -49,20 +51,30 @@ public final class WifiNetworkAdapter
     @Override
     public void onBindViewHolder(@NonNull WifiNetworkViewHolder holder, int position) {
         WifiNetwork network = mNetworks.get(position);
+        boolean isConnected = network.isConnected();
+        boolean isConnecting = !isConnected && network.isConnecting();
         holder.binding.wifiNetworkName.setText(createNetworkLabel(network));
-        holder.binding.wifiNetworkCheck.setVisibility(network.isConnected()
-                ? View.VISIBLE : View.INVISIBLE);
-        holder.binding.wifiNetworkProgress.setVisibility(network.isConnecting()
+        holder.binding.wifiNetworkCheck.setVisibility(isConnected
                 ? View.VISIBLE : View.GONE);
-        holder.binding.wifiNetworkSignal.setVisibility(network.isConnecting()
-                ? View.INVISIBLE : View.VISIBLE);
-        holder.binding.wifiNetworkItem.setEnabled(!network.isConnecting());
+        holder.binding.wifiNetworkProgress.setVisibility(isConnecting
+                ? View.VISIBLE : View.GONE);
+        holder.setProgressAnimating(isConnecting);
+        holder.binding.wifiNetworkSignal.setImageResource(
+                getSignalDrawable(network.getSignalLevel()));
+        holder.binding.wifiNetworkSignal.setVisibility(View.VISIBLE);
+        holder.binding.wifiNetworkItem.setEnabled(!isConnecting);
         holder.binding.wifiNetworkItem.setContentDescription(network.getSsid());
         holder.binding.wifiNetworkItem.setOnClickListener(view -> {
-            if (mClickListener != null && !network.isConnecting()) {
+            if (mClickListener != null && !isConnecting) {
                 mClickListener.onWifiNetworkClicked(network);
             }
         });
+    }
+
+    @Override
+    public void onViewRecycled(@NonNull WifiNetworkViewHolder holder) {
+        holder.setProgressAnimating(false);
+        super.onViewRecycled(holder);
     }
 
     @Override
@@ -80,12 +92,45 @@ public final class WifiNetworkAdapter
         return network.getSsid();
     }
 
+    private int getSignalDrawable(int signalLevel) {
+        switch (WifiManager.calculateSignalLevel(signalLevel, 4)) {
+            case 3:
+                return R.drawable.ic_wifi_4;
+            case 2:
+                return R.drawable.ic_wifi_3;
+            case 1:
+                return R.drawable.ic_wifi_2;
+            default:
+                return R.drawable.ic_wifi_1;
+        }
+    }
+
     static final class WifiNetworkViewHolder extends RecyclerView.ViewHolder {
         final ItemWifiNetworkBinding binding;
+        private ObjectAnimator mProgressAnimator;
 
         WifiNetworkViewHolder(ItemWifiNetworkBinding binding) {
             super(binding.getRoot());
             this.binding = binding;
+        }
+
+        void setProgressAnimating(boolean animating) {
+            if (animating) {
+                if (mProgressAnimator == null) {
+                    mProgressAnimator = ObjectAnimator.ofFloat(binding.wifiNetworkProgress,
+                            View.ROTATION, 0f, 360f);
+                    mProgressAnimator.setDuration(900L);
+                    mProgressAnimator.setRepeatCount(ObjectAnimator.INFINITE);
+                }
+                if (!mProgressAnimator.isStarted()) {
+                    mProgressAnimator.start();
+                }
+            } else {
+                if (mProgressAnimator != null) {
+                    mProgressAnimator.cancel();
+                }
+                binding.wifiNetworkProgress.setRotation(0f);
+            }
         }
     }
 }

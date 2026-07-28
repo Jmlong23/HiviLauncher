@@ -4,11 +4,6 @@ import android.content.Context;
 import android.media.AudioManager;
 import android.media.session.MediaController;
 import android.media.session.MediaSessionManager;
-import android.net.ConnectivityManager;
-import android.net.Network;
-import android.net.NetworkCapabilities;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
 import android.text.TextUtils;
 
 import com.hivi.launcher.R;
@@ -16,30 +11,26 @@ import com.hivi.launcher.music.model.BluetoothMediaController;
 import com.hivi.launcher.music.model.BluetoothPlaybackState;
 import com.hivi.launcher.music.model.UpnpPlaybackManager;
 import com.hivi.launcher.music.model.UpnpPlaybackState;
+import com.hivi.launcher.wifi.model.WifiConnectionStatus;
 
 import java.util.List;
 
 /**
  * Reads the device state rendered by the home information panel.
  *
- * <p>This is intentionally the only home-layer class that talks to Android system services.
- * Presenters consume the resulting models instead of assembling Wi-Fi, Bluetooth, volume, and
- * playback state themselves.</p>
+ * <p>Wi-Fi SSID state is read through {@link WifiConnectionStatus} so the home and settings
+ * screens use the same connection source. Presenters consume the resulting models instead of
+ * assembling Wi-Fi, Bluetooth, volume, and playback state themselves.</p>
  */
 public final class MainStatusRepository {
     private final Context mContext;
     private final AudioManager mAudioManager;
-    private final WifiManager mWifiManager;
-    private final ConnectivityManager mConnectivityManager;
     private final MediaSessionManager mMediaSessionManager;
     private final BluetoothMediaController mBluetoothMediaController;
 
     public MainStatusRepository(Context context) {
         mContext = context.getApplicationContext();
         mAudioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
-        mWifiManager = (WifiManager) mContext.getSystemService(Context.WIFI_SERVICE);
-        mConnectivityManager = (ConnectivityManager) mContext.getSystemService(
-                Context.CONNECTIVITY_SERVICE);
         mMediaSessionManager = (MediaSessionManager) mContext.getSystemService(
                 Context.MEDIA_SESSION_SERVICE);
         mBluetoothMediaController = BluetoothMediaController.getInstance();
@@ -51,27 +42,8 @@ public final class MainStatusRepository {
     }
 
     public String getWifiLabel() {
-        if (mConnectivityManager != null) {
-            Network network = mConnectivityManager.getActiveNetwork();
-            NetworkCapabilities capabilities = mConnectivityManager.getNetworkCapabilities(network);
-            if (capabilities == null
-                    || !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-                return mContext.getString(R.string.main_disconnected);
-            }
-        }
-
-        if (mWifiManager == null) {
-            return mContext.getString(R.string.main_wifi_default);
-        }
-        WifiInfo wifiInfo = mWifiManager.getConnectionInfo();
-        if (wifiInfo == null) {
-            return mContext.getString(R.string.main_wifi_default);
-        }
-        String ssid = wifiInfo.getSSID();
-        if (TextUtils.isEmpty(ssid) || "<unknown ssid>".equals(ssid)) {
-            return mContext.getString(R.string.main_wifi_default);
-        }
-        return ssid.replace("\"", "");
+        String ssid = WifiConnectionStatus.getConnectedSsid(mContext);
+        return TextUtils.isEmpty(ssid) ? mContext.getString(R.string.main_disconnected) : ssid;
     }
 
     public boolean isBluetoothConnected() {

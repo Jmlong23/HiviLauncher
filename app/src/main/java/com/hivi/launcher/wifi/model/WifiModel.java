@@ -9,11 +9,11 @@ import android.content.pm.PackageManager;
 import android.net.NetworkInfo;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiInfo;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,6 +34,8 @@ import java.util.Set;
 public final class WifiModel {
     private static final long SCAN_TIMEOUT_MS = 5_000L;
     private static final long CONNECTION_TIMEOUT_MS = 25_000L;
+    private static final long CONNECTION_DISCONNECTED_GRACE_MS = 3_000L;
+    private static final String TAG = "WifiStatus";
 
     public enum ConnectionState {
         CONNECTING,
@@ -111,9 +113,21 @@ public final class WifiModel {
             mHandler.postDelayed(this, 750L);
         }
     };
+    private final Runnable mConnectionDisconnectedRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!mDestroyed && mConnectingNetworkActive
+                    && !TextUtils.isEmpty(mConnectingSsid)
+                    && TextUtils.isEmpty(getConnectedSsid())) {
+                Log.d(TAG, "Connection lost while connecting. ssid=" + mConnectingSsid);
+                finishConnectionAttempt(false, false);
+            }
+        }
+    };
 
     private List<WifiNetwork> mNetworks = Collections.emptyList();
     private String mConnectingSsid = "";
+    private boolean mConnectingNetworkActive;
     private boolean mReceiverRegistered;
     private boolean mRefreshing;
     private boolean mDestroyed;
@@ -186,7 +200,10 @@ public final class WifiModel {
 
         String ssid = network.getSsid();
         mHandler.removeCallbacks(mConnectionTimeoutRunnable);
+        mHandler.removeCallbacks(mConnectionDisconnectedRunnable);
         mConnectingSsid = ssid;
+        mConnectingNetworkActive = false;
+        Log.d(TAG, "Connect requested. ssid=" + ssid);
         publishNetworks();
         mCallback.onConnectionStateChanged(ssid, ConnectionState.CONNECTING, false);
 
@@ -217,6 +234,7 @@ public final class WifiModel {
 
         if (!connectionStarted) {
             mConnectingSsid = "";
+            mConnectingNetworkActive = false;
             publishNetworks();
             mCallback.onWifiError(Error.CONNECTION_START_FAILED);
             return;
@@ -249,8 +267,10 @@ public final class WifiModel {
         } else if (state == android.net.wifi.WifiManager.WIFI_STATE_DISABLED) {
             mNetworks = Collections.emptyList();
             mConnectingSsid = "";
+            mConnectingNetworkActive = false;
             mHandler.removeCallbacks(mConnectionTimeoutRunnable);
             mHandler.removeCallbacks(mConnectionStatePollRunnable);
+            mHandler.removeCallbacks(mConnectionDisconnectedRunnable);
             mCallback.onWifiNetworksChanged(mNetworks, "");
             setRefreshing(false);
         }
@@ -262,16 +282,35 @@ public final class WifiModel {
         if (networkInfo == null) {
             return;
         }
+        String connectedSsid = getConnectedSsid();
+        NetworkInfo.DetailedState detailedState = networkInfo.getDetailedState();
+        Log.d(TAG, "Network state changed. detailedState=" + detailedState
+                + ", connected=" + networkInfo.isConnected()
+                + ", connectedSsid=" + connectedSsid
+                + ", connectingSsid=" + mConnectingSsid);
         if (networkInfo.isConnected()) {
-            String connectedSsid = getConnectedSsid();
             if (TextUtils.equals(connectedSsid, mConnectingSsid)) {
                 finishConnectionAttempt(true, false);
+            } else if (!TextUtils.isEmpty(mConnectingSsid)
+                    && !TextUtils.isEmpty(connectedSsid)) {
+                Log.d(TAG, "A different Wi-Fi network connected while connecting. connectedSsid="
+                        + connectedSsid + ", connectingSsid=" + mConnectingSsid);
+                finishConnectionAttempt(false, false);
             } else {
                 publishNetworks();
             }
             return;
         }
-        if (networkInfo.getDetailedState() == NetworkInfo.DetailedState.FAILED
+        if (isConnectionInProgress(detailedState) && !TextUtils.isEmpty(mConnectingSsid)) {
+            mConnectingNetworkActive = true;
+            mHandler.removeCallbacks(mConnectionDisconnectedRunnable);
+        } else if (detailedState == NetworkInfo.DetailedState.DISCONNECTED
+                && mConnectingNetworkActive && !TextUtils.isEmpty(mConnectingSsid)) {
+            mHandler.removeCallbacks(mConnectionDisconnectedRunnable);
+            mHandler.postDelayed(mConnectionDisconnectedRunnable,
+                    CONNECTION_DISCONNECTED_GRACE_MS);
+        }
+        if (detailedState == NetworkInfo.DetailedState.FAILED
                 && !TextUtils.isEmpty(mConnectingSsid)) {
             finishConnectionAttempt(false, false);
         } else {
@@ -291,8 +330,12 @@ public final class WifiModel {
     private void finishConnectionAttempt(boolean connected, boolean authenticationFailure) {
         String ssid = mConnectingSsid;
         mConnectingSsid = "";
+        mConnectingNetworkActive = false;
         mHandler.removeCallbacks(mConnectionTimeoutRunnable);
         mHandler.removeCallbacks(mConnectionStatePollRunnable);
+        mHandler.removeCallbacks(mConnectionDisconnectedRunnable);
+        Log.d(TAG, "Connection attempt finished. ssid=" + ssid + ", connected=" + connected
+                + ", authenticationFailure=" + authenticationFailure);
         publishNetworks();
         if (!TextUtils.isEmpty(ssid)) {
             mCallback.onConnectionStateChanged(ssid,
@@ -380,18 +423,13 @@ public final class WifiModel {
     }
 
     private String getConnectedSsid() {
-        if (mWifiManager == null) {
-            return "";
-        }
-        try {
-            WifiInfo wifiInfo = mWifiManager.getConnectionInfo();
-            if (wifiInfo == null || wifiInfo.getIpAddress() == 0) {
-                return "";
-            }
-            return normalizeSsid(wifiInfo.getSSID());
-        } catch (SecurityException e) {
-            return "";
-        }
+        return WifiConnectionStatus.getConnectedSsid(mContext);
+    }
+
+    private static boolean isConnectionInProgress(NetworkInfo.DetailedState state) {
+        return state == NetworkInfo.DetailedState.CONNECTING
+                || state == NetworkInfo.DetailedState.AUTHENTICATING
+                || state == NetworkInfo.DetailedState.OBTAINING_IPADDR;
     }
 
     private int findConfiguredNetworkId(String ssid) {
