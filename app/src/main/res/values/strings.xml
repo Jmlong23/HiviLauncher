@@ -115,6 +115,11 @@
     <string name="input_mode_line_top">有线模式</string>
     <string name="input_mode_microphone">麦克风</string>
     <string name="input_mode_microphone_top">麦克风</string>
+    <string name="microphone_page_title">卡拉OK</string>
+    <string name="microphone_status_connected">麦克风已经连接</string>
+    <string name="microphone_status_disconnected">麦克风未连接</string>
+    <string name="microphone_volume">话筒音量</string>
+    <string name="microphone_effect_volume">音效音量</string>
     <string name="input_mode_bluetooth">蓝牙</string>
     <string name="input_mode_bluetooth_top">蓝牙模式</string>
     <string name="input_mode_optical">光纤</string>
