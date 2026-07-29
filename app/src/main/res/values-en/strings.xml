@@ -128,6 +128,30 @@
     <string name="input_mode_status_no_signal">No signal</string>
     <string name="input_mode_status_disconnected">Disconnected</string>
     <string name="input_mode_status_connected">Connected</string>
+
+    <!-- Bluetooth input page -->
+    <string name="bluetooth_status_connected">Device connected</string>
+    <string name="bluetooth_status_disconnected">Device disconnected</string>
+    <string name="bluetooth_connected_device">Connected device</string>
+    <string name="bluetooth_connected_device_default">Bluetooth device</string>
+    <string name="bluetooth_device_disconnected">No device connected</string>
+    <string name="bluetooth_signal_strength">Signal</string>
+    <string name="bluetooth_signal_excellent">Strong</string>
+    <string name="bluetooth_signal_unavailable">--</string>
+    <string name="bluetooth_disconnect">Disconnect</string>
+    <string name="bluetooth_reset">Reset Bluetooth</string>
+    <string name="bluetooth_amplifier_volume">Amplifier volume</string>
+    <string name="bluetooth_now_playing">Now playing</string>
+    <string name="bluetooth_no_playback">No music playing</string>
+    <string name="bluetooth_unknown_artist">Unknown artist</string>
+    <string name="bluetooth_album_art">Album art</string>
+    <string name="bluetooth_pause">Pause</string>
+    <string name="bluetooth_play">Play</string>
+    <string name="bluetooth_disconnect_requested">Bluetooth device disconnect requested</string>
+    <string name="bluetooth_disconnect_failed">Unable to disconnect the Bluetooth device</string>
+    <string name="bluetooth_reset_requested">Bluetooth device reset requested</string>
+    <string name="bluetooth_reset_failed">Unable to reset the Bluetooth device</string>
+
     <!-- Settings screen -->
     <string name="settings_title">System Settings</string>
     <string name="settings_network">Network</string>

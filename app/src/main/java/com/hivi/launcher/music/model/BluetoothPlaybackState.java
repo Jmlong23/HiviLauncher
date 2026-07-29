@@ -1,5 +1,6 @@
 package com.hivi.launcher.music.model;
 
+import android.graphics.Bitmap;
 import android.text.TextUtils;
 
 /**
@@ -10,6 +11,7 @@ public final class BluetoothPlaybackState {
     private final CharSequence artist;
     private final CharSequence album;
     private final CharSequence lyric;
+    private final Bitmap artwork;
     private final long positionMs;
     private final long durationMs;
     private final boolean playing;
@@ -21,10 +23,17 @@ public final class BluetoothPlaybackState {
 
     public BluetoothPlaybackState(CharSequence title, CharSequence artist, CharSequence album,
             CharSequence lyric, long positionMs, long durationMs, boolean playing) {
+        this(title, artist, album, lyric, null, positionMs, durationMs, playing);
+    }
+
+    public BluetoothPlaybackState(CharSequence title, CharSequence artist, CharSequence album,
+            CharSequence lyric, Bitmap artwork, long positionMs, long durationMs,
+            boolean playing) {
         this.title = title == null ? "" : title;
         this.artist = artist == null ? "" : artist;
         this.album = album == null ? "" : album;
         this.lyric = lyric == null ? "" : lyric;
+        this.artwork = artwork;
         this.positionMs = Math.max(0L, positionMs);
         this.durationMs = Math.max(0L, durationMs);
         this.playing = playing;
@@ -48,6 +57,10 @@ public final class BluetoothPlaybackState {
 
     public CharSequence getLyric() {
         return lyric;
+    }
+
+    public Bitmap getArtwork() {
+        return artwork;
     }
 
     public long getPositionMs() {

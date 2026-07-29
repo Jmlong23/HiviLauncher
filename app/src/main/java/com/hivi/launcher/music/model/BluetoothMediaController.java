@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.content.ComponentName;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.media.MediaMetadata;
 import android.media.browse.MediaBrowser;
 import android.media.session.MediaController;
@@ -15,6 +16,7 @@ import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.Log;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -191,12 +193,17 @@ public final class BluetoothMediaController {
         if (TextUtils.isEmpty(album)) {
             album = getMetadataText(metadata, MediaMetadata.METADATA_KEY_DISPLAY_DESCRIPTION);
         }
+        Bitmap artwork = firstNonNull(
+                getMetadataBitmap(metadata, MediaMetadata.METADATA_KEY_ALBUM_ART),
+                getMetadataBitmap(metadata, MediaMetadata.METADATA_KEY_ART),
+                getMetadataBitmap(metadata, MediaMetadata.METADATA_KEY_DISPLAY_ICON));
         long duration = metadata == null ? 0L
                 : Math.max(0L, metadata.getLong(MediaMetadata.METADATA_KEY_DURATION));
         long position = resolvePosition(playbackState, duration);
         boolean playing = playbackState != null
                 && playbackState.getState() == PlaybackState.STATE_PLAYING;
-        return new BluetoothPlaybackState(title, artist, album, lyric, position, duration, playing);
+        return new BluetoothPlaybackState(title, artist, album, lyric, artwork, position, duration,
+                playing);
     }
 
     public void playOrPause() {
@@ -213,6 +220,14 @@ public final class BluetoothMediaController {
         } catch (RuntimeException e) {
             Log.w(TAG, "Unable to toggle Bluetooth playback", e);
         }
+    }
+
+    public boolean play() {
+        return sendPlaybackCommand(false);
+    }
+
+    public boolean pause() {
+        return sendPlaybackCommand(true);
     }
 
     public void previous() {
@@ -232,6 +247,60 @@ public final class BluetoothMediaController {
             controller.getTransportControls().seekTo(Math.max(0L, positionMs));
         } catch (RuntimeException e) {
             Log.w(TAG, "Unable to seek Bluetooth playback", e);
+        }
+    }
+
+    /**
+     * Requests that the system A2DP sink profile disconnect the active Bluetooth source.
+     *
+     * <p>The profile's disconnect API is hidden on Android, but this launcher is deployed as a
+     * platform-signed system application. Reflection keeps the build compatible with the public
+     * SDK while avoiding the legacy approach of toggling the entire Bluetooth adapter.</p>
+     */
+    public boolean disconnectConnectedDevice() {
+        updateConnectedDeviceFromProfile();
+        BluetoothDevice device = mConnectedDevice;
+        BluetoothProfile profile = mA2dpSinkProfile;
+        if (device == null || profile == null) {
+            return false;
+        }
+        try {
+            Method disconnect = profile.getClass().getMethod("disconnect", BluetoothDevice.class);
+            Object result = disconnect.invoke(profile, device);
+            boolean disconnected = !(result instanceof Boolean) || (Boolean) result;
+            if (disconnected) {
+                mConnectedDevice = null;
+                notifyPlaybackChanged();
+            }
+            return disconnected;
+        } catch (ReflectiveOperationException | SecurityException e) {
+            Log.w(TAG, "Unable to disconnect Bluetooth device", e);
+            return false;
+        }
+    }
+
+    /**
+     * Removes the pairing record for the active source device. The Bluetooth stack disconnects
+     * that device as part of the unpairing operation.
+     */
+    public boolean resetConnectedDevice() {
+        updateConnectedDeviceFromProfile();
+        BluetoothDevice device = mConnectedDevice;
+        if (device == null) {
+            return false;
+        }
+        try {
+            Method removeBond = BluetoothDevice.class.getMethod("removeBond");
+            Object result = removeBond.invoke(device);
+            boolean reset = !(result instanceof Boolean) || (Boolean) result;
+            if (reset) {
+                mConnectedDevice = null;
+                notifyPlaybackChanged();
+            }
+            return reset;
+        } catch (ReflectiveOperationException | SecurityException e) {
+            Log.w(TAG, "Unable to reset Bluetooth device", e);
+            return false;
         }
     }
 
@@ -359,6 +428,24 @@ public final class BluetoothMediaController {
         }
     }
 
+    private boolean sendPlaybackCommand(boolean pause) {
+        MediaController controller = mMediaController;
+        if (controller == null) {
+            return false;
+        }
+        try {
+            if (pause) {
+                controller.getTransportControls().pause();
+            } else {
+                controller.getTransportControls().play();
+            }
+            return true;
+        } catch (RuntimeException e) {
+            Log.w(TAG, "Unable to send Bluetooth playback command", e);
+            return false;
+        }
+    }
+
     private void sendTransportCommand(TransportCommand command) {
         MediaController controller = mMediaController;
         if (controller == null) {
@@ -397,6 +484,14 @@ public final class BluetoothMediaController {
 
     private static CharSequence getMetadataText(MediaMetadata metadata, String key) {
         return metadata == null ? "" : metadata.getText(key);
+    }
+
+    private static Bitmap getMetadataBitmap(MediaMetadata metadata, String key) {
+        return metadata == null ? null : metadata.getBitmap(key);
+    }
+
+    private static Bitmap firstNonNull(Bitmap first, Bitmap second, Bitmap third) {
+        return first != null ? first : second != null ? second : third;
     }
 
     private static CharSequence firstNonEmpty(CharSequence first, CharSequence second) {

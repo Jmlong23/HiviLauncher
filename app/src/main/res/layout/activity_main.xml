@@ -102,7 +102,7 @@
                 android:id="@+id/account_img"
                 android:layout_width="25dp"
                 android:layout_height="25dp"
-                android:background="@drawable/main_account_avatar_placeholder"
+                android:background="@drawable/avatar_placeholder"
                 android:contentDescription="@null"
                 android:scaleType="centerCrop" />
 
@@ -151,7 +151,7 @@
         <View
             android:layout_width="139dp"
             android:layout_height="0.5dp"
-            android:background="#C5C6C6"
+            android:background="@color/line_color"
             android:layout_marginRight="14dp"/>
         <TextView
             android:layout_width="wrap_content"
@@ -163,7 +163,7 @@
         <View
             android:layout_width="139dp"
             android:layout_height="0.5dp"
-            android:background="#C5C6C6"/>
+            android:background="@color/line_color"/>
     </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView

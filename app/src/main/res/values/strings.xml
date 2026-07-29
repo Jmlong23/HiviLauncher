@@ -130,6 +130,30 @@
     <string name="input_mode_status_no_signal">无信号</string>
     <string name="input_mode_status_disconnected">未连接</string>
     <string name="input_mode_status_connected">已连接</string>
+
+    <!-- Bluetooth input page -->
+    <string name="bluetooth_status_connected">设备已连接</string>
+    <string name="bluetooth_status_disconnected">设备未连接</string>
+    <string name="bluetooth_connected_device">连接设备</string>
+    <string name="bluetooth_connected_device_default">蓝牙设备</string>
+    <string name="bluetooth_device_disconnected">暂无设备连接</string>
+    <string name="bluetooth_signal_strength">信号强度</string>
+    <string name="bluetooth_signal_excellent">优秀</string>
+    <string name="bluetooth_signal_unavailable">--</string>
+    <string name="bluetooth_disconnect">断开连接</string>
+    <string name="bluetooth_reset">重置蓝牙</string>
+    <string name="bluetooth_amplifier_volume">功放音量</string>
+    <string name="bluetooth_now_playing">正在播放</string>
+    <string name="bluetooth_no_playback">暂无播放</string>
+    <string name="bluetooth_unknown_artist">未知歌手</string>
+    <string name="bluetooth_album_art">歌曲封面</string>
+    <string name="bluetooth_pause">暂停</string>
+    <string name="bluetooth_play">播放</string>
+    <string name="bluetooth_disconnect_requested">已请求断开蓝牙设备</string>
+    <string name="bluetooth_disconnect_failed">无法断开当前蓝牙设备</string>
+    <string name="bluetooth_reset_requested">已请求重置当前蓝牙设备</string>
+    <string name="bluetooth_reset_failed">无法重置当前蓝牙设备</string>
+
     <!-- Settings screen -->
     <string name="settings_title">System Settings</string>
     <string name="settings_network">Network</string>
