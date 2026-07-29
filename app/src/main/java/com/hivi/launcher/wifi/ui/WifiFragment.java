@@ -1,5 +1,6 @@
 package com.hivi.launcher.wifi.ui;
 
+import android.animation.ObjectAnimator;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
@@ -31,9 +32,11 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
     private static final int COVER_CONNECT_TIMEOUT_MS = 8_000;
     private static final int COVER_READ_TIMEOUT_MS = 10_000;
     private static final int COVER_MAX_SIZE_PX = 512;
+    private static final long ALBUM_ARTWORK_ROTATION_DURATION_MS = 10_000L;
 
     private FragmentWifiBinding mBinding;
     private ExecutorService mCoverExecutor;
+    private ObjectAnimator mAlbumArtworkAnimator;
     private WifiMusicApp mSelectedMusicApp;
     private String mCoverUrl;
 
@@ -56,6 +59,7 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         mBinding = FragmentWifiBinding.bind(view);
+        mBinding.albumArtwork.setClipToOutline(true);
         mCoverExecutor = Executors.newSingleThreadExecutor();
         restoreSelectedMusicApp(savedInstanceState);
         bindClickListeners();
@@ -77,6 +81,8 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
 
     @Override
     public void onDestroyView() {
+        stopAlbumArtworkRotation();
+        mAlbumArtworkAnimator = null;
         if (mCoverExecutor != null) {
             mCoverExecutor.shutdownNow();
             mCoverExecutor = null;
@@ -106,6 +112,7 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
         setPlaybackActionEnabled(mBinding.btnPlayOrPause, hasPlayback);
         setPlaybackActionEnabled(mBinding.btnNextSong, hasPlayback);
         mBinding.albumArtwork.setVisibility(hasPlayback ? View.VISIBLE : View.GONE);
+        setAlbumArtworkRotation(hasPlayback && state.isPlaying());
         loadCover(hasPlayback ? state.getCoverUrl() : "");
     }
 
@@ -165,6 +172,31 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
     private void setPlaybackActionEnabled(View action, boolean enabled) {
         action.setEnabled(enabled);
         action.setAlpha(enabled ? 1f : 0.42f);
+    }
+
+    private void setAlbumArtworkRotation(boolean rotating) {
+        if (!rotating) {
+            stopAlbumArtworkRotation();
+            return;
+        }
+        if (mAlbumArtworkAnimator == null) {
+            mAlbumArtworkAnimator = ObjectAnimator.ofFloat(mBinding.albumArtwork,
+                    View.ROTATION, 0f, 360f);
+            mAlbumArtworkAnimator.setDuration(ALBUM_ARTWORK_ROTATION_DURATION_MS);
+            mAlbumArtworkAnimator.setRepeatCount(ObjectAnimator.INFINITE);
+        }
+        if (!mAlbumArtworkAnimator.isStarted()) {
+            mAlbumArtworkAnimator.start();
+        }
+    }
+
+    private void stopAlbumArtworkRotation() {
+        if (mAlbumArtworkAnimator != null) {
+            mAlbumArtworkAnimator.cancel();
+        }
+        if (mBinding != null) {
+            mBinding.albumArtwork.setRotation(0f);
+        }
     }
 
     private void loadCover(String coverUrl) {

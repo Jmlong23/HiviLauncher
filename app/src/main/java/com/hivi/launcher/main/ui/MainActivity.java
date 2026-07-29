@@ -63,7 +63,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             new DecelerateInterpolator();
     private String mAccountAvatarUrl = "";
     private int mPageTransitionGeneration;
-    private MainPage mCurrentPage;
 
     private final BroadcastReceiver mSystemReceiver = new BroadcastReceiver() {
         @Override
@@ -225,8 +224,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
-        mCurrentPage = page;
-        updateModeText(getPageModeTitleResId(page));
         View fragmentContainer = binding.fragmentContainer;
         boolean homePageVisible = fragmentContainer.getVisibility() != View.VISIBLE;
         int transitionGeneration = ++mPageTransitionGeneration;
@@ -276,9 +273,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
-        mCurrentPage = null;
-        updateModeText(mInputModeAdapter == null
-                ? 0 : mInputModeAdapter.getSelectedModeTopLabelResId());
+        updateModeTextFromSelectedInputMode();
         final int transitionGeneration = ++mPageTransitionGeneration;
         final View fragmentContainer = binding.fragmentContainer;
         Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
@@ -346,9 +341,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private void applyLocalizedTexts() {
         binding.wifiText.setText(R.string.main_disconnected);
         binding.bluetoothText.setText(R.string.main_disconnected);
-        updateModeText(mCurrentPage == null
-                ? (mInputModeAdapter == null ? 0 : mInputModeAdapter.getSelectedModeTopLabelResId())
-                : getPageModeTitleResId(mCurrentPage));
+        updateModeTextFromSelectedInputMode();
         updateAccountText();
     }
 
@@ -525,30 +518,9 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.modeText.setText(topLabelResId == 0 ? R.string.select_mode : topLabelResId);
     }
 
-    private int getPageModeTitleResId(MainPage page) {
-        if (page == null) {
-            return 0;
-        }
-        switch (page) {
-            case LINE:
-                return R.string.input_mode_line_top;
-            case MICROPHONE:
-                return R.string.input_mode_microphone_top;
-            case OPTICAL:
-                return R.string.input_mode_optical_top;
-            case COAX:
-                return R.string.input_mode_coax_top;
-            case HDMI:
-                return R.string.input_mode_hdmi_top;
-            case BLUETOOTH:
-                return R.string.input_mode_bluetooth_top;
-            case WIFI:
-                return R.string.input_mode_wifi_music_top;
-            case SETTINGS:
-                return R.string.main_settings;
-            default:
-                return 0;
-        }
+    private void updateModeTextFromSelectedInputMode() {
+        updateModeText(mInputModeAdapter == null
+                ? 0 : mInputModeAdapter.getSelectedModeTopLabelResId());
     }
 
     private void cancelPageAnimations() {

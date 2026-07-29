@@ -130,7 +130,11 @@ public final class UpnpPlaybackManager {
     }
 
     public void playOrPause() {
-        if (isPlaying()) {
+        boolean playing = isPlaying();
+        Log.i(TAG, "device control play/pause requested: playing=" + playing
+                + ", hasTrack=" + !TextUtils.isEmpty(currentUrl)
+                + ", preparing=" + preparing + ", bound=" + bound);
+        if (playing) {
             pause();
         } else {
             play();
@@ -150,6 +154,7 @@ public final class UpnpPlaybackManager {
             if (preparing) {
                 return;
             }
+            Log.i(TAG, "local MediaPlayer.start requested");
             mediaPlayer.start();
             notifyStateChanged();
         } catch (IllegalStateException e) {
@@ -166,6 +171,7 @@ public final class UpnpPlaybackManager {
                 mediaPlayer.pause();
             }
             manualPaused = true;
+            Log.i(TAG, "local MediaPlayer.pause completed");
             notifyStateChanged();
         } catch (IllegalStateException e) {
             Log.w(TAG, "pause failed: " + e.getMessage());
@@ -246,6 +252,8 @@ public final class UpnpPlaybackManager {
             mainHandler.post(() -> {
                 playMusicList = list;
                 playIndex = list == null ? 0 : list.getCurPlayIndex();
+                Log.i(TAG, "UPnP queue play received: index=" + playIndex + ", trackCount="
+                        + getTrackCount(list));
                 playCurrentTrack();
             });
         }
@@ -264,26 +272,31 @@ public final class UpnpPlaybackManager {
     private final OnMediaControlListener mediaControlListener = new OnMediaControlListener() {
         @Override
         public void play() {
+            Log.i(TAG, "UPnP AVTransport Play received");
             mainHandler.post(UpnpPlaybackManager.this::play);
         }
 
         @Override
         public void pause() {
+            Log.i(TAG, "UPnP AVTransport Pause received");
             mainHandler.post(UpnpPlaybackManager.this::pause);
         }
 
         @Override
         public void previous() {
+            Log.i(TAG, "UPnP AVTransport Previous received");
             mainHandler.post(UpnpPlaybackManager.this::previous);
         }
 
         @Override
         public void next() {
+            Log.i(TAG, "UPnP AVTransport Next received");
             mainHandler.post(UpnpPlaybackManager.this::next);
         }
 
         @Override
         public void seek(long position) {
+            Log.i(TAG, "UPnP AVTransport Seek received: positionMs=" + position);
             mainHandler.post(() -> seekTo(position));
         }
 
@@ -363,7 +376,6 @@ public final class UpnpPlaybackManager {
                 } catch (Throwable ignored) {
                 }
                 if (!audio) {
-                    Log.i(TAG, "ignore non-audio AVTransport URI: " + uri);
                     return;
                 }
                 TrackINFO_Type track = new TrackINFO_Type();
@@ -564,7 +576,7 @@ public final class UpnpPlaybackManager {
         } catch (IOException | IllegalStateException e) {
             preparing = false;
             mediaPrepared = false;
-            Log.e(TAG, "play URL failed: " + currentUrl, e);
+            Log.e(TAG, "prepare local MediaPlayer failed", e);
             notifyStateChanged();
         }
     }
@@ -737,6 +749,13 @@ public final class UpnpPlaybackManager {
             return "";
         }
         return htmlDecode(value.replace("\\n", "\n").replace("\\r", ""));
+    }
+
+    private static int getTrackCount(PlayMusicListType list) {
+        if (list == null || list.getPQMusicList() == null) {
+            return 0;
+        }
+        return list.getPQMusicList().size();
     }
 
     private static String describeLyric(String value) {
