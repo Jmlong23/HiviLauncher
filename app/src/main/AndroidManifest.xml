@@ -21,6 +21,7 @@
     <application
         android:name=".HiviLauncherApplication"
         android:allowBackup="false"
+        android:defaultToDeviceProtectedStorage="true"
         android:directBootAware="true"
         android:hardwareAccelerated="true"
         android:icon="@drawable/ic_launcher"
