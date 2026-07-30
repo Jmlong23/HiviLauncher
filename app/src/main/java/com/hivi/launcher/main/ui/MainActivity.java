@@ -70,6 +70,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             new DecelerateInterpolator();
     private String mAccountAvatarUrl = "";
     private int mPageTransitionGeneration;
+    private int mAiChatEntryTransitionGeneration;
     private boolean mBluetoothConnected;
     private boolean mWifiConnected;
     private boolean mAiConversationBackgroundVisible;
@@ -300,11 +301,11 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         selectBottomNavigationItem(page == MainPage.SETTINGS
                 ? BottomNavigationItem.SETTINGS : BottomNavigationItem.BACK);
         updateLauncherBackground(page == MainPage.AI);
-        binding.aiChatEntry.setVisibility(page == MainPage.AI ? View.GONE : View.VISIBLE);
         View fragmentContainer = binding.fragmentContainer;
         boolean homePageVisible = fragmentContainer.getVisibility() != View.VISIBLE;
         int transitionGeneration = ++mPageTransitionGeneration;
         cancelPageAnimations();
+        hideAiChatEntry();
 
         if (homePageVisible) {
             int transitionOffset = dp(PAGE_TRANSITION_OFFSET_DP);
@@ -388,6 +389,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
         cancelPageAnimations();
         updateLauncherBackground(false);
+        showAiChatEntry();
         if (fragment == null || fragmentContainer.getVisibility() != View.VISIBLE) {
             applyHomePageUi(true);
             popBackStack(clearBackStack);
@@ -681,6 +683,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private void cancelPageAnimations() {
         binding.pageBody.animate().cancel();
         binding.fragmentContainer.animate().cancel();
+        ++mAiChatEntryTransitionGeneration;
+        binding.aiChatEntry.animate().cancel();
     }
 
     private void popBackStack(boolean clearBackStack) {
@@ -736,7 +740,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.fragmentContainer.setVisibility(View.VISIBLE);
         boolean aiConversationVisible = fragment instanceof AiConversationFragment;
         updateLauncherBackground(aiConversationVisible);
-        binding.aiChatEntry.setVisibility(aiConversationVisible ? View.GONE : View.VISIBLE);
+        hideAiChatEntry();
         selectBottomNavigationItem(fragment instanceof SettingsFragment
                 ? BottomNavigationItem.SETTINGS : BottomNavigationItem.BACK);
     }
@@ -751,8 +755,70 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             binding.pageBody.setTranslationX(0f);
             binding.pageBody.setAlpha(1f);
         }
-        binding.aiChatEntry.setVisibility(View.VISIBLE);
+        showAiChatEntry();
         selectBottomNavigationItem(BottomNavigationItem.HOME);
+    }
+
+    private void hideAiChatEntry() {
+        final int transitionGeneration = ++mAiChatEntryTransitionGeneration;
+        final View aiChatEntry = binding.aiChatEntry;
+        aiChatEntry.animate().cancel();
+        if (aiChatEntry.getVisibility() != View.VISIBLE) {
+            aiChatEntry.setVisibility(View.GONE);
+            aiChatEntry.setAlpha(1f);
+            aiChatEntry.setTranslationX(0f);
+            return;
+        }
+        aiChatEntry.setEnabled(false);
+        aiChatEntry.animate()
+                .translationX(-dp(PAGE_TRANSITION_OFFSET_DP))
+                .alpha(0f)
+                .setDuration(PAGE_TRANSITION_DURATION_MS)
+                .setInterpolator(mPageTransitionInterpolator)
+                .withEndAction(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (binding == null
+                                || transitionGeneration != mAiChatEntryTransitionGeneration) {
+                            return;
+                        }
+                        aiChatEntry.setVisibility(View.GONE);
+                        aiChatEntry.setAlpha(1f);
+                        aiChatEntry.setTranslationX(0f);
+                    }
+                })
+                .start();
+    }
+
+    private void showAiChatEntry() {
+        final int transitionGeneration = ++mAiChatEntryTransitionGeneration;
+        final View aiChatEntry = binding.aiChatEntry;
+        aiChatEntry.animate().cancel();
+        if (aiChatEntry.getVisibility() != View.VISIBLE) {
+            aiChatEntry.setVisibility(View.VISIBLE);
+            aiChatEntry.setTranslationX(-dp(PAGE_TRANSITION_OFFSET_DP));
+            aiChatEntry.setAlpha(0f);
+        }
+        if (aiChatEntry.getAlpha() == 1f && aiChatEntry.getTranslationX() == 0f) {
+            aiChatEntry.setEnabled(true);
+            return;
+        }
+        aiChatEntry.animate()
+                .translationX(0f)
+                .alpha(1f)
+                .setDuration(PAGE_TRANSITION_DURATION_MS)
+                .setInterpolator(mPageTransitionInterpolator)
+                .withEndAction(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (binding == null
+                                || transitionGeneration != mAiChatEntryTransitionGeneration) {
+                            return;
+                        }
+                        aiChatEntry.setEnabled(true);
+                    }
+                })
+                .start();
     }
 
     private boolean isVolumeDialogShowing() {
