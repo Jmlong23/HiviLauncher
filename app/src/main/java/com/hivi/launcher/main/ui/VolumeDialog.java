@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.app.Dialog;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
-import android.media.AudioManager;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -14,11 +13,10 @@ import com.hivi.launcher.R;
 import com.hivi.launcher.databinding.DialogVolumeBinding;
 import com.hivi.launcher.utils.UiUtils;
 
-/**
- * Bottom-navigation volume controls. The activity owns the actual AudioManager operations through
- * its presenter, while this dialog only renders the current state and forwards user actions.
- */
 public final class VolumeDialog {
+    private static final int VOLUME_ADJUST_LOWER = -1;
+    private static final int VOLUME_ADJUST_RAISE = 1;
+
     public interface Listener {
         void onVolumeAdjusted(int direction);
 
@@ -96,9 +94,9 @@ public final class VolumeDialog {
     private void bindListeners() {
         mBinding.volumeMuteButton.setOnClickListener(view -> mListener.onMuteToggleRequested());
         mBinding.volumeDownButton.setOnClickListener(
-                view -> mListener.onVolumeAdjusted(AudioManager.ADJUST_LOWER));
+                view -> mListener.onVolumeAdjusted(VOLUME_ADJUST_LOWER));
         mBinding.volumeUpButton.setOnClickListener(
-                view -> mListener.onVolumeAdjusted(AudioManager.ADJUST_RAISE));
+                view -> mListener.onVolumeAdjusted(VOLUME_ADJUST_RAISE));
         mBinding.volumeSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {

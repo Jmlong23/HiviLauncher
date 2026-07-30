@@ -9,6 +9,7 @@ import android.view.InputDevice;
 import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 
+import com.hivi.launcher.audio.AudioRouteController;
 import com.hivi.launcher.base.BasePresenter;
 import com.hivi.launcher.main.model.MainStatusRepository;
 import com.hivi.launcher.main.model.MainPage;
@@ -27,6 +28,7 @@ public class MainPresenter extends BasePresenter<MainView> {
 
     private final Context mContext;
     private final MainStatusRepository mStatusRepository;
+    private final AudioRouteController mAudioRouteController;
     private final BluetoothMediaController mBluetoothMediaController;
 
     private final Runnable mTicker = new Runnable() {
@@ -36,15 +38,19 @@ public class MainPresenter extends BasePresenter<MainView> {
             runOnUiThreadDelayed(this, 1000L);
         }
     };
+    private final AudioRouteController.AmplifierVolumeListener mAmplifierVolumeListener =
+            (volumePercent, muted) -> updateAudioStatus();
 
     public MainPresenter(Context context, MainView view) {
         super(view);
         mContext = context.getApplicationContext();
         mStatusRepository = new MainStatusRepository(mContext);
+        mAudioRouteController = AudioRouteController.getInstance();
         mBluetoothMediaController = BluetoothMediaController.getInstance();
     }
 
     public void init() {
+        mAudioRouteController.addAmplifierVolumeListener(mAmplifierVolumeListener);
         mBluetoothMediaController.start(mContext);
         updateClock();
         updateDeviceStatus();
@@ -202,6 +208,12 @@ public class MainPresenter extends BasePresenter<MainView> {
         navigateToPage(page);
     }
 
+    @Override
+    public void detach() {
+        mAudioRouteController.removeAmplifierVolumeListener(mAmplifierVolumeListener);
+        super.detach();
+    }
+
     private void updateDeviceStatus() {
         MainView view = getView();
         if (view != null) {
@@ -224,6 +236,7 @@ public class MainPresenter extends BasePresenter<MainView> {
         if (page == null) {
             return;
         }
+        mAudioRouteController.selectMode(page);
         MainView view = getView();
         if (view != null) {
             view.showPage(page);

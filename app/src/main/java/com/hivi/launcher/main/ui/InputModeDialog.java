@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.Dialog;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
@@ -18,6 +19,8 @@ import com.hivi.launcher.utils.UiUtils;
  * Displays the full input-mode selector opened from the top mode indicator.
  */
 final class InputModeDialog {
+    private static final String TAG = "InputModeDialog";
+
     interface Listener {
         void onModeSelected(MainPage page);
     }
@@ -87,6 +90,7 @@ final class InputModeDialog {
 
     private void bindModeClick(View card, MainPage page) {
         card.setOnClickListener(view -> {
+            Log.i(TAG, "Input mode dialog selected: " + page);
             dismiss();
             mListener.onModeSelected(page);
         });

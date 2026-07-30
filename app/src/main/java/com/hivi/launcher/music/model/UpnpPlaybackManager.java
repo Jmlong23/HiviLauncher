@@ -4,7 +4,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.ServiceConnection;
 import android.media.AudioAttributes;
-import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Handler;
 import android.os.IBinder;
@@ -13,6 +12,7 @@ import android.text.Html;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.hivi.launcher.audio.AudioRouteController;
 import com.ljm.audiotoollib.AudioToolManager;
 import com.ljm.audiotoollib.upnpserver.entity.InfoEx;
 import com.ljm.audiotoollib.upnpserver.entity.MediaInfo;
@@ -56,7 +56,6 @@ public final class UpnpPlaybackManager {
     };
 
     private Context appContext;
-    private AudioManager audioManager;
     private MediaPlayer mediaPlayer;
     private boolean started;
     private boolean bound;
@@ -91,7 +90,6 @@ public final class UpnpPlaybackManager {
             return;
         }
         appContext = context.getApplicationContext();
-        audioManager = (AudioManager) appContext.getSystemService(Context.AUDIO_SERVICE);
         ensureMediaPlayer();
         if (started) {
             return;
@@ -676,21 +674,11 @@ public final class UpnpPlaybackManager {
     }
 
     private int getVolumePercent() {
-        if (audioManager == null) {
-            return 0;
-        }
-        int max = Math.max(1, audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
-        int current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-        return Math.round(current * 100f / max);
+        return AudioRouteController.getInstance().getAmplifierVolumePercent();
     }
 
     private void setVolumePercent(int value) {
-        if (audioManager == null) {
-            return;
-        }
-        int max = Math.max(1, audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
-        int streamVolume = Math.max(0, Math.min(max, Math.round(value * max / 100f)));
-        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, streamVolume, 0);
+        AudioRouteController.getInstance().setAmplifierVolume(value);
         notifyStateChanged();
     }
 

@@ -98,6 +98,18 @@ final class InputModeAdapter extends RecyclerView.Adapter<InputModeAdapter.Input
                 ? null : mModes.get(mSelectedPosition).page;
     }
 
+    boolean selectMode(MainPage page) {
+        if (page == null) {
+            return false;
+        }
+        for (int position = 0; position < mModes.size(); position++) {
+            if (mModes.get(position).page == page) {
+                return updateSelectedPosition(position);
+            }
+        }
+        return false;
+    }
+
     boolean updateConnectivityState(boolean bluetoothConnected, String wifiLabel) {
         boolean wifiConnected = !TextUtils.isEmpty(wifiLabel)
                 && !TextUtils.equals(wifiLabel, mContext.getString(R.string.main_disconnected));
@@ -118,9 +130,7 @@ final class InputModeAdapter extends RecyclerView.Adapter<InputModeAdapter.Input
                 ? R.color.status_connected : R.color.text_color;
         notifyItemChanged(MODE_WIFI_MUSIC);
 
-        // When both inputs are connected, Bluetooth takes precedence over WiFi.
-        return updateSelectedPosition(bluetoothConnected ? MODE_BLUETOOTH
-                : wifiConnected ? MODE_WIFI_MUSIC : RecyclerView.NO_POSITION);
+        return false;
     }
 
     private void addDefaultModes() {

@@ -27,3 +27,4 @@ dependencyResolutionManagement {
 rootProject.name = 'HiviLauncher'
 include ':app'
 include ':AudioToolLib'
+include ':AudioNativeLib'

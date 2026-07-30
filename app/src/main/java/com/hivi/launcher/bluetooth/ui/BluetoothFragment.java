@@ -1,7 +1,6 @@
 package com.hivi.launcher.bluetooth.ui;
 
 import android.graphics.Bitmap;
-import android.media.AudioManager;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
@@ -18,6 +17,9 @@ import com.hivi.launcher.music.model.BluetoothPlaybackState;
 
 public final class BluetoothFragment extends BaseFragment<BluetoothPresenter>
         implements BluetoothView {
+    private static final int VOLUME_ADJUST_LOWER = -1;
+    private static final int VOLUME_ADJUST_RAISE = 1;
+
     private FragmentBluetoothBinding mBinding;
     private boolean mBindingVolume;
     private Bitmap mArtwork;
@@ -151,13 +153,13 @@ public final class BluetoothFragment extends BaseFragment<BluetoothPresenter>
         mBinding.volumeDownButton.setOnClickListener(view -> {
             BluetoothPresenter presenter = getPresenter();
             if (presenter != null) {
-                presenter.adjustVolume(AudioManager.ADJUST_LOWER);
+                presenter.adjustVolume(VOLUME_ADJUST_LOWER);
             }
         });
         mBinding.volumeUpButton.setOnClickListener(view -> {
             BluetoothPresenter presenter = getPresenter();
             if (presenter != null) {
-                presenter.adjustVolume(AudioManager.ADJUST_RAISE);
+                presenter.adjustVolume(VOLUME_ADJUST_RAISE);
             }
         });
         mBinding.volumeSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {

@@ -1,0 +1,46 @@
+package com.hivi.audionativelib.manager.serialport;
+
+import com.hivi.audionativelib.NativeLog;
+
+import java.io.File;
+import java.util.ArrayList;
+
+
+public class Driver {
+    private static final String TAG = Driver.class.getSimpleName();
+    private final String mDriverName;
+    private final String mDeviceRoot;
+
+    public Driver(String name, String root) {
+        mDriverName = name;
+        mDeviceRoot = root;
+    }
+
+    public ArrayList<File> getDevices() {
+        ArrayList<File> devices = new ArrayList<>();
+        File dev = new File("/dev");
+
+        if (!dev.exists()) {
+            NativeLog.i(TAG, "getDevices: " + dev.getAbsolutePath() + " 不存在");
+            return devices;
+        }
+        if (!dev.canRead()) {
+            NativeLog.i(TAG, "getDevices: " + dev.getAbsolutePath() + " 没有读取权限");
+            return devices;
+        }
+
+        File[] files = dev.listFiles();
+
+        int i;
+        for (i = 0; i < files.length; i++) {
+            if (files[i].getAbsolutePath().startsWith(mDeviceRoot)) {
+                NativeLog.d(TAG, "Found new device: " + files[i]);
+                devices.add(files[i]);
+            }
+        }
+        return devices;
+    }
+    public String getName() {
+        return mDriverName;
+    }
+}

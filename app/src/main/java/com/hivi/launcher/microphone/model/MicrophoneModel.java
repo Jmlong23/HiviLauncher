@@ -1,27 +1,27 @@
 package com.hivi.launcher.microphone.model;
 
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.media.AudioDeviceCallback;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 
-public final class MicrophoneModel {
-    private static final String ACTION_VOLUME_CHANGED = "android.media.VOLUME_CHANGED_ACTION";
+import com.hivi.launcher.audio.AudioRouteController;
 
-    public interface Listener {
-        void onMicrophonePageStateChanged(int volumePercent, boolean muted,
-                boolean microphoneConnected);
+public final class MicrophoneModel {
+    private static final int DEFAULT_KARAOKE_VOLUME = 50;
+
+    public enum VolumeChannel {
+        AMPLIFIER,
+        MICROPHONE,
+        EFFECT
     }
 
-    private final BroadcastReceiver mVolumeChangedReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            dispatchPageState();
-        }
-    };
+    public interface Listener {
+        void onMicrophonePageStateChanged(int amplifierVolumePercent, boolean amplifierMuted,
+                int microphoneVolumePercent, boolean microphoneMuted, int effectVolumePercent,
+                boolean effectMuted, boolean microphoneConnected);
+    }
+
     private final AudioDeviceCallback mAudioDeviceCallback = new AudioDeviceCallback() {
         @Override
         public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
@@ -33,12 +33,20 @@ public final class MicrophoneModel {
             dispatchPageState();
         }
     };
+    private final AudioRouteController mAudioRouteController = AudioRouteController.getInstance();
+    private final AudioRouteController.AmplifierVolumeListener mAmplifierVolumeListener =
+            (volumePercent, muted) -> dispatchPageState();
 
     private AudioManager mAudioManager;
     private Listener mListener;
     private Context mContext;
-    private boolean mReceiverRegistered;
     private boolean mAudioDeviceCallbackRegistered;
+    private int mMicrophoneVolumePercent = DEFAULT_KARAOKE_VOLUME;
+    private int mEffectVolumePercent = DEFAULT_KARAOKE_VOLUME;
+    private int mLastMicrophoneVolumePercent = DEFAULT_KARAOKE_VOLUME;
+    private int mLastEffectVolumePercent = DEFAULT_KARAOKE_VOLUME;
+    private boolean mMicrophoneMuted;
+    private boolean mEffectMuted;
 
     public void start(Context context, Listener listener) {
         if (context == null) {
@@ -47,10 +55,13 @@ public final class MicrophoneModel {
         mContext = context.getApplicationContext();
         mListener = listener;
         mAudioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
-        if (!mReceiverRegistered) {
-            mContext.registerReceiver(mVolumeChangedReceiver, new IntentFilter(ACTION_VOLUME_CHANGED));
-            mReceiverRegistered = true;
-        }
+        mMicrophoneVolumePercent = mAudioRouteController.getStoredVolume(mContext,
+                AudioRouteController.SERIAL_PORT_MIC_VOLUME_KEY, DEFAULT_KARAOKE_VOLUME);
+        mEffectVolumePercent = mAudioRouteController.getStoredVolume(mContext,
+                AudioRouteController.SERIAL_PORT_CMD_SFX_KEY, DEFAULT_KARAOKE_VOLUME);
+        mLastMicrophoneVolumePercent = mMicrophoneVolumePercent;
+        mLastEffectVolumePercent = mEffectVolumePercent;
+        mAudioRouteController.addAmplifierVolumeListener(mAmplifierVolumeListener);
         if (mAudioManager != null && !mAudioDeviceCallbackRegistered) {
             mAudioManager.registerAudioDeviceCallback(mAudioDeviceCallback, null);
             mAudioDeviceCallbackRegistered = true;
@@ -62,68 +73,106 @@ public final class MicrophoneModel {
         if (mAudioDeviceCallbackRegistered && mAudioManager != null) {
             mAudioManager.unregisterAudioDeviceCallback(mAudioDeviceCallback);
         }
+        mAudioRouteController.removeAmplifierVolumeListener(mAmplifierVolumeListener);
         mAudioDeviceCallbackRegistered = false;
-        if (mReceiverRegistered && mContext != null) {
-            try {
-                mContext.unregisterReceiver(mVolumeChangedReceiver);
-            } catch (IllegalArgumentException ignored) {
-                // The receiver may already have been unregistered while the activity is stopping.
-            }
-        }
-        mReceiverRegistered = false;
         mAudioManager = null;
         mListener = null;
         mContext = null;
     }
 
-    public void adjustVolume(int direction) {
-        if (mAudioManager == null) {
+    public void adjustVolume(VolumeChannel channel, int direction) {
+        if (channel == VolumeChannel.AMPLIFIER) {
+            adjustAmplifierVolume(direction);
             return;
         }
-        mAudioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction,
-                AudioManager.FLAG_PLAY_SOUND);
+        setKaraokeVolume(channel, getKaraokeVolume(channel) + getVolumeAdjustment(direction));
+    }
+
+    public void setVolumePercent(VolumeChannel channel, int volumePercent) {
+        if (channel == VolumeChannel.AMPLIFIER) {
+            setAmplifierVolume(volumePercent);
+            return;
+        }
+        setKaraokeVolume(channel, volumePercent);
+    }
+
+    public void toggleMute(VolumeChannel channel) {
+        if (channel == VolumeChannel.AMPLIFIER) {
+            toggleAmplifierMute();
+            return;
+        }
+        toggleKaraokeMute(channel);
+    }
+
+    private void adjustAmplifierVolume(int direction) {
+        mAudioRouteController.adjustAmplifierVolume(direction);
+    }
+
+    private void setAmplifierVolume(int volumePercent) {
+        mAudioRouteController.setAmplifierVolume(volumePercent);
+    }
+
+    private void toggleAmplifierMute() {
+        mAudioRouteController.toggleAmplifierMute();
+    }
+
+    private void setKaraokeVolume(VolumeChannel channel, int volumePercent) {
+        int volume = clampVolume(volumePercent);
+        if (channel == VolumeChannel.MICROPHONE) {
+            mMicrophoneVolumePercent = volume;
+            if (volume > 0) {
+                mLastMicrophoneVolumePercent = volume;
+            }
+            mMicrophoneMuted = false;
+            AudioRouteController.getInstance().setMicrophoneVolume(volume);
+        } else {
+            mEffectVolumePercent = volume;
+            if (volume > 0) {
+                mLastEffectVolumePercent = volume;
+            }
+            mEffectMuted = false;
+            AudioRouteController.getInstance().setEffectVolume(volume);
+        }
         dispatchPageState();
     }
 
-    public void setVolumePercent(int volumePercent) {
-        if (mAudioManager == null) {
-            return;
+    private void toggleKaraokeMute(VolumeChannel channel) {
+        if (channel == VolumeChannel.MICROPHONE) {
+            if (mMicrophoneMuted) {
+                mMicrophoneMuted = false;
+                mMicrophoneVolumePercent = getRestoreVolume(mLastMicrophoneVolumePercent);
+                AudioRouteController.getInstance().setMicrophoneVolume(mMicrophoneVolumePercent);
+            } else {
+                if (mMicrophoneVolumePercent > 0) {
+                    mLastMicrophoneVolumePercent = mMicrophoneVolumePercent;
+                }
+                mMicrophoneMuted = true;
+                AudioRouteController.getInstance().setMicrophoneVolume(0);
+            }
+        } else {
+            if (mEffectMuted) {
+                mEffectMuted = false;
+                mEffectVolumePercent = getRestoreVolume(mLastEffectVolumePercent);
+                AudioRouteController.getInstance().setEffectVolume(mEffectVolumePercent);
+            } else {
+                if (mEffectVolumePercent > 0) {
+                    mLastEffectVolumePercent = mEffectVolumePercent;
+                }
+                mEffectMuted = true;
+                AudioRouteController.getInstance().setEffectVolume(0);
+            }
         }
-        int max = Math.max(1, mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
-        int target = Math.round(Math.max(0, Math.min(100, volumePercent)) * max / 100f);
-        mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, target,
-                AudioManager.FLAG_PLAY_SOUND);
-        dispatchPageState();
-    }
-
-    public void toggleMute() {
-        if (mAudioManager == null) {
-            return;
-        }
-        mAudioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC,
-                AudioManager.ADJUST_TOGGLE_MUTE, AudioManager.FLAG_PLAY_SOUND);
         dispatchPageState();
     }
 
     private void dispatchPageState() {
         Listener listener = mListener;
         if (listener != null) {
-            listener.onMicrophonePageStateChanged(getVolumePercent(), isMuted(),
-                    isExternalMicrophoneConnected());
+            listener.onMicrophonePageStateChanged(mAudioRouteController.getAmplifierVolumePercent(),
+                    mAudioRouteController.isAmplifierMuted(),
+                    mMicrophoneVolumePercent, mMicrophoneMuted, mEffectVolumePercent,
+                    mEffectMuted, isExternalMicrophoneConnected());
         }
-    }
-
-    private int getVolumePercent() {
-        if (mAudioManager == null) {
-            return 0;
-        }
-        int current = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-        int max = Math.max(1, mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
-        return Math.round(current * 100f / max);
-    }
-
-    private boolean isMuted() {
-        return mAudioManager != null && mAudioManager.isStreamMute(AudioManager.STREAM_MUSIC);
     }
 
     private boolean isExternalMicrophoneConnected() {
@@ -144,5 +193,28 @@ public final class MicrophoneModel {
             }
         }
         return false;
+    }
+
+    private int getKaraokeVolume(VolumeChannel channel) {
+        return channel == VolumeChannel.MICROPHONE ? mMicrophoneVolumePercent
+                : mEffectVolumePercent;
+    }
+
+    private int getVolumeAdjustment(int direction) {
+        if (direction > 0) {
+            return 1;
+        }
+        if (direction < 0) {
+            return -1;
+        }
+        return 0;
+    }
+
+    private int getRestoreVolume(int volumePercent) {
+        return volumePercent > 0 ? volumePercent : DEFAULT_KARAOKE_VOLUME;
+    }
+
+    private int clampVolume(int volumePercent) {
+        return Math.max(0, Math.min(100, volumePercent));
     }
 }

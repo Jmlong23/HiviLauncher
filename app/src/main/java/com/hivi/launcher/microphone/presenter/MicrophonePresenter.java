@@ -4,6 +4,7 @@ import android.content.Context;
 
 import com.hivi.launcher.base.BasePresenter;
 import com.hivi.launcher.microphone.model.MicrophoneModel;
+import com.hivi.launcher.microphone.model.MicrophoneModel.VolumeChannel;
 import com.hivi.launcher.microphone.ui.MicrophoneView;
 
 public final class MicrophonePresenter extends BasePresenter<MicrophoneView> {
@@ -14,24 +15,27 @@ public final class MicrophonePresenter extends BasePresenter<MicrophoneView> {
     }
 
     public void init(Context context) {
-        mModel.start(context, (volumePercent, muted, microphoneConnected) -> {
+        mModel.start(context, (amplifierVolumePercent, amplifierMuted, microphoneVolumePercent,
+                microphoneMuted, effectVolumePercent, effectMuted, microphoneConnected) -> {
             MicrophoneView view = getView();
             if (view != null) {
-                view.renderMicrophonePage(volumePercent, muted, microphoneConnected);
+                view.renderMicrophonePage(amplifierVolumePercent, amplifierMuted,
+                        microphoneVolumePercent, microphoneMuted, effectVolumePercent,
+                        effectMuted, microphoneConnected);
             }
         });
     }
 
-    public void adjustVolume(int direction) {
-        mModel.adjustVolume(direction);
+    public void adjustVolume(VolumeChannel channel, int direction) {
+        mModel.adjustVolume(channel, direction);
     }
 
-    public void setVolumePercent(int volumePercent) {
-        mModel.setVolumePercent(volumePercent);
+    public void setVolumePercent(VolumeChannel channel, int volumePercent) {
+        mModel.setVolumePercent(channel, volumePercent);
     }
 
-    public void toggleMute() {
-        mModel.toggleMute();
+    public void toggleMute(VolumeChannel channel) {
+        mModel.toggleMute(channel);
     }
 
     @Override

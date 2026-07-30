@@ -16,9 +16,13 @@ import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.TransitionDrawable;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.view.animation.DecelerateInterpolator;
 
@@ -28,6 +32,7 @@ import androidx.recyclerview.widget.LinearSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.hivi.launcher.R;
+import com.hivi.launcher.audio.AudioRouteController;
 import com.hivi.launcher.account.model.AuthorizedUserInfo;
 import com.hivi.launcher.account.ui.AuthorizationDialog;
 import com.hivi.launcher.ai.ui.AiConversationFragment;
@@ -55,17 +60,20 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresenter>
         implements MainView {
+    private static final String TAG = "MainActivity";
     private static final int AVATAR_CONNECT_TIMEOUT_MS = 8_000;
     private static final int AVATAR_READ_TIMEOUT_MS = 10_000;
     private static final int AVATAR_MAX_SIZE_PX = 512;
     private static final long PAGE_TRANSITION_DURATION_MS = 240L;
     private static final float PAGE_TRANSITION_OFFSET_DP = 28f;
     private static final float HOME_PAGE_DIMMED_ALPHA = 0.65f;
+    private static final long SYSTEM_MUSIC_VOLUME_CHECK_INTERVAL_MS = 10_000L;
     private AuthorizationDialog mAuthorizationDialog;
     private VolumeDialog mVolumeDialog;
     private InputModeDialog mInputModeDialog;
     private InputModeAdapter mInputModeAdapter;
     private final ExecutorService mAccountAvatarExecutor = Executors.newSingleThreadExecutor();
+    private final Handler mSystemVolumeHandler = new Handler(Looper.getMainLooper());
     private final DecelerateInterpolator mPageTransitionInterpolator =
             new DecelerateInterpolator();
     private String mAccountAvatarUrl = "";
@@ -85,6 +93,14 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                     }
                 }
             };
+    private final Runnable mSystemMusicVolumeCheck = new Runnable() {
+        @Override
+        public void run() {
+            if (!ensureSystemMusicVolumeAtMaximum()) {
+                mSystemVolumeHandler.postDelayed(this, SYSTEM_MUSIC_VOLUME_CHECK_INTERVAL_MS);
+            }
+        }
+    };
 
     private final BroadcastReceiver mSystemReceiver = new BroadcastReceiver() {
         @Override
@@ -117,6 +133,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     protected void initView(@Nullable Bundle savedInstanceState) {
         binding.accountImg.setClipToOutline(true);
         setupInputModeCarousel();
+        restoreSelectedInputMode();
         bindMainClickListeners();
         getFragmentManager().addOnBackStackChangedListener(mBackStackChangedListener);
         syncPageUiWithCurrentFragment();
@@ -124,6 +141,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     @Override
     protected void initData() {
+        startSystemMusicVolumeCheck();
+        AudioRouteController.getInstance().initialize(this);
         presenter.init();
     }
 
@@ -260,6 +279,9 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     public void showPage(MainPage page) {
         if (binding == null) {
             return;
+        }
+        if (mInputModeAdapter != null && mInputModeAdapter.selectMode(page)) {
+            scrollToSelectedMode();
         }
         Fragment currentFragment = getFragmentManager()
                 .findFragmentById(R.id.fragment_container);
@@ -433,6 +455,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     @Override
     protected void onDestroy() {
         getFragmentManager().removeOnBackStackChangedListener(mBackStackChangedListener);
+        mSystemVolumeHandler.removeCallbacks(mSystemMusicVolumeCheck);
         if (mVolumeDialog != null) {
             mVolumeDialog.dismiss();
             mVolumeDialog = null;
@@ -634,6 +657,14 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         new LinearSnapHelper().attachToRecyclerView(binding.cardsRow);
     }
 
+    private void restoreSelectedInputMode() {
+        if (mInputModeAdapter != null
+                && mInputModeAdapter.selectMode(
+                AudioRouteController.getInstance().getSelectedMode(this))) {
+            scrollToSelectedMode();
+        }
+    }
+
     private void updateModeText(int topLabelResId) {
         binding.modeText.setText(topLabelResId == 0 ? R.string.select_mode : topLabelResId);
     }
@@ -654,6 +685,31 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.launcherRoot.setBackground(backgroundTransition);
         backgroundTransition.startTransition((int) PAGE_TRANSITION_DURATION_MS);
         mAiConversationBackgroundVisible = aiConversationVisible;
+    }
+
+    private void startSystemMusicVolumeCheck() {
+        mSystemVolumeHandler.removeCallbacks(mSystemMusicVolumeCheck);
+        mSystemMusicVolumeCheck.run();
+    }
+
+    private boolean ensureSystemMusicVolumeAtMaximum() {
+        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        if (audioManager == null) {
+            Log.w(TAG, "Unable to verify Android music volume");
+            return false;
+        }
+        int maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        int currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+        if (currentVolume < maxVolume) {
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume, 0);
+            int updatedVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+            boolean isAtMaximum = updatedVolume >= maxVolume;
+            Log.i(TAG, "Android music volume raised from " + currentVolume + " to "
+                    + updatedVolume + ", maximum=" + maxVolume + ", success=" + isAtMaximum);
+            return isAtMaximum;
+        }
+        Log.i(TAG, "Android music volume already at maximum: " + maxVolume);
+        return true;
     }
 
     private void updateModeTextFromSelectedInputMode() {

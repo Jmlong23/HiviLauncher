@@ -1,12 +1,12 @@
 package com.hivi.launcher.main.model;
 
 import android.content.Context;
-import android.media.AudioManager;
 import android.media.session.MediaController;
 import android.media.session.MediaSessionManager;
 import android.text.TextUtils;
 
 import com.hivi.launcher.R;
+import com.hivi.launcher.audio.AudioRouteController;
 import com.hivi.launcher.music.model.BluetoothMediaController;
 import com.hivi.launcher.music.model.BluetoothPlaybackState;
 import com.hivi.launcher.music.model.UpnpPlaybackManager;
@@ -24,16 +24,16 @@ import java.util.List;
  */
 public final class MainStatusRepository {
     private final Context mContext;
-    private final AudioManager mAudioManager;
     private final MediaSessionManager mMediaSessionManager;
     private final BluetoothMediaController mBluetoothMediaController;
+    private final AudioRouteController mAudioRouteController;
 
     public MainStatusRepository(Context context) {
         mContext = context.getApplicationContext();
-        mAudioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
         mMediaSessionManager = (MediaSessionManager) mContext.getSystemService(
                 Context.MEDIA_SESSION_SERVICE);
         mBluetoothMediaController = BluetoothMediaController.getInstance();
+        mAudioRouteController = AudioRouteController.getInstance();
     }
 
     public MainStatus loadStatus() {
@@ -55,43 +55,23 @@ public final class MainStatusRepository {
     }
 
     public int getVolumePercent() {
-        if (mAudioManager == null) {
-            return 0;
-        }
-        int current = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-        int max = Math.max(1, mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
-        return Math.round(current * 100f / max);
+        return mAudioRouteController.getAmplifierVolumePercent();
     }
 
     public void adjustVolume(int direction) {
-        if (mAudioManager == null) {
-            return;
-        }
-        mAudioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction,
-                AudioManager.FLAG_PLAY_SOUND);
+        mAudioRouteController.adjustAmplifierVolume(direction);
     }
 
     public void setVolumePercent(int volumePercent) {
-        if (mAudioManager == null) {
-            return;
-        }
-        int max = Math.max(1, mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
-        int targetVolume = Math.round(Math.max(0, Math.min(100, volumePercent)) * max / 100f);
-        mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVolume,
-                AudioManager.FLAG_PLAY_SOUND);
+        mAudioRouteController.setAmplifierVolume(volumePercent);
     }
 
     public boolean isMusicStreamMuted() {
-        return mAudioManager != null
-                && mAudioManager.isStreamMute(AudioManager.STREAM_MUSIC);
+        return mAudioRouteController.isAmplifierMuted();
     }
 
     public void toggleMusicStreamMute() {
-        if (mAudioManager == null) {
-            return;
-        }
-        mAudioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC,
-                AudioManager.ADJUST_TOGGLE_MUTE, AudioManager.FLAG_PLAY_SOUND);
+        mAudioRouteController.toggleAmplifierMute();
     }
 
     public MusicInfo getMusicInfo() {

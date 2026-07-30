@@ -1,6 +1,5 @@
 package com.hivi.launcher.microphone.ui;
 
-import android.media.AudioManager;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageView;
@@ -12,10 +11,14 @@ import androidx.annotation.Nullable;
 import com.hivi.launcher.R;
 import com.hivi.launcher.base.BaseFragment;
 import com.hivi.launcher.databinding.FragmentMicrophoneBinding;
+import com.hivi.launcher.microphone.model.MicrophoneModel.VolumeChannel;
 import com.hivi.launcher.microphone.presenter.MicrophonePresenter;
 
 public final class MicrophoneFragment extends BaseFragment<MicrophonePresenter>
         implements MicrophoneView {
+    private static final int VOLUME_ADJUST_LOWER = -1;
+    private static final int VOLUME_ADJUST_RAISE = 1;
+
     private FragmentMicrophoneBinding mBinding;
     private boolean mBindingVolume;
 
@@ -52,8 +55,9 @@ public final class MicrophoneFragment extends BaseFragment<MicrophonePresenter>
     }
 
     @Override
-    public void renderMicrophonePage(int volumePercent, boolean muted,
-            boolean microphoneConnected) {
+    public void renderMicrophonePage(int amplifierVolumePercent, boolean amplifierMuted,
+            int microphoneVolumePercent, boolean microphoneMuted, int effectVolumePercent,
+            boolean effectMuted, boolean microphoneConnected) {
         if (mBinding == null) {
             return;
         }
@@ -64,42 +68,45 @@ public final class MicrophoneFragment extends BaseFragment<MicrophonePresenter>
                 ? R.color.status_connected : R.color.status_disconnect));
         updateVolumeRow(mBinding.amplifierVolumeValue, mBinding.amplifierVolumeMuteButton,
                 mBinding.amplifierVolumeDownButton, mBinding.amplifierVolumeSeekBar,
-                mBinding.amplifierVolumeUpButton, volumePercent, muted);
+                mBinding.amplifierVolumeUpButton, amplifierVolumePercent, amplifierMuted);
         updateVolumeRow(mBinding.microphoneVolumeValue, mBinding.microphoneVolumeMuteButton,
                 mBinding.microphoneVolumeDownButton, mBinding.microphoneVolumeSeekBar,
-                mBinding.microphoneVolumeUpButton, volumePercent, muted);
+                mBinding.microphoneVolumeUpButton, microphoneVolumePercent, microphoneMuted);
         updateVolumeRow(mBinding.effectVolumeValue, mBinding.effectVolumeMuteButton,
                 mBinding.effectVolumeDownButton, mBinding.effectVolumeSeekBar,
-                mBinding.effectVolumeUpButton, volumePercent, muted);
+                mBinding.effectVolumeUpButton, effectVolumePercent, effectMuted);
     }
 
     private void bindVolumeControls() {
         bindVolumeControls(mBinding.amplifierVolumeMuteButton, mBinding.amplifierVolumeDownButton,
-                mBinding.amplifierVolumeUpButton, mBinding.amplifierVolumeSeekBar);
+                mBinding.amplifierVolumeUpButton, mBinding.amplifierVolumeSeekBar,
+                VolumeChannel.AMPLIFIER);
         bindVolumeControls(mBinding.microphoneVolumeMuteButton, mBinding.microphoneVolumeDownButton,
-                mBinding.microphoneVolumeUpButton, mBinding.microphoneVolumeSeekBar);
+                mBinding.microphoneVolumeUpButton, mBinding.microphoneVolumeSeekBar,
+                VolumeChannel.MICROPHONE);
         bindVolumeControls(mBinding.effectVolumeMuteButton, mBinding.effectVolumeDownButton,
-                mBinding.effectVolumeUpButton, mBinding.effectVolumeSeekBar);
+                mBinding.effectVolumeUpButton, mBinding.effectVolumeSeekBar,
+                VolumeChannel.EFFECT);
     }
 
     private void bindVolumeControls(ImageView muteButton, ImageView downButton, ImageView upButton,
-            SeekBar seekBar) {
+            SeekBar seekBar, VolumeChannel channel) {
         muteButton.setOnClickListener(view -> {
             MicrophonePresenter presenter = getPresenter();
             if (presenter != null) {
-                presenter.toggleMute();
+                presenter.toggleMute(channel);
             }
         });
         downButton.setOnClickListener(view -> {
             MicrophonePresenter presenter = getPresenter();
             if (presenter != null) {
-                presenter.adjustVolume(AudioManager.ADJUST_LOWER);
+                presenter.adjustVolume(channel, VOLUME_ADJUST_LOWER);
             }
         });
         upButton.setOnClickListener(view -> {
             MicrophonePresenter presenter = getPresenter();
             if (presenter != null) {
-                presenter.adjustVolume(AudioManager.ADJUST_RAISE);
+                presenter.adjustVolume(channel, VOLUME_ADJUST_RAISE);
             }
         });
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -110,7 +117,7 @@ public final class MicrophoneFragment extends BaseFragment<MicrophonePresenter>
                 }
                 MicrophonePresenter presenter = getPresenter();
                 if (presenter != null) {
-                    presenter.setVolumePercent(progress);
+                    presenter.setVolumePercent(channel, progress);
                 }
             }
 

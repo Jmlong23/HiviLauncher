@@ -1,13 +1,13 @@
 package com.hivi.launcher.bluetooth.model;
 
 import android.content.Context;
-import android.media.AudioManager;
 
+import com.hivi.launcher.audio.AudioRouteController;
 import com.hivi.launcher.music.model.BluetoothMediaController;
 import com.hivi.launcher.music.model.BluetoothPlaybackState;
 
 /**
- * Owns the system Bluetooth media and amplifier-volume integrations used by the input page.
+ * Owns Bluetooth media and amplifier-volume integrations used by the input page.
  */
 public final class BluetoothModel implements BluetoothMediaController.Listener {
     public interface Listener {
@@ -16,8 +16,10 @@ public final class BluetoothModel implements BluetoothMediaController.Listener {
 
     private final BluetoothMediaController mBluetoothMediaController =
             BluetoothMediaController.getInstance();
+    private final AudioRouteController mAudioRouteController = AudioRouteController.getInstance();
+    private final AudioRouteController.AmplifierVolumeListener mAmplifierVolumeListener =
+            (volumePercent, muted) -> dispatchState();
 
-    private AudioManager mAudioManager;
     private Listener mListener;
     private boolean mStarted;
 
@@ -26,8 +28,7 @@ public final class BluetoothModel implements BluetoothMediaController.Listener {
             return;
         }
         mListener = listener;
-        mAudioManager = (AudioManager) context.getApplicationContext().getSystemService(
-                Context.AUDIO_SERVICE);
+        mAudioRouteController.addAmplifierVolumeListener(mAmplifierVolumeListener);
         if (!mStarted) {
             mStarted = true;
             mBluetoothMediaController.start(context);
@@ -41,9 +42,9 @@ public final class BluetoothModel implements BluetoothMediaController.Listener {
         if (mStarted) {
             mBluetoothMediaController.removeListener(this);
         }
+        mAudioRouteController.removeAmplifierVolumeListener(mAmplifierVolumeListener);
         mStarted = false;
         mListener = null;
-        mAudioManager = null;
     }
 
     public void togglePlayback() {
@@ -63,32 +64,15 @@ public final class BluetoothModel implements BluetoothMediaController.Listener {
     }
 
     public void adjustVolume(int direction) {
-        if (mAudioManager == null) {
-            return;
-        }
-        mAudioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction,
-                AudioManager.FLAG_PLAY_SOUND);
-        dispatchState();
+        mAudioRouteController.adjustAmplifierVolume(direction);
     }
 
     public void setVolumePercent(int volumePercent) {
-        if (mAudioManager == null) {
-            return;
-        }
-        int max = Math.max(1, mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
-        int target = Math.round(Math.max(0, Math.min(100, volumePercent)) * max / 100f);
-        mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, target,
-                AudioManager.FLAG_PLAY_SOUND);
-        dispatchState();
+        mAudioRouteController.setAmplifierVolume(volumePercent);
     }
 
     public void toggleMute() {
-        if (mAudioManager == null) {
-            return;
-        }
-        mAudioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC,
-                AudioManager.ADJUST_TOGGLE_MUTE, AudioManager.FLAG_PLAY_SOUND);
-        dispatchState();
+        mAudioRouteController.toggleAmplifierMute();
     }
 
     @Override
@@ -110,20 +94,7 @@ public final class BluetoothModel implements BluetoothMediaController.Listener {
                 mBluetoothMediaController.getConnectedDeviceName(),
                 mBluetoothMediaController.isPlaybackControlAvailable(),
                 playbackState,
-                getVolumePercent(),
-                isMuted()));
-    }
-
-    private int getVolumePercent() {
-        if (mAudioManager == null) {
-            return 0;
-        }
-        int current = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-        int max = Math.max(1, mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
-        return Math.round(current * 100f / max);
-    }
-
-    private boolean isMuted() {
-        return mAudioManager != null && mAudioManager.isStreamMute(AudioManager.STREAM_MUSIC);
+                mAudioRouteController.getAmplifierVolumePercent(),
+                mAudioRouteController.isAmplifierMuted()));
     }
 }
