@@ -139,6 +139,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         registerSystemReceiver();
         presenter.onSystemStateChanged();
         presenter.startTicker();
+        syncPageUiWithCurrentFragment();
     }
 
     @Override
@@ -246,13 +247,11 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
                 @Override
                 public void onDialogDismissed() {
-                    if (binding != null) {
-                        binding.bottomNavigationVolume.setSelected(false);
-                    }
+                    syncPageUiWithCurrentFragment();
                 }
             });
         }
-        binding.bottomNavigationVolume.setSelected(true);
+        selectBottomNavigationItem(BottomNavigationItem.VOLUME);
         mVolumeDialog.show(volumePercent, muted);
     }
 
@@ -298,6 +297,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             return;
         }
         mHomeNavigationPending = false;
+        selectBottomNavigationItem(page == MainPage.SETTINGS
+                ? BottomNavigationItem.SETTINGS : BottomNavigationItem.BACK);
         updateLauncherBackground(page == MainPage.AI);
         binding.aiChatEntry.setVisibility(page == MainPage.AI ? View.GONE : View.VISIBLE);
         View fragmentContainer = binding.fragmentContainer;
@@ -355,6 +356,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (backStackEntryCount == 0 || mHomeNavigationPending) {
             return;
         }
+        selectBottomNavigationItem(BottomNavigationItem.BACK);
         if (backStackEntryCount == 1) {
             navigateToHome(false);
             return;
@@ -464,18 +466,23 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.bottomNavigationBack.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                if (getFragmentManager().getBackStackEntryCount() > 0) {
+                    selectBottomNavigationItem(BottomNavigationItem.BACK);
+                }
                 presenter.onBottomNavigationBackClicked();
             }
         });
         binding.bottomNavigationHome.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                selectBottomNavigationItem(BottomNavigationItem.HOME);
                 presenter.onBottomNavigationHomeClicked();
             }
         });
         binding.bottomNavigationBackground.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                selectBottomNavigationItem(BottomNavigationItem.BACKGROUND);
                 presenter.onBottomNavigationRecentsClicked();
             }
         });
@@ -488,12 +495,14 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.bottomNavigationApps.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                selectBottomNavigationItem(BottomNavigationItem.APPS);
                 presenter.onBottomNavigationAppsClicked();
             }
         });
         binding.bottomNavigationSettings.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                selectBottomNavigationItem(BottomNavigationItem.SETTINGS);
                 presenter.onBottomNavigationSettingsClicked();
             }
         });
@@ -712,6 +721,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
+        if (isVolumeDialogShowing()) {
+            selectBottomNavigationItem(BottomNavigationItem.VOLUME);
+            return;
+        }
         Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
         if (fragment == null) {
             boolean keepHomeTransition = mHomeNavigationPending;
@@ -724,6 +737,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         boolean aiConversationVisible = fragment instanceof AiConversationFragment;
         updateLauncherBackground(aiConversationVisible);
         binding.aiChatEntry.setVisibility(aiConversationVisible ? View.GONE : View.VISIBLE);
+        selectBottomNavigationItem(fragment instanceof SettingsFragment
+                ? BottomNavigationItem.SETTINGS : BottomNavigationItem.BACK);
     }
 
     private void applyHomePageUi(boolean resetPageBody) {
@@ -737,6 +752,49 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             binding.pageBody.setAlpha(1f);
         }
         binding.aiChatEntry.setVisibility(View.VISIBLE);
+        selectBottomNavigationItem(BottomNavigationItem.HOME);
+    }
+
+    private boolean isVolumeDialogShowing() {
+        return mVolumeDialog != null && mVolumeDialog.isShowing();
+    }
+
+    private void selectBottomNavigationItem(BottomNavigationItem selectedItem) {
+        if (binding == null) {
+            return;
+        }
+        switch (selectedItem) {
+            case BACK:
+                binding.bottomNavigation.setBackgroundResource(R.drawable.back_selected);
+                break;
+            case HOME:
+                binding.bottomNavigation.setBackgroundResource(R.drawable.home_selected);
+                break;
+            case BACKGROUND:
+                binding.bottomNavigation.setBackgroundResource(R.drawable.background_selected);
+                break;
+            case VOLUME:
+                binding.bottomNavigation.setBackgroundResource(R.drawable.volume_selected);
+                break;
+            case APPS:
+                binding.bottomNavigation.setBackgroundResource(R.drawable.apps_selected);
+                break;
+            case SETTINGS:
+                binding.bottomNavigation.setBackgroundResource(R.drawable.settings_selected);
+                break;
+            default:
+                throw new IllegalArgumentException("Unsupported bottom navigation item: "
+                        + selectedItem);
+        }
+    }
+
+    private enum BottomNavigationItem {
+        BACK,
+        HOME,
+        BACKGROUND,
+        VOLUME,
+        APPS,
+        SETTINGS
     }
 
     private boolean isInputModePage(MainPage page) {

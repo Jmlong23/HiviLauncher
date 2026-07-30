@@ -89,7 +89,7 @@ public final class VolumeDialog {
         }
     }
 
-    private boolean isShowing() {
+    public boolean isShowing() {
         return mDialog != null && mDialog.isShowing();
     }
 
