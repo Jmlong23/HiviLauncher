@@ -11,6 +11,7 @@ import android.text.TextUtils;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.PopupWindow;
 
 import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -19,7 +20,10 @@ import com.hivi.launcher.R;
 import com.hivi.launcher.base.BaseFragment;
 import com.hivi.launcher.databinding.DialogWifiPasswordBinding;
 import com.hivi.launcher.databinding.LayoutSettingsContentBinding;
+import com.hivi.launcher.databinding.PopupSettingsLanguageBinding;
+import com.hivi.launcher.databinding.PopupSettingsScreenSaverBinding;
 import com.hivi.launcher.main.ui.MainActivity;
+import com.hivi.launcher.settings.model.SettingsModel;
 import com.hivi.launcher.settings.presenter.SettingsPresenter;
 import com.hivi.launcher.wifi.model.WifiNetwork;
 import com.hivi.launcher.wifi.presenter.WifiPresenter;
@@ -30,6 +34,14 @@ import java.util.List;
 
 public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         implements SettingsView, WifiView {
+    private static final int DISPLAY_POPUP_NONE = 0;
+    private static final int DISPLAY_POPUP_LANGUAGE = 1;
+    private static final int DISPLAY_POPUP_SCREEN_SAVER_TIMEOUT = 2;
+    private static final int LANGUAGE_POPUP_WIDTH_DP = 253;
+    private static final int LANGUAGE_POPUP_HEIGHT_DP = 86;
+    private static final int SCREEN_SAVER_POPUP_WIDTH_DP = 253;
+    private static final int SCREEN_SAVER_POPUP_HEIGHT_DP = 209;
+
     private LayoutSettingsContentBinding mBinding;
     private View[] mSectionTabs;
     private View[] mSectionPanels;
@@ -37,6 +49,8 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private WifiNetworkAdapter mWifiNetworkAdapter;
     private ObjectAnimator mWifiRefreshAnimator;
     private Dialog mWifiPasswordDialog;
+    private PopupWindow mDisplayOptionsPopupWindow;
+    private int mDisplayPopupType = DISPLAY_POPUP_NONE;
     private boolean mWifiRefreshing;
 
     @Override
@@ -82,11 +96,13 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             mSectionTabs[i].setOnClickListener(v -> presenter.onSectionSelected(section));
         }
         setupWifiSettings();
+        setupDisplaySettings();
         presenter.init();
     }
 
     @Override
     public void onDestroyView() {
+        dismissDisplayOptionsPopup();
         dismissWifiPasswordDialog();
         if (mWifiRefreshAnimator != null) {
             mWifiRefreshAnimator.cancel();
@@ -233,6 +249,36 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         }
     }
 
+    @Override
+    public void renderDisplaySettings(int language, boolean languageOptionsExpanded,
+            boolean screenSaverEnabled, int screenSaverTimeout,
+            boolean screenSaverTimeoutOptionsExpanded) {
+        if (mBinding == null) {
+            return;
+        }
+        int languageText = language == SettingsModel.LANGUAGE_ENGLISH
+                ? R.string.settings_language_english
+                : R.string.settings_language_chinese;
+        mBinding.settingsLanguageValue.setText(languageText);
+        mBinding.settingsDisplaySummary.setText(languageText);
+
+        mBinding.settingsScreenSaverToggle.setImageResource(screenSaverEnabled
+                ? R.drawable.ic_screen_saver_on
+                : R.drawable.ic_screen_saver_off);
+        mBinding.settingsTimeScreenSaver.setEnabled(screenSaverEnabled);
+        mBinding.settingsTimeScreenSaver.setAlpha(screenSaverEnabled ? 1f : 0.45f);
+        mBinding.settingsTimeScreenSaverValue.setText(
+                getScreenSaverTimeoutText(screenSaverTimeout));
+
+        if (languageOptionsExpanded) {
+            showLanguageOptionsPopup(language);
+        } else if (screenSaverEnabled && screenSaverTimeoutOptionsExpanded) {
+            showScreenSaverTimeoutOptionsPopup(screenSaverTimeout);
+        } else {
+            dismissDisplayOptionsPopup();
+        }
+    }
+
     private void updateTopWifiStatus(String ssid) {
         Activity activity = getActivity();
         if (activity instanceof MainActivity) {
@@ -257,6 +303,164 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         });
         mWifiPresenter = new WifiPresenter(this);
         mWifiPresenter.init(getHostActivity());
+    }
+
+    private void setupDisplaySettings() {
+        mBinding.settingsLanguage.setOnClickListener(view -> {
+            SettingsPresenter presenter = getPresenter();
+            if (presenter != null) {
+                presenter.onLanguageSelected();
+            }
+        });
+        mBinding.settingsScreenSaverToggle.setOnClickListener(view -> {
+            SettingsPresenter presenter = getPresenter();
+            if (presenter != null) {
+                presenter.onScreenSaverToggled();
+            }
+        });
+        mBinding.settingsTimeScreenSaver.setOnClickListener(view -> {
+            SettingsPresenter presenter = getPresenter();
+            if (presenter != null) {
+                presenter.onScreenSaverTimeoutSelected();
+            }
+        });
+    }
+
+    private void showLanguageOptionsPopup(int language) {
+        if (isDisplayOptionsPopupShowing(DISPLAY_POPUP_LANGUAGE)) {
+            return;
+        }
+        dismissDisplayOptionsPopup();
+        PopupSettingsLanguageBinding popupBinding = PopupSettingsLanguageBinding.inflate(
+                getLayoutInflater());
+        popupBinding.settingsLanguageChineseCheck.setVisibility(
+                language == SettingsModel.LANGUAGE_CHINESE ? View.VISIBLE : View.GONE);
+        popupBinding.settingsLanguageEnglishCheck.setVisibility(
+                language == SettingsModel.LANGUAGE_ENGLISH ? View.VISIBLE : View.GONE);
+        popupBinding.settingsLanguageOptionChinese.setOnClickListener(view ->
+                selectLanguage(SettingsModel.LANGUAGE_CHINESE));
+        popupBinding.settingsLanguageOptionEnglish.setOnClickListener(view ->
+                selectLanguage(SettingsModel.LANGUAGE_ENGLISH));
+        showDisplayOptionsPopup(createDisplayOptionsPopup(popupBinding.getRoot(),
+                        LANGUAGE_POPUP_WIDTH_DP, LANGUAGE_POPUP_HEIGHT_DP),
+                mBinding.settingsLanguage, DISPLAY_POPUP_LANGUAGE,
+                LANGUAGE_POPUP_WIDTH_DP, 9);
+    }
+
+    private void showScreenSaverTimeoutOptionsPopup(int timeout) {
+        if (isDisplayOptionsPopupShowing(DISPLAY_POPUP_SCREEN_SAVER_TIMEOUT)) {
+            return;
+        }
+        dismissDisplayOptionsPopup();
+        PopupSettingsScreenSaverBinding popupBinding = PopupSettingsScreenSaverBinding.inflate(
+                getLayoutInflater());
+        popupBinding.settingsScreenSaverTimeoutOneMinuteCheck.setVisibility(
+                timeout == SettingsModel.SCREEN_SAVER_TIMEOUT_ONE_MINUTE
+                        ? View.VISIBLE : View.GONE);
+        popupBinding.settingsScreenSaverTimeoutFiveMinutesCheck.setVisibility(
+                timeout == SettingsModel.SCREEN_SAVER_TIMEOUT_FIVE_MINUTES
+                        ? View.VISIBLE : View.GONE);
+        popupBinding.settingsScreenSaverTimeoutTenMinutesCheck.setVisibility(
+                timeout == SettingsModel.SCREEN_SAVER_TIMEOUT_TEN_MINUTES
+                        ? View.VISIBLE : View.GONE);
+        popupBinding.settingsScreenSaverTimeoutThirtyMinutesCheck.setVisibility(
+                timeout == SettingsModel.SCREEN_SAVER_TIMEOUT_THIRTY_MINUTES
+                        ? View.VISIBLE : View.GONE);
+        popupBinding.settingsScreenSaverTimeoutNeverCheck.setVisibility(
+                timeout == SettingsModel.SCREEN_SAVER_TIMEOUT_NEVER
+                        ? View.VISIBLE : View.GONE);
+        popupBinding.settingsScreenSaverTimeoutOneMinute.setOnClickListener(view ->
+                selectScreenSaverTimeout(SettingsModel.SCREEN_SAVER_TIMEOUT_ONE_MINUTE));
+        popupBinding.settingsScreenSaverTimeoutFiveMinutes.setOnClickListener(view ->
+                selectScreenSaverTimeout(SettingsModel.SCREEN_SAVER_TIMEOUT_FIVE_MINUTES));
+        popupBinding.settingsScreenSaverTimeoutTenMinutes.setOnClickListener(view ->
+                selectScreenSaverTimeout(SettingsModel.SCREEN_SAVER_TIMEOUT_TEN_MINUTES));
+        popupBinding.settingsScreenSaverTimeoutThirtyMinutes.setOnClickListener(view ->
+                selectScreenSaverTimeout(SettingsModel.SCREEN_SAVER_TIMEOUT_THIRTY_MINUTES));
+        popupBinding.settingsScreenSaverTimeoutNever.setOnClickListener(view ->
+                selectScreenSaverTimeout(SettingsModel.SCREEN_SAVER_TIMEOUT_NEVER));
+        showDisplayOptionsPopup(createDisplayOptionsPopup(popupBinding.getRoot(),
+                        SCREEN_SAVER_POPUP_WIDTH_DP, SCREEN_SAVER_POPUP_HEIGHT_DP),
+                mBinding.settingsTimeScreenSaver, DISPLAY_POPUP_SCREEN_SAVER_TIMEOUT,
+                SCREEN_SAVER_POPUP_WIDTH_DP, 22);
+    }
+
+    private PopupWindow createDisplayOptionsPopup(View content, int widthDp, int heightDp) {
+        PopupWindow popupWindow = new PopupWindow(content, dp(widthDp), dp(heightDp), true);
+        popupWindow.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        popupWindow.setOutsideTouchable(true);
+        popupWindow.setTouchable(true);
+        popupWindow.setElevation(dp(8));
+        popupWindow.setTouchInterceptor((view, event) -> false);
+        content.setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        return popupWindow;
+    }
+
+    private void showDisplayOptionsPopup(PopupWindow popupWindow, View anchor, int popupType,
+            int popupWidthDp, int verticalOffsetDp) {
+        mDisplayOptionsPopupWindow = popupWindow;
+        mDisplayPopupType = popupType;
+        popupWindow.setOnDismissListener(() -> {
+            if (mDisplayOptionsPopupWindow != popupWindow) {
+                return;
+            }
+            mDisplayOptionsPopupWindow = null;
+            mDisplayPopupType = DISPLAY_POPUP_NONE;
+            SettingsPresenter presenter = getPresenter();
+            if (presenter != null) {
+                presenter.onDisplayDropdownDismissed();
+            }
+        });
+        int horizontalOffset = Math.max(0, anchor.getWidth() - dp(popupWidthDp));
+        popupWindow.showAsDropDown(anchor, horizontalOffset, dp(verticalOffsetDp));
+    }
+
+    private boolean isDisplayOptionsPopupShowing(int popupType) {
+        return mDisplayOptionsPopupWindow != null
+                && mDisplayPopupType == popupType
+                && mDisplayOptionsPopupWindow.isShowing();
+    }
+
+    private void dismissDisplayOptionsPopup() {
+        if (mDisplayOptionsPopupWindow != null) {
+            mDisplayOptionsPopupWindow.dismiss();
+        }
+    }
+
+    private void selectLanguage(int language) {
+        SettingsPresenter presenter = getPresenter();
+        if (presenter != null) {
+            presenter.onLanguageOptionSelected(language);
+        }
+    }
+
+    private void selectScreenSaverTimeout(int timeout) {
+        SettingsPresenter presenter = getPresenter();
+        if (presenter != null) {
+            presenter.onScreenSaverTimeoutOptionSelected(timeout);
+        }
+    }
+
+    private int getScreenSaverTimeoutText(int timeout) {
+        switch (timeout) {
+            case SettingsModel.SCREEN_SAVER_TIMEOUT_FIVE_MINUTES:
+                return R.string.settings_screensaver_timeout_five_minutes;
+            case SettingsModel.SCREEN_SAVER_TIMEOUT_TEN_MINUTES:
+                return R.string.settings_screensaver_timeout_ten_minutes;
+            case SettingsModel.SCREEN_SAVER_TIMEOUT_THIRTY_MINUTES:
+                return R.string.settings_screensaver_timeout_thirty_minutes;
+            case SettingsModel.SCREEN_SAVER_TIMEOUT_NEVER:
+                return R.string.settings_screensaver_timeout_never;
+            case SettingsModel.SCREEN_SAVER_TIMEOUT_ONE_MINUTE:
+            default:
+                return R.string.settings_screensaver_timeout_value;
+        }
     }
 
     private Activity getHostActivity() {

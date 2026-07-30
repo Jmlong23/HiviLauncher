@@ -183,8 +183,15 @@
     <string name="settings_wifi_unsupported_security">Enterprise Wi-Fi networks are not supported.</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_value">Simplified Chinese</string>
+    <string name="settings_language_chinese">中文</string>
+    <string name="settings_language_english">English</string>
     <string name="settings_screensaver">Screensaver</string>
+    <string name="settings_screensaver_toggle">Toggle screensaver</string>
     <string name="settings_screensaver_timeout_value">1 minute</string>
+    <string name="settings_screensaver_timeout_five_minutes">5 minutes</string>
+    <string name="settings_screensaver_timeout_ten_minutes">10 minutes</string>
+    <string name="settings_screensaver_timeout_thirty_minutes">30 minutes</string>
+    <string name="settings_screensaver_timeout_never">Never</string>
     <string name="settings_screensaver_style">Screensaver style</string>
     <string name="settings_brightness">Brightness</string>
     <string name="settings_brightness_low">Low</string>

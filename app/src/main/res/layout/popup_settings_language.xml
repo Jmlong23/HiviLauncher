@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/settings_language_popup"
+    android:layout_width="253dp"
+    android:layout_height="86dp"
+    android:background="@drawable/bg_settings_language_expand"
+    android:orientation="vertical"
+    android:paddingLeft="22dp"
+    android:paddingRight="25dp">
+
+    <LinearLayout
+        android:id="@+id/settings_language_option_chinese"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/settings_language_chinese"
+            android:textColor="@color/text_color"
+            android:textSize="13sp" />
+
+        <ImageView
+            android:id="@+id/settings_language_chinese_check"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_network_check" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/line_color2" />
+
+    <LinearLayout
+        android:id="@+id/settings_language_option_english"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/settings_language_english"
+            android:textColor="@color/text_color"
+            android:textSize="13sp" />
+
+        <ImageView
+            android:id="@+id/settings_language_english_check"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_network_check"
+            android:visibility="gone" />
+    </LinearLayout>
+</LinearLayout>

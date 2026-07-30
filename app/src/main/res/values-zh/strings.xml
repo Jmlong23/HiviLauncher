@@ -140,8 +140,15 @@
     <string name="settings_no_network_message">暂未检测到网络，请刷新重试</string>
     <string name="settings_language">语言设置</string>
     <string name="settings_language_value">中文</string>
+    <string name="settings_language_chinese">中文</string>
+    <string name="settings_language_english">English</string>
     <string name="settings_screensaver">屏幕保护</string>
+    <string name="settings_screensaver_toggle">切换屏幕保护</string>
     <string name="settings_screensaver_timeout_value">1 分钟</string>
+    <string name="settings_screensaver_timeout_five_minutes">5 分钟</string>
+    <string name="settings_screensaver_timeout_ten_minutes">10 分钟</string>
+    <string name="settings_screensaver_timeout_thirty_minutes">30 分钟</string>
+    <string name="settings_screensaver_timeout_never">从不</string>
     <string name="settings_screensaver_style">屏保样式</string>
     <string name="settings_brightness">亮度</string>
     <string name="settings_brightness_low">低</string>

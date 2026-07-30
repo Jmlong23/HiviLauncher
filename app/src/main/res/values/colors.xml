@@ -10,4 +10,5 @@
     <color name="status_disconnect">#EC3E3E</color>
 
     <color name="line_color">#C5C6C6</color>
+    <color name="line_color2">#242424</color>
 </resources>

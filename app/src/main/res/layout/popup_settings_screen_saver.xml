@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/settings_screen_saver_popup"
+    android:layout_width="253dp"
+    android:layout_height="209dp"
+    android:background="@drawable/bg_screen_saver_expand"
+    android:orientation="vertical"
+    android:paddingLeft="21dp"
+    android:paddingRight="21dp">
+
+    <LinearLayout
+        android:id="@+id/settings_screen_saver_timeout_one_minute"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:includeFontPadding="false"
+            android:text="@string/settings_screensaver_timeout_value"
+            android:textColor="@color/text_color"
+            android:textSize="13sp" />
+
+        <ImageView
+            android:id="@+id/settings_screen_saver_timeout_one_minute_check"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_network_check" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/line_color2" />
+
+    <LinearLayout
+        android:id="@+id/settings_screen_saver_timeout_five_minutes"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/settings_screensaver_timeout_five_minutes"
+            android:textColor="@color/text_color"
+            android:textSize="13sp" />
+
+        <ImageView
+            android:id="@+id/settings_screen_saver_timeout_five_minutes_check"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_network_check"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/line_color2" />
+
+    <LinearLayout
+        android:id="@+id/settings_screen_saver_timeout_ten_minutes"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/settings_screensaver_timeout_ten_minutes"
+            android:textColor="@color/text_color"
+            android:textSize="13sp" />
+
+        <ImageView
+            android:id="@+id/settings_screen_saver_timeout_ten_minutes_check"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_network_check"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/line_color2" />
+
+    <LinearLayout
+        android:id="@+id/settings_screen_saver_timeout_thirty_minutes"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/settings_screensaver_timeout_thirty_minutes"
+            android:textColor="@color/text_color"
+            android:textSize="13sp" />
+
+        <ImageView
+            android:id="@+id/settings_screen_saver_timeout_thirty_minutes_check"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_network_check"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/line_color2" />
+
+    <LinearLayout
+        android:id="@+id/settings_screen_saver_timeout_never"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/settings_screensaver_timeout_never"
+            android:textColor="@color/text_color"
+            android:textSize="13sp" />
+
+        <ImageView
+            android:id="@+id/settings_screen_saver_timeout_never_check"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_network_check"
+            android:visibility="gone" />
+    </LinearLayout>
+</LinearLayout>
