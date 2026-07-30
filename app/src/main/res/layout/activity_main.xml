@@ -143,40 +143,41 @@
         android:orientation="vertical"
         android:paddingTop="48dp">
 
-    <LinearLayout
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="30dp"
+            android:orientation="horizontal"
+            android:gravity="center">
+            <View
+                android:layout_width="139dp"
+                android:layout_height="0.5dp"
+                android:background="@color/line_color"
+                android:layout_marginRight="14dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/select_mode"
+                android:textSize="20sp"
+                android:textColor="@color/text_color"
+                android:layout_marginRight="14dp"/>
+            <View
+                android:layout_width="139dp"
+                android:layout_height="0.5dp"
+                android:background="@color/line_color"/>
+        </LinearLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/cards_row"
         android:layout_width="match_parent"
-        android:layout_height="30dp"
-        android:orientation="horizontal"
-        android:gravity="center">
-        <View
-            android:layout_width="139dp"
-            android:layout_height="0.5dp"
-            android:background="@color/line_color"
-            android:layout_marginRight="14dp"/>
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/select_mode"
-            android:textSize="20sp"
-            android:textColor="@color/text_color"
-            android:layout_marginRight="14dp"/>
-        <View
-            android:layout_width="139dp"
-            android:layout_height="0.5dp"
-            android:background="@color/line_color"/>
+        android:layout_height="231dp"
+        android:layout_marginTop="47dp"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:paddingLeft="30dp"
+        android:paddingRight="30dp"
+        android:scrollbars="none" />
     </LinearLayout>
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/cards_row"
-                android:layout_width="match_parent"
-                android:layout_height="231dp"
-                android:layout_marginTop="47dp"
-                android:clipToPadding="false"
-                android:overScrollMode="never"
-                android:paddingLeft="30dp"
-                android:paddingRight="30dp"
-                android:scrollbars="none" />
-        </LinearLayout>
 
     <FrameLayout
         android:id="@+id/fragment_container"
@@ -280,5 +281,16 @@
             android:textColor="@color/text_color"
             android:textSize="14sp" />
     </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/ai_chat_entry"
+        android:layout_width="75dp"
+        android:layout_height="70dp"
+        android:layout_gravity="end|bottom"
+        android:layout_marginBottom="79dp"
+        android:background="@drawable/ic_ai"
+        android:contentDescription="AI"
+        android:focusable="true"
+        android:scaleType="fitCenter" />
 
 </FrameLayout>
