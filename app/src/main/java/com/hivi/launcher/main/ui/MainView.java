@@ -18,5 +18,7 @@ public interface MainView extends BaseView {
 
     void showPage(MainPage page);
 
+    void navigateBack();
+
     void showHomePage();
 }

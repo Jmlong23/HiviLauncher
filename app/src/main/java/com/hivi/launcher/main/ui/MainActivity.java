@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.app.Fragment;
+import android.app.FragmentManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -72,6 +73,17 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private boolean mBluetoothConnected;
     private boolean mWifiConnected;
     private boolean mAiConversationBackgroundVisible;
+    private boolean mHomeNavigationPending;
+    private boolean mSuppressBackStackUiSync;
+    private final FragmentManager.OnBackStackChangedListener mBackStackChangedListener =
+            new FragmentManager.OnBackStackChangedListener() {
+                @Override
+                public void onBackStackChanged() {
+                    if (!mSuppressBackStackUiSync) {
+                        syncPageUiWithCurrentFragment();
+                    }
+                }
+            };
 
     private final BroadcastReceiver mSystemReceiver = new BroadcastReceiver() {
         @Override
@@ -105,11 +117,19 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.accountImg.setClipToOutline(true);
         setupInputModeCarousel();
         bindMainClickListeners();
+        getFragmentManager().addOnBackStackChangedListener(mBackStackChangedListener);
+        syncPageUiWithCurrentFragment();
     }
 
     @Override
     protected void initData() {
         presenter.init();
+    }
+
+    @Override
+    public void onBackPressed() {
+        // The launcher root remains active; content pages use the native Fragment back stack.
+        navigateBack();
     }
 
     @Override
@@ -241,6 +261,43 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
+        Fragment currentFragment = getFragmentManager()
+                .findFragmentById(R.id.fragment_container);
+        if (currentFragment instanceof AiConversationFragment && page != MainPage.AI) {
+            removeAiPageBeforeNavigating();
+        }
+        if (isInputModePage(page)) {
+            showInputModePage(page);
+            return;
+        }
+        showStackedPage(page);
+    }
+
+    private void showInputModePage(MainPage page) {
+        FragmentManager fragmentManager = getFragmentManager();
+        Fragment currentFragment = fragmentManager.findFragmentById(R.id.fragment_container);
+        if (isFragmentForPage(currentFragment, page)
+                && fragmentManager.getBackStackEntryCount() == 1) {
+            syncPageUiWithCurrentFragment();
+            return;
+        }
+        mHomeNavigationPending = false;
+        ++mPageTransitionGeneration;
+        cancelPageAnimations();
+        if (fragmentManager.getBackStackEntryCount() > 0) {
+            popBackStackImmediately(true);
+        }
+        showStackedPage(page);
+    }
+
+    private void showStackedPage(MainPage page) {
+        Fragment currentFragment = getFragmentManager()
+                .findFragmentById(R.id.fragment_container);
+        if (isFragmentForPage(currentFragment, page)) {
+            syncPageUiWithCurrentFragment();
+            return;
+        }
+        mHomeNavigationPending = false;
         updateLauncherBackground(page == MainPage.AI);
         binding.aiChatEntry.setVisibility(page == MainPage.AI ? View.GONE : View.VISIBLE);
         View fragmentContainer = binding.fragmentContainer;
@@ -265,6 +322,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         getFragmentManager().beginTransaction()
                 .replace(R.id.fragment_container, createPageFragment(page))
+                .addToBackStack(page.name())
                 .commit();
 
         if (homePageVisible) {
@@ -288,30 +346,53 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     @Override
+    public void navigateBack() {
+        if (binding == null) {
+            return;
+        }
+        FragmentManager fragmentManager = getFragmentManager();
+        int backStackEntryCount = fragmentManager.getBackStackEntryCount();
+        if (backStackEntryCount == 0 || mHomeNavigationPending) {
+            return;
+        }
+        if (backStackEntryCount == 1) {
+            navigateToHome(false);
+            return;
+        }
+        ++mPageTransitionGeneration;
+        cancelPageAnimations();
+        mHomeNavigationPending = false;
+        fragmentManager.popBackStack();
+    }
+
+    @Override
     public void showHomePage() {
         if (binding == null) {
             return;
         }
-        updateModeTextFromSelectedInputMode();
+        if (getFragmentManager().getBackStackEntryCount() == 0) {
+            syncPageUiWithCurrentFragment();
+            return;
+        }
+        navigateToHome(true);
+    }
+
+    private void navigateToHome(final boolean clearBackStack) {
+        if (binding == null) {
+            return;
+        }
         final int transitionGeneration = ++mPageTransitionGeneration;
         final View fragmentContainer = binding.fragmentContainer;
         Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
-        final boolean restoreAiEntryAfterTransition = fragment instanceof AiConversationFragment;
         cancelPageAnimations();
         updateLauncherBackground(false);
         if (fragment == null || fragmentContainer.getVisibility() != View.VISIBLE) {
-            if (fragment != null) {
-                getFragmentManager().beginTransaction().remove(fragment).commit();
-            }
-            fragmentContainer.setVisibility(View.GONE);
-            fragmentContainer.setTranslationX(0f);
-            fragmentContainer.setAlpha(1f);
-            binding.pageBody.setTranslationX(0f);
-            binding.pageBody.setAlpha(1f);
-            binding.aiChatEntry.setVisibility(View.VISIBLE);
+            applyHomePageUi(true);
+            popBackStack(clearBackStack);
             return;
         }
 
+        mHomeNavigationPending = true;
         int transitionOffset = dp(PAGE_TRANSITION_OFFSET_DP);
         binding.pageBody.setTranslationX(-transitionOffset);
         binding.pageBody.setAlpha(HOME_PAGE_DIMMED_ALPHA);
@@ -333,17 +414,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                         if (transitionGeneration != mPageTransitionGeneration || binding == null) {
                             return;
                         }
-                        Fragment currentFragment = getFragmentManager()
-                                .findFragmentById(R.id.fragment_container);
-                        if (currentFragment != null) {
-                            getFragmentManager().beginTransaction().remove(currentFragment).commit();
-                        }
-                        fragmentContainer.setVisibility(View.GONE);
-                        fragmentContainer.setTranslationX(0f);
-                        fragmentContainer.setAlpha(1f);
-                        if (restoreAiEntryAfterTransition) {
-                            binding.aiChatEntry.setVisibility(View.VISIBLE);
-                        }
+                        popBackStack(clearBackStack);
                     }
                 })
                 .start();
@@ -357,6 +428,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     @Override
     protected void onDestroy() {
+        getFragmentManager().removeOnBackStackChangedListener(mBackStackChangedListener);
         if (mVolumeDialog != null) {
             mVolumeDialog.dismiss();
             mVolumeDialog = null;
@@ -600,6 +672,119 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private void cancelPageAnimations() {
         binding.pageBody.animate().cancel();
         binding.fragmentContainer.animate().cancel();
+    }
+
+    private void popBackStack(boolean clearBackStack) {
+        FragmentManager fragmentManager = getFragmentManager();
+        if (clearBackStack) {
+            fragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
+        } else {
+            fragmentManager.popBackStack();
+        }
+    }
+
+    private void removeAiPageBeforeNavigating() {
+        if (getFragmentManager().getBackStackEntryCount() == 0) {
+            return;
+        }
+        mHomeNavigationPending = false;
+        ++mPageTransitionGeneration;
+        cancelPageAnimations();
+        popBackStackImmediately(false);
+    }
+
+    private void popBackStackImmediately(boolean clearBackStack) {
+        FragmentManager fragmentManager = getFragmentManager();
+        mSuppressBackStackUiSync = true;
+        try {
+            if (clearBackStack) {
+                fragmentManager.popBackStackImmediate(null,
+                        FragmentManager.POP_BACK_STACK_INCLUSIVE);
+            } else {
+                fragmentManager.popBackStackImmediate();
+            }
+        } finally {
+            mSuppressBackStackUiSync = false;
+        }
+    }
+
+    private void syncPageUiWithCurrentFragment() {
+        if (binding == null) {
+            return;
+        }
+        Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        if (fragment == null) {
+            boolean keepHomeTransition = mHomeNavigationPending;
+            applyHomePageUi(!keepHomeTransition);
+            mHomeNavigationPending = false;
+            return;
+        }
+        mHomeNavigationPending = false;
+        binding.fragmentContainer.setVisibility(View.VISIBLE);
+        boolean aiConversationVisible = fragment instanceof AiConversationFragment;
+        updateLauncherBackground(aiConversationVisible);
+        binding.aiChatEntry.setVisibility(aiConversationVisible ? View.GONE : View.VISIBLE);
+    }
+
+    private void applyHomePageUi(boolean resetPageBody) {
+        updateModeTextFromSelectedInputMode();
+        updateLauncherBackground(false);
+        binding.fragmentContainer.setVisibility(View.GONE);
+        binding.fragmentContainer.setTranslationX(0f);
+        binding.fragmentContainer.setAlpha(1f);
+        if (resetPageBody) {
+            binding.pageBody.setTranslationX(0f);
+            binding.pageBody.setAlpha(1f);
+        }
+        binding.aiChatEntry.setVisibility(View.VISIBLE);
+    }
+
+    private boolean isInputModePage(MainPage page) {
+        if (page == null) {
+            return false;
+        }
+        switch (page) {
+            case LINE:
+            case MICROPHONE:
+            case OPTICAL:
+            case COAX:
+            case HDMI:
+            case BLUETOOTH:
+            case WIFI:
+                return true;
+            case SETTINGS:
+            case AI:
+            default:
+                return false;
+        }
+    }
+
+    private boolean isFragmentForPage(Fragment fragment, MainPage page) {
+        if (fragment == null || page == null) {
+            return false;
+        }
+        switch (page) {
+            case LINE:
+                return fragment instanceof LineFragment;
+            case MICROPHONE:
+                return fragment instanceof MicrophoneFragment;
+            case OPTICAL:
+                return fragment instanceof OpticalFragment;
+            case COAX:
+                return fragment instanceof CoaxFragment;
+            case HDMI:
+                return fragment instanceof HdmiFragment;
+            case BLUETOOTH:
+                return fragment instanceof BluetoothFragment;
+            case WIFI:
+                return fragment instanceof WifiFragment;
+            case SETTINGS:
+                return fragment instanceof SettingsFragment;
+            case AI:
+                return fragment instanceof AiConversationFragment;
+            default:
+                return false;
+        }
     }
 
     private int dp(float value) {

@@ -18,9 +18,7 @@ import com.hivi.launcher.systemapps.ui.SystemAppsActivity;
 
 import java.text.SimpleDateFormat;
 import java.lang.reflect.Method;
-import java.util.ArrayDeque;
 import java.util.Date;
-import java.util.Deque;
 import java.util.Locale;
 
 public class MainPresenter extends BasePresenter<MainView> {
@@ -30,7 +28,6 @@ public class MainPresenter extends BasePresenter<MainView> {
     private final Context mContext;
     private final MainStatusRepository mStatusRepository;
     private final BluetoothMediaController mBluetoothMediaController;
-    private final Deque<MainPage> mPageStack = new ArrayDeque<>();
 
     private final Runnable mTicker = new Runnable() {
         @Override
@@ -140,24 +137,14 @@ public class MainPresenter extends BasePresenter<MainView> {
 
     public void onBottomNavigationBackClicked() {
         Log.d(TAG, "Bottom navigation back clicked");
-        if (mPageStack.isEmpty()) {
-            return;
-        }
-        mPageStack.pop();
         MainView view = getView();
-        if (view == null) {
-            return;
-        }
-        if (mPageStack.isEmpty()) {
-            view.showHomePage();
-        } else {
-            view.showPage(mPageStack.peek());
+        if (view != null) {
+            view.navigateBack();
         }
     }
 
     public void onBottomNavigationHomeClicked() {
         Log.d(TAG, "Bottom navigation home clicked");
-        mPageStack.clear();
         MainView view = getView();
         if (view != null) {
             view.showHomePage();
@@ -234,10 +221,9 @@ public class MainPresenter extends BasePresenter<MainView> {
     }
 
     private void navigateToPage(MainPage page) {
-        if (page == null || (!mPageStack.isEmpty() && mPageStack.peek() == page)) {
+        if (page == null) {
             return;
         }
-        mPageStack.push(page);
         MainView view = getView();
         if (view != null) {
             view.showPage(page);
