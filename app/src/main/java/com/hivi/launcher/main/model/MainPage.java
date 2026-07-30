@@ -8,5 +8,6 @@ public enum MainPage {
     HDMI,
     BLUETOOTH,
     WIFI,
-    SETTINGS
+    SETTINGS,
+    AI
 }

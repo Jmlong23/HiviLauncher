@@ -205,6 +205,11 @@ public class MainPresenter extends BasePresenter<MainView> {
         navigateToPage(MainPage.SETTINGS);
     }
 
+    public void onAiChatEntryClicked() {
+        Log.d(TAG, "AI chat entry clicked");
+        navigateToPage(MainPage.AI);
+    }
+
     public void onInputModeClicked(MainPage page) {
         Log.d(TAG, "Input mode clicked: " + page);
         navigateToPage(page);

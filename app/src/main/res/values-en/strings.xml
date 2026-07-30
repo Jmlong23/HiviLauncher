@@ -202,4 +202,31 @@
     <string name="settings_help">Help</string>
     <string name="settings_privacy">Privacy</string>
     <string name="settings_restore_factory">Restore factory settings</string>
+    <!-- AI conversation -->
+    <string name="ai_conversation_title">AI Conversation</string>
+    <string name="ai_conversation_back">Back</string>
+    <string name="ai_conversation_particle">AI conversation particle core</string>
+    <string name="ai_conversation_welcome">Hello, I am your AI assistant</string>
+    <string name="ai_conversation_hint">Tap the particle core or ask your question</string>
+    <string name="ai_conversation_authorize_hint">Authorize AI service before starting a conversation</string>
+    <string name="ai_conversation_authorize_required">Please authorize AI service first</string>
+    <string name="ai_conversation_microphone_denied_hint">Microphone permission is required for voice conversation</string>
+    <string name="ai_conversation_microphone_denied">Microphone permission was not granted</string>
+    <string name="ai_conversation_connecting">Connecting to AI…</string>
+    <string name="ai_conversation_connecting_hint">Preparing voice service</string>
+    <string name="ai_conversation_preparing">Preparing to listen…</string>
+    <string name="ai_conversation_preparing_hint">Please wait</string>
+    <string name="ai_conversation_listening">Listening…</string>
+    <string name="ai_conversation_listening_hint">Please ask your question</string>
+    <string name="ai_conversation_recognizing">Recognizing your question…</string>
+    <string name="ai_conversation_thinking_hint">Thinking, please wait</string>
+    <string name="ai_conversation_answering">Answering…</string>
+    <string name="ai_conversation_answering_hint">Tap the particle core to interrupt this answer</string>
+    <string name="ai_conversation_interrupting">Interrupting answer…</string>
+    <string name="ai_conversation_interrupting_hint">Listening for your next question shortly</string>
+    <string name="ai_conversation_unavailable">AI service is unavailable</string>
+    <string name="ai_conversation_connection_error">Unable to connect to AI service. Check the network and try again.</string>
+    <string name="ai_conversation_disconnected">AI conversation disconnected. Tap the particle core to start again.</string>
+    <string name="ai_conversation_quota_error">AI service quota is insufficient. Please handle it in the app and try again.</string>
+    <string name="ai_conversation_microphone_error">Unable to start microphone. Please try again later.</string>
 </resources>

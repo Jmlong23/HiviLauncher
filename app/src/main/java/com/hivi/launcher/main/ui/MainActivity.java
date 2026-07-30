@@ -11,6 +11,10 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.TransitionDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -25,6 +29,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.hivi.launcher.R;
 import com.hivi.launcher.account.model.AuthorizedUserInfo;
 import com.hivi.launcher.account.ui.AuthorizationDialog;
+import com.hivi.launcher.ai.ui.AiConversationFragment;
 import com.hivi.launcher.base.BaseActivity;
 import com.hivi.launcher.databinding.ActivityMainBinding;
 import com.hivi.launcher.main.model.MainPage;
@@ -66,6 +71,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private int mPageTransitionGeneration;
     private boolean mBluetoothConnected;
     private boolean mWifiConnected;
+    private boolean mAiConversationBackgroundVisible;
 
     private final BroadcastReceiver mSystemReceiver = new BroadcastReceiver() {
         @Override
@@ -235,6 +241,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
+        updateLauncherBackground(page == MainPage.AI);
+        binding.aiChatEntry.setVisibility(page == MainPage.AI ? View.GONE : View.VISIBLE);
         View fragmentContainer = binding.fragmentContainer;
         boolean homePageVisible = fragmentContainer.getVisibility() != View.VISIBLE;
         int transitionGeneration = ++mPageTransitionGeneration;
@@ -288,7 +296,9 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         final int transitionGeneration = ++mPageTransitionGeneration;
         final View fragmentContainer = binding.fragmentContainer;
         Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        final boolean restoreAiEntryAfterTransition = fragment instanceof AiConversationFragment;
         cancelPageAnimations();
+        updateLauncherBackground(false);
         if (fragment == null || fragmentContainer.getVisibility() != View.VISIBLE) {
             if (fragment != null) {
                 getFragmentManager().beginTransaction().remove(fragment).commit();
@@ -298,6 +308,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             fragmentContainer.setAlpha(1f);
             binding.pageBody.setTranslationX(0f);
             binding.pageBody.setAlpha(1f);
+            binding.aiChatEntry.setVisibility(View.VISIBLE);
             return;
         }
 
@@ -330,9 +341,18 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                         fragmentContainer.setVisibility(View.GONE);
                         fragmentContainer.setTranslationX(0f);
                         fragmentContainer.setAlpha(1f);
+                        if (restoreAiEntryAfterTransition) {
+                            binding.aiChatEntry.setVisibility(View.VISIBLE);
+                        }
                     }
                 })
                 .start();
+    }
+
+    public void onAiChatBackRequested() {
+        if (presenter != null) {
+            presenter.onBottomNavigationBackClicked();
+        }
     }
 
     @Override
@@ -368,6 +388,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             }
         });
         binding.modeText.setOnClickListener(view -> showInputModeDialog());
+        binding.aiChatEntry.setOnClickListener(view -> presenter.onAiChatEntryClicked());
         binding.bottomNavigationBack.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -534,6 +555,24 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.modeText.setText(topLabelResId == 0 ? R.string.select_mode : topLabelResId);
     }
 
+    private void updateLauncherBackground(boolean aiConversationVisible) {
+        if (binding == null || mAiConversationBackgroundVisible == aiConversationVisible) {
+            return;
+        }
+        Drawable normalBackground = new ColorDrawable(Color.rgb(54, 54, 54));
+        Drawable aiConversationBackground = getDrawable(R.drawable.ai_conversation_background);
+        if (aiConversationBackground == null) {
+            return;
+        }
+        TransitionDrawable backgroundTransition = new TransitionDrawable(aiConversationVisible
+                ? new Drawable[] {normalBackground, aiConversationBackground}
+                : new Drawable[] {aiConversationBackground, normalBackground});
+        backgroundTransition.setCrossFadeEnabled(true);
+        binding.launcherRoot.setBackground(backgroundTransition);
+        backgroundTransition.startTransition((int) PAGE_TRANSITION_DURATION_MS);
+        mAiConversationBackgroundVisible = aiConversationVisible;
+    }
+
     private void updateModeTextFromSelectedInputMode() {
         updateModeText(mInputModeAdapter == null
                 ? 0 : mInputModeAdapter.getSelectedModeTopLabelResId());
@@ -611,6 +650,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 return new WifiFragment();
             case SETTINGS:
                 return new SettingsFragment();
+            case AI:
+                return new AiConversationFragment();
             default:
                 throw new IllegalArgumentException("Unsupported page: " + page);
         }
