@@ -93,6 +93,11 @@ final class InputModeAdapter extends RecyclerView.Adapter<InputModeAdapter.Input
         return mSelectedPosition;
     }
 
+    MainPage getSelectedPage() {
+        return mSelectedPosition == RecyclerView.NO_POSITION
+                ? null : mModes.get(mSelectedPosition).page;
+    }
+
     boolean updateConnectivityState(boolean bluetoothConnected, String wifiLabel) {
         boolean wifiConnected = !TextUtils.isEmpty(wifiLabel)
                 && !TextUtils.equals(wifiLabel, mContext.getString(R.string.main_disconnected));

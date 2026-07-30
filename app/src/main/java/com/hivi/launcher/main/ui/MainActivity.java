@@ -57,12 +57,15 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private static final float HOME_PAGE_DIMMED_ALPHA = 0.65f;
     private AuthorizationDialog mAuthorizationDialog;
     private VolumeDialog mVolumeDialog;
+    private InputModeDialog mInputModeDialog;
     private InputModeAdapter mInputModeAdapter;
     private final ExecutorService mAccountAvatarExecutor = Executors.newSingleThreadExecutor();
     private final DecelerateInterpolator mPageTransitionInterpolator =
             new DecelerateInterpolator();
     private String mAccountAvatarUrl = "";
     private int mPageTransitionGeneration;
+    private boolean mBluetoothConnected;
+    private boolean mWifiConnected;
 
     private final BroadcastReceiver mSystemReceiver = new BroadcastReceiver() {
         @Override
@@ -130,6 +133,9 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
+        mBluetoothConnected = bluetoothConnected;
+        mWifiConnected = !TextUtils.isEmpty(wifiLabel)
+                && !TextUtils.equals(wifiLabel, getString(R.string.main_disconnected));
         binding.wifiText.setText(formatWifiStatus(wifiLabel));
         binding.bluetoothText.setText(bluetoothConnected
                 ? (android.text.TextUtils.isEmpty(bluetoothDeviceName)
@@ -138,6 +144,11 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (mInputModeAdapter != null
                 && mInputModeAdapter.updateConnectivityState(bluetoothConnected, wifiLabel)) {
             scrollToSelectedMode();
+        }
+        if (mInputModeDialog != null) {
+            mInputModeDialog.updateState(mInputModeAdapter == null
+                            ? null : mInputModeAdapter.getSelectedPage(),
+                    mBluetoothConnected, mWifiConnected);
         }
     }
 
@@ -334,6 +345,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             mAuthorizationDialog.release();
             mAuthorizationDialog = null;
         }
+        if (mInputModeDialog != null) {
+            mInputModeDialog.dismiss();
+            mInputModeDialog = null;
+        }
         mAccountAvatarExecutor.shutdownNow();
         super.onDestroy();
     }
@@ -352,6 +367,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 presenter.showAuthorizationDialog();
             }
         });
+        binding.modeText.setOnClickListener(view -> showInputModeDialog());
         binding.bottomNavigationBack.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -521,6 +537,25 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private void updateModeTextFromSelectedInputMode() {
         updateModeText(mInputModeAdapter == null
                 ? 0 : mInputModeAdapter.getSelectedModeTopLabelResId());
+    }
+
+    private void showInputModeDialog() {
+        if (isFinishing() || isDestroyed()) {
+            return;
+        }
+        if (mInputModeDialog == null) {
+            mInputModeDialog = new InputModeDialog(this, new InputModeDialog.Listener() {
+                @Override
+                public void onModeSelected(MainPage page) {
+                    if (presenter != null) {
+                        presenter.onInputModeClicked(page);
+                    }
+                }
+            });
+        }
+        mInputModeDialog.show(mInputModeAdapter == null
+                        ? null : mInputModeAdapter.getSelectedPage(),
+                mBluetoothConnected, mWifiConnected);
     }
 
     private void cancelPageAnimations() {

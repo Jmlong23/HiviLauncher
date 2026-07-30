@@ -101,6 +101,7 @@
     <string name="auth_confirm">确认</string>
     <string name="auth_cancel_action">取消</string>
     <string name="select_mode">请选择模式</string>
+    <string name="input_mode_dialog_title">请选择输入模式</string>
 
     <!-- Input mode carousel -->
     <string name="input_mode_line">LINE 有线</string>
