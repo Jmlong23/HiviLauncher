@@ -139,6 +139,7 @@
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/settings_system_summary_value"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:includeFontPadding="false"
@@ -330,7 +331,7 @@
                 android:paddingRight="33dp"
                 android:paddingBottom="31dp"
                 android:scrollbars="vertical"
-                android:visibility="visible">
+                android:visibility="gone">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -516,7 +517,7 @@
                 android:paddingTop="19dp"
                 android:paddingRight="30dp"
                 android:paddingBottom="25dp"
-                android:visibility="gone">
+                android:visibility="visible">
 
                 <TextView
                     android:layout_width="match_parent"
@@ -545,6 +546,7 @@
                         android:textSize="13sp" />
 
                     <TextView
+                        android:id="@+id/settings_system_version_value"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/settings_system_version"
@@ -552,15 +554,19 @@
                         android:textSize="13sp" />
 
                     <TextView
+                        android:id="@+id/settings_system_update_action"
                         android:layout_width="40dp"
                         android:layout_height="23dp"
                         android:layout_marginLeft="8dp"
-                        android:background="@drawable/primary_button"
+                        android:background="@drawable/system_update_action_button"
+                        android:clickable="true"
+                        android:focusable="true"
                         android:gravity="center"
                         android:includeFontPadding="false"
                         android:text="@string/settings_system_update_action"
                         android:textColor="@color/text_color"
-                        android:textSize="12sp" />
+                        android:textSize="12sp"
+                        android:visibility="gone" />
                 </LinearLayout>
 
                 <LinearLayout

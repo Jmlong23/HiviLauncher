@@ -49,6 +49,8 @@ import com.hivi.launcher.line.ui.LineFragment;
 import com.hivi.launcher.microphone.ui.MicrophoneFragment;
 import com.hivi.launcher.optical.ui.OpticalFragment;
 import com.hivi.launcher.settings.ui.SettingsFragment;
+import com.hivi.launcher.settings.ui.SystemUpdateSuccessDialog;
+import com.hivi.launcher.update.SystemUpdateInstallReceiver;
 import com.hivi.launcher.utils.network.AuthorizationStore;
 import com.hivi.launcher.wifi.ui.WifiFragment;
 
@@ -138,6 +140,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         bindMainClickListeners();
         getFragmentManager().addOnBackStackChangedListener(mBackStackChangedListener);
         syncPageUiWithCurrentFragment();
+        handleSystemUpdateInstallResult(getIntent());
     }
 
     @Override
@@ -168,6 +171,13 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         super.onPause();
         unregisterReceiverQuietly();
         presenter.stopTicker();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleSystemUpdateInstallResult(intent);
     }
 
     @Override
@@ -477,6 +487,23 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         mAccountAvatarExecutor.shutdownNow();
         super.onDestroy();
+    }
+
+    private void handleSystemUpdateInstallResult(Intent intent) {
+        if (intent == null
+                || !intent.hasExtra(SystemUpdateInstallReceiver.EXTRA_UPDATE_SUCCEEDED)) {
+            return;
+        }
+        boolean succeeded = intent.getBooleanExtra(
+                SystemUpdateInstallReceiver.EXTRA_UPDATE_SUCCEEDED, false);
+        intent.removeExtra(SystemUpdateInstallReceiver.EXTRA_UPDATE_SUCCEEDED);
+        if (succeeded) {
+            intent.removeExtra(SystemUpdateInstallReceiver.EXTRA_UPDATE_ERROR);
+            SystemUpdateSuccessDialog.show(this);
+            return;
+        }
+        intent.removeExtra(SystemUpdateInstallReceiver.EXTRA_UPDATE_ERROR);
+        showToast(getString(R.string.system_update_failed));
     }
 
     private void applyLocalizedTexts() {

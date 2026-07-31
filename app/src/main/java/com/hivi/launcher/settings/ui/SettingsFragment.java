@@ -26,6 +26,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.base.BaseFragment;
+import com.hivi.launcher.databinding.DialogSystemUpdateConfirmationBinding;
+import com.hivi.launcher.databinding.DialogSystemUpdateProgressBinding;
 import com.hivi.launcher.databinding.DialogWifiPasswordBinding;
 import com.hivi.launcher.databinding.LayoutSettingsContentBinding;
 import com.hivi.launcher.databinding.PopupSettingsLanguageBinding;
@@ -33,6 +35,7 @@ import com.hivi.launcher.databinding.PopupSettingsScreenSaverBinding;
 import com.hivi.launcher.main.ui.MainActivity;
 import com.hivi.launcher.settings.model.SettingsModel;
 import com.hivi.launcher.settings.presenter.SettingsPresenter;
+import com.hivi.launcher.update.SystemUpdateInfo;
 import com.hivi.launcher.utils.LocaleHelper;
 import com.hivi.launcher.wifi.model.WifiNetwork;
 import com.hivi.launcher.wifi.presenter.WifiPresenter;
@@ -58,6 +61,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private static final int DEFAULT_SCREEN_BRIGHTNESS = 128;
     private static final int NO_PENDING_SCREEN_BRIGHTNESS = -1;
     private static final long BRIGHTNESS_SETTINGS_WRITE_THROTTLE_MS = 120L;
+    private static final long INITIAL_WIFI_SETUP_DELAY_MS = 500L;
 
     private LayoutSettingsContentBinding mBinding;
     private View[] mSectionTabs;
@@ -66,19 +70,27 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private WifiNetworkAdapter mWifiNetworkAdapter;
     private ObjectAnimator mWifiRefreshAnimator;
     private Dialog mWifiPasswordDialog;
+    private Dialog mSystemUpdateConfirmationDialog;
+    private Dialog mSystemUpdateProgressDialog;
+    private DialogSystemUpdateProgressBinding mSystemUpdateProgressBinding;
     private PopupWindow mDisplayOptionsPopupWindow;
     private ExecutorService mLanguageSwitchExecutor;
     private final Handler mBrightnessSettingsHandler = new Handler(Looper.getMainLooper());
     private final Runnable mPendingBrightnessSettingsWriteRunnable =
             this::flushPendingScreenBrightnessWrite;
+    private final Runnable mDeferredWifiSettingsInitialization =
+            this::initializeWifiSettingsIfNeeded;
     private int mDisplayPopupType = DISPLAY_POPUP_NONE;
     private int mPendingScreenBrightness = NO_PENDING_SCREEN_BRIGHTNESS;
+    private int mSelectedSettingsSection = SettingsPresenter.SECTION_NETWORK;
     private boolean mWifiRefreshing;
+    private boolean mWifiSettingsInitialized;
+    private boolean mInitialSectionRendered;
     private boolean mLanguageSwitchInProgress;
 
     @Override
     protected SettingsPresenter createPresenter() {
-        return new SettingsPresenter(this, getSavedLanguage());
+        return new SettingsPresenter(getHostActivity(), this, getSavedLanguage());
     }
 
     @Override
@@ -119,17 +131,23 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             final int section = i;
             mSectionTabs[i].setOnClickListener(v -> presenter.onSectionSelected(section));
         }
-        setupWifiSettings();
+        setupWifiRefreshAction();
+        showWifiInitializationPending();
+        scheduleWifiSettingsInitialization();
         setupDisplaySettings();
+        setupSystemUpdateSettings();
         presenter.init();
     }
 
     @Override
     public void onDestroyView() {
         mBrightnessSettingsHandler.removeCallbacks(mPendingBrightnessSettingsWriteRunnable);
+        mBrightnessSettingsHandler.removeCallbacks(mDeferredWifiSettingsInitialization);
         flushPendingScreenBrightnessWrite();
         dismissDisplayOptionsPopup();
         dismissWifiPasswordDialog();
+        dismissSystemUpdateConfirmationDialog();
+        dismissSystemUpdateProgress();
         setLanguageSwitchLoading(false);
         if (mLanguageSwitchExecutor != null) {
             mLanguageSwitchExecutor.shutdownNow();
@@ -144,6 +162,8 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             mWifiPresenter.destroy();
             mWifiPresenter = null;
         }
+        mWifiSettingsInitialized = false;
+        mInitialSectionRendered = false;
         mWifiNetworkAdapter = null;
         mSectionTabs = null;
         mSectionPanels = null;
@@ -156,11 +176,20 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         if (mSectionTabs == null || mSectionPanels == null) {
             return;
         }
+        mSelectedSettingsSection = section;
         for (int i = 0; i < mSectionTabs.length; i++) {
             boolean selected = i == section;
             mSectionTabs[i].setSelected(selected);
             mSectionPanels[i].setVisibility(selected ? View.VISIBLE : View.GONE);
         }
+        if (section == SettingsPresenter.SECTION_NETWORK && !mWifiSettingsInitialized) {
+            showWifiInitializationPending();
+        }
+        if (section == SettingsPresenter.SECTION_NETWORK && mInitialSectionRendered) {
+            mBrightnessSettingsHandler.removeCallbacks(mDeferredWifiSettingsInitialization);
+            initializeWifiSettingsIfNeeded();
+        }
+        mInitialSectionRendered = true;
     }
 
     @Override
@@ -190,6 +219,8 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         mWifiRefreshing = refreshing;
         mBinding.settingsWifiRefresh.setEnabled(!refreshing);
         if (refreshing) {
+            mBinding.settingsWifiEmptyState.setVisibility(View.GONE);
+            mBinding.settingsWifiLoading.setVisibility(View.GONE);
             if (mWifiRefreshAnimator == null) {
                 mWifiRefreshAnimator = ObjectAnimator.ofFloat(mBinding.settingsWifiRefresh,
                         View.ROTATION, 0f, 360f);
@@ -214,7 +245,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         mBinding.settingsWifiList.setVisibility(View.GONE);
         mBinding.settingsWifiEmptyText.setText(message);
         mBinding.settingsWifiEmptyState.setVisibility(mWifiRefreshing ? View.GONE : View.VISIBLE);
-        mBinding.settingsWifiLoading.setVisibility(mWifiRefreshing ? View.VISIBLE : View.GONE);
+        mBinding.settingsWifiLoading.setVisibility(View.GONE);
         mBinding.settingsNetworkSummary.setText(R.string.main_disconnected);
     }
 
@@ -311,6 +342,96 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         }
     }
 
+    @Override
+    public void renderSystemUpdate(SystemUpdateInfo updateInfo, boolean updateInProgress) {
+        if (mBinding == null || updateInfo == null) {
+            return;
+        }
+        String currentVersion = formatSystemVersion(updateInfo.getCurrentVersionName());
+        mBinding.settingsSystemVersionValue.setText(currentVersion);
+        mBinding.settingsSystemSummaryValue.setText(currentVersion);
+        boolean updateAvailable = updateInfo.isUpdateAvailable();
+        mBinding.settingsSystemUpdateAction.setVisibility(
+                updateAvailable && !updateInProgress ? View.VISIBLE : View.GONE);
+        mBinding.settingsSystemUpdateAction.setEnabled(updateAvailable && !updateInProgress);
+    }
+
+    @Override
+    public void showSystemUpdateConfirmation(SystemUpdateInfo updateInfo) {
+        if (!isAdded() || updateInfo == null) {
+            return;
+        }
+        dismissSystemUpdateConfirmationDialog();
+        Dialog dialog = new Dialog(getHostActivity());
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        DialogSystemUpdateConfirmationBinding dialogBinding =
+                DialogSystemUpdateConfirmationBinding.inflate(getLayoutInflater());
+        dialog.setContentView(dialogBinding.getRoot());
+        dialog.setCanceledOnTouchOutside(true);
+        dialog.setCancelable(true);
+        dialogBinding.systemUpdateConfirmationMessage.setText(getString(
+                R.string.system_update_confirm_message,
+                formatSystemVersion(updateInfo.getLatestVersionName())));
+        dialogBinding.systemUpdateConfirmationCancel.setOnClickListener(view -> dialog.dismiss());
+        dialogBinding.systemUpdateConfirmationConfirm.setOnClickListener(view -> {
+            dialog.dismiss();
+            SettingsPresenter presenter = getPresenter();
+            if (presenter != null) {
+                presenter.onSystemUpdateConfirmed();
+            }
+        });
+        dialog.setOnDismissListener(ignored -> {
+            if (mSystemUpdateConfirmationDialog == dialog) {
+                mSystemUpdateConfirmationDialog = null;
+            }
+        });
+        prepareSystemUpdateDialogWindow(dialog);
+        mSystemUpdateConfirmationDialog = dialog;
+        showSystemUpdateDialog(dialog);
+    }
+
+    @Override
+    public void showSystemUpdateProgress(int progress, String status) {
+        if (!isAdded()) {
+            return;
+        }
+        if (mSystemUpdateProgressDialog == null) {
+            Dialog dialog = new Dialog(getHostActivity());
+            dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+            mSystemUpdateProgressBinding = DialogSystemUpdateProgressBinding.inflate(
+                    getLayoutInflater());
+            dialog.setContentView(mSystemUpdateProgressBinding.getRoot());
+            dialog.setCanceledOnTouchOutside(false);
+            dialog.setCancelable(false);
+            dialog.setOnDismissListener(ignored -> {
+                if (mSystemUpdateProgressDialog == dialog) {
+                    mSystemUpdateProgressDialog = null;
+                    mSystemUpdateProgressBinding = null;
+                }
+            });
+            prepareSystemUpdateDialogWindow(dialog);
+            mSystemUpdateProgressDialog = dialog;
+        }
+        if (mSystemUpdateProgressBinding == null) {
+            return;
+        }
+        int safeProgress = Math.max(0, Math.min(100, progress));
+        mSystemUpdateProgressBinding.systemUpdateProgressBar.setProgress(safeProgress);
+        mSystemUpdateProgressBinding.systemUpdateProgressPercent.setText(
+                getString(R.string.system_update_progress_percent_format, safeProgress));
+        mSystemUpdateProgressBinding.systemUpdateProgressStatus.setText(status);
+        showSystemUpdateDialog(mSystemUpdateProgressDialog);
+    }
+
+    @Override
+    public void dismissSystemUpdateProgress() {
+        if (mSystemUpdateProgressDialog != null) {
+            mSystemUpdateProgressDialog.dismiss();
+            mSystemUpdateProgressDialog = null;
+        }
+        mSystemUpdateProgressBinding = null;
+    }
+
     private void updateTopWifiStatus(String ssid) {
         Activity activity = getActivity();
         if (activity instanceof MainActivity) {
@@ -318,7 +439,38 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         }
     }
 
-    private void setupWifiSettings() {
+    private void setupWifiRefreshAction() {
+        mBinding.settingsWifiRefresh.setOnClickListener(view -> {
+            boolean initialized = initializeWifiSettingsIfNeeded();
+            if (!initialized && mWifiPresenter != null) {
+                mWifiPresenter.refresh();
+            }
+        });
+    }
+
+    private void scheduleWifiSettingsInitialization() {
+        mBrightnessSettingsHandler.removeCallbacks(mDeferredWifiSettingsInitialization);
+        mBrightnessSettingsHandler.postDelayed(mDeferredWifiSettingsInitialization,
+                INITIAL_WIFI_SETUP_DELAY_MS);
+    }
+
+    private void showWifiInitializationPending() {
+        if (mBinding == null) {
+            return;
+        }
+        mBinding.settingsWifiList.setVisibility(View.GONE);
+        mBinding.settingsWifiEmptyState.setVisibility(View.GONE);
+        mBinding.settingsWifiLoading.setVisibility(View.GONE);
+    }
+
+    private boolean initializeWifiSettingsIfNeeded() {
+        if (mWifiSettingsInitialized || mBinding == null || !isAdded()) {
+            return false;
+        }
+        if (mSelectedSettingsSection != SettingsPresenter.SECTION_NETWORK) {
+            return false;
+        }
+        mWifiSettingsInitialized = true;
         mBinding.settingsNetworkSummary.setText(R.string.main_disconnected);
         mWifiNetworkAdapter = new WifiNetworkAdapter(getHostActivity(),
                 network -> {
@@ -328,13 +480,9 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
                 });
         mBinding.settingsWifiList.setLayoutManager(new LinearLayoutManager(getHostActivity()));
         mBinding.settingsWifiList.setAdapter(mWifiNetworkAdapter);
-        mBinding.settingsWifiRefresh.setOnClickListener(view -> {
-            if (mWifiPresenter != null) {
-                mWifiPresenter.refresh();
-            }
-        });
         mWifiPresenter = new WifiPresenter(this);
         mWifiPresenter.init(getHostActivity());
+        return true;
     }
 
     private void setupDisplaySettings() {
@@ -355,6 +503,15 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             SettingsPresenter presenter = getPresenter();
             if (presenter != null) {
                 presenter.onScreenSaverTimeoutSelected();
+            }
+        });
+    }
+
+    private void setupSystemUpdateSettings() {
+        mBinding.settingsSystemUpdateAction.setOnClickListener(view -> {
+            SettingsPresenter presenter = getPresenter();
+            if (presenter != null) {
+                presenter.onSystemUpdateSelected();
             }
         });
     }
@@ -670,6 +827,53 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             mWifiPasswordDialog.dismiss();
             mWifiPasswordDialog = null;
         }
+    }
+
+    private void dismissSystemUpdateConfirmationDialog() {
+        if (mSystemUpdateConfirmationDialog != null) {
+            mSystemUpdateConfirmationDialog.dismiss();
+            mSystemUpdateConfirmationDialog = null;
+        }
+    }
+
+    private void prepareSystemUpdateDialogWindow(Dialog dialog) {
+        Window window = dialog.getWindow();
+        if (window == null) {
+            return;
+        }
+        window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        WindowManager.LayoutParams attributes = window.getAttributes();
+        attributes.dimAmount = 0.72f;
+        window.setAttributes(attributes);
+        window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+    }
+
+    private void showSystemUpdateDialog(Dialog dialog) {
+        if (dialog == null || dialog.isShowing()) {
+            return;
+        }
+        dialog.show();
+        Window dialogWindow = dialog.getWindow();
+        if (dialogWindow == null) {
+            return;
+        }
+        dialogWindow.getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        dialogWindow.setLayout(WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT);
+    }
+
+    private String formatSystemVersion(String versionName) {
+        if (TextUtils.isEmpty(versionName)) {
+            return "";
+        }
+        return versionName.startsWith("v") || versionName.startsWith("V")
+                ? versionName : "v " + versionName;
     }
 
     private int dp(int value) {

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="620dp"
+    android:layout_height="330dp"
+    android:background="@drawable/dialog_background"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingLeft="56dp"
+    android:paddingTop="46dp"
+    android:paddingRight="56dp"
+    android:paddingBottom="42dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:text="@string/system_update_progress_title"
+        android:textColor="@color/text_color"
+        android:textSize="27sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/system_update_progress_percent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="45dp"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:textColor="#4C8EFF"
+        android:textSize="39sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/system_update_progress_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:textColor="@color/text_color"
+        android:textSize="16sp" />
+
+    <ProgressBar
+        android:id="@+id/system_update_progress_bar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="14dp"
+        android:layout_marginTop="36dp"
+        android:max="100"
+        android:progressDrawable="@drawable/system_update_progress" />
+</LinearLayout>

@@ -20,4 +20,8 @@ public interface ApiService {
     @Headers("Cache-Control: no-cache")
     @GET("user/details")
     Observable<String> getUserDetails();
+
+    @Headers("Cache-Control: no-cache")
+    @GET("version/details")
+    Observable<String> getAppVersionDetails(@Query("type") String type);
 }

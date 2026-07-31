@@ -180,6 +180,17 @@
     <string name="settings_wifi_cancel">取消</string>
     <string name="settings_wifi_password_required">请输入 Wi-Fi 密码。</string>
     <string name="settings_wifi_unsupported_security">暂不支持企业级 Wi-Fi 网络。</string>
+    <string name="system_update_confirm_title">系统升级</string>
+    <string name="system_update_confirm_message">是否确认升级到 %1$s 版本？</string>
+    <string name="system_update_confirm_warning">升级过程中请勿断电、拔出电源或操作设备</string>
+    <string name="system_update_confirm_action">确认升级</string>
+    <string name="system_update_progress_title">正在升级系统</string>
+    <string name="system_update_progress_warning">请勿断电、拔出电源或操作设备</string>
+    <string name="system_update_downloading">正在下载升级包</string>
+    <string name="system_update_installing">正在部署系统新版本</string>
+    <string name="system_update_progress_percent_format">%1$d%%</string>
+    <string name="system_update_success_title">升级成功</string>
+    <string name="system_update_failed">升级失败，请稍后重试。</string>
     <!-- AI conversation -->
     <string name="ai_conversation_title">AI 对话</string>
     <string name="ai_conversation_back">返回</string>
