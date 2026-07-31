@@ -1,6 +1,7 @@
 package com.hivi.launcher.base;
 
 import android.app.Activity;
+import android.content.Context;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
@@ -10,10 +11,17 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.viewbinding.ViewBinding;
 
+import com.hivi.launcher.utils.LocaleHelper;
+
 public abstract class BaseActivity<B extends ViewBinding, P extends BasePresenter<?>> extends Activity
         implements BaseView {
     protected B binding;
     protected P presenter;
+
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        super.attachBaseContext(LocaleHelper.applyLocale(newBase));
+    }
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {

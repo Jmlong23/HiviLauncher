@@ -205,6 +205,13 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
     }
 
+    public void setLanguageSwitchLoading(boolean loading) {
+        if (binding != null) {
+            binding.settingsLanguageLoadingOverlay.setVisibility(
+                    loading ? View.VISIBLE : View.GONE);
+        }
+    }
+
     @Override
     public void updateVolume(int volumePercent) {
         if (binding == null) {

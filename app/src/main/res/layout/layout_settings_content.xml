@@ -362,6 +362,7 @@
                             android:textSize="13sp" />
 
                         <ImageView
+                            android:id="@+id/settings_language_arrow"
                             android:layout_width="13dp"
                             android:layout_height="7dp"
                             android:contentDescription="@null"

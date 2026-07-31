@@ -13,7 +13,14 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
     public static final int SECTION_MAINTENANCE = 4;
 
     public SettingsPresenter(SettingsView view) {
+        this(view, SettingsModel.LANGUAGE_CHINESE);
+    }
+
+    public SettingsPresenter(SettingsView view, int initialLanguage) {
         super(view);
+        if (isValidLanguage(initialLanguage)) {
+            mModel.setLanguage(initialLanguage);
+        }
     }
 
     public void init() {

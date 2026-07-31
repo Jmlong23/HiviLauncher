@@ -2,7 +2,10 @@ package com.hivi.launcher.settings.ui;
 
 import android.animation.ObjectAnimator;
 import android.app.Activity;
+import android.app.Application;
 import android.app.Dialog;
+import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
@@ -25,12 +28,15 @@ import com.hivi.launcher.databinding.PopupSettingsScreenSaverBinding;
 import com.hivi.launcher.main.ui.MainActivity;
 import com.hivi.launcher.settings.model.SettingsModel;
 import com.hivi.launcher.settings.presenter.SettingsPresenter;
+import com.hivi.launcher.utils.LocaleHelper;
 import com.hivi.launcher.wifi.model.WifiNetwork;
 import com.hivi.launcher.wifi.presenter.WifiPresenter;
 import com.hivi.launcher.wifi.ui.WifiNetworkAdapter;
 import com.hivi.launcher.wifi.ui.WifiView;
 
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         implements SettingsView, WifiView {
@@ -50,12 +56,14 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private ObjectAnimator mWifiRefreshAnimator;
     private Dialog mWifiPasswordDialog;
     private PopupWindow mDisplayOptionsPopupWindow;
+    private ExecutorService mLanguageSwitchExecutor;
     private int mDisplayPopupType = DISPLAY_POPUP_NONE;
     private boolean mWifiRefreshing;
+    private boolean mLanguageSwitchInProgress;
 
     @Override
     protected SettingsPresenter createPresenter() {
-        return new SettingsPresenter(this);
+        return new SettingsPresenter(this, getSavedLanguage());
     }
 
     @Override
@@ -72,6 +80,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         mBinding = LayoutSettingsContentBinding.bind(view);
+        mLanguageSwitchExecutor = Executors.newSingleThreadExecutor();
         mSectionTabs = new View[] {
                 mBinding.settingsTabNetwork,
                 mBinding.settingsTabDisplay,
@@ -104,6 +113,12 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     public void onDestroyView() {
         dismissDisplayOptionsPopup();
         dismissWifiPasswordDialog();
+        setLanguageSwitchLoading(false);
+        if (mLanguageSwitchExecutor != null) {
+            mLanguageSwitchExecutor.shutdownNow();
+            mLanguageSwitchExecutor = null;
+        }
+        mLanguageSwitchInProgress = false;
         if (mWifiRefreshAnimator != null) {
             mWifiRefreshAnimator.cancel();
             mWifiRefreshAnimator = null;
@@ -434,10 +449,38 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     }
 
     private void selectLanguage(int language) {
+        if (mLanguageSwitchInProgress) {
+            return;
+        }
+        Activity activity = getHostActivity();
+        Context applicationContext = activity.getApplicationContext();
+        Application application = activity.getApplication();
+        String selectedLanguage = language == SettingsModel.LANGUAGE_ENGLISH
+                ? LocaleHelper.LANGUAGE_EN : LocaleHelper.LANGUAGE_ZH;
+        boolean languageChanged = !TextUtils.equals(LocaleHelper.getLanguage(applicationContext),
+                selectedLanguage);
+
         SettingsPresenter presenter = getPresenter();
         if (presenter != null) {
             presenter.onLanguageOptionSelected(language);
         }
+        if (!languageChanged) {
+            return;
+        }
+
+        mLanguageSwitchInProgress = true;
+        setLanguageSwitchLoading(true);
+        ExecutorService languageSwitchExecutor = mLanguageSwitchExecutor;
+        if (languageSwitchExecutor == null) {
+            mLanguageSwitchInProgress = false;
+            setLanguageSwitchLoading(false);
+            return;
+        }
+        languageSwitchExecutor.execute(() -> {
+            LocaleHelper.setLanguage(applicationContext, selectedLanguage);
+            LocaleHelper.applySystemLocale(applicationContext, selectedLanguage);
+            activity.runOnUiThread(() -> completeLanguageChange(activity, application));
+        });
     }
 
     private void selectScreenSaverTimeout(int timeout) {
@@ -461,6 +504,47 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             default:
                 return R.string.settings_screensaver_timeout_value;
         }
+    }
+
+    private int getSavedLanguage() {
+        return LocaleHelper.LANGUAGE_EN.equals(
+                LocaleHelper.getLanguage(getHostActivity().getApplicationContext()))
+                ? SettingsModel.LANGUAGE_ENGLISH : SettingsModel.LANGUAGE_CHINESE;
+    }
+
+    private void setLanguageSwitchLoading(boolean loading) {
+        if (mBinding != null) {
+            mBinding.settingsLanguage.setEnabled(!loading);
+        }
+        Activity activity = getActivity();
+        if (activity instanceof MainActivity) {
+            ((MainActivity) activity).setLanguageSwitchLoading(loading);
+        }
+    }
+
+    private void completeLanguageChange(Activity activity, Application application) {
+        if (!isAdded() || getActivity() != activity) {
+            return;
+        }
+        mLanguageSwitchInProgress = false;
+        LocaleHelper.applyLocale(application);
+        setLanguageSwitchLoading(false);
+        if (!activity.isFinishing() && !activity.isDestroyed()) {
+            restartForLanguageChange(activity);
+        }
+    }
+
+    private void restartForLanguageChange(Activity activity) {
+        Intent launchIntent = activity.getPackageManager().getLaunchIntentForPackage(
+                activity.getPackageName());
+        if (launchIntent == null) {
+            activity.recreate();
+            return;
+        }
+        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        activity.startActivity(launchIntent);
+        activity.finish();
     }
 
     private Activity getHostActivity() {

@@ -3,11 +3,16 @@
     android:id="@+id/launcher_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#363636"
-    android:paddingLeft="33dp"
-    android:paddingRight="33dp"
-    android:paddingTop="16dp"
-    android:paddingBottom="35dp">
+    android:background="#363636">
+
+    <FrameLayout
+        android:id="@+id/launcher_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingLeft="33dp"
+        android:paddingTop="16dp"
+        android:paddingRight="33dp"
+        android:paddingBottom="35dp">
 
     <LinearLayout
         android:id="@+id/top_bar"
@@ -287,5 +292,24 @@
         android:contentDescription="AI"
         android:focusable="true"
         android:scaleType="fitCenter" />
+
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/settings_language_loading_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#99000000"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone">
+
+        <ProgressBar
+            style="?android:attr/progressBarStyleLarge"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center"
+            android:indeterminateTint="#4E83D8" />
+    </FrameLayout>
 
 </FrameLayout>
