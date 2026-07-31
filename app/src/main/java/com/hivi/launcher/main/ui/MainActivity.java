@@ -23,6 +23,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.DecelerateInterpolator;
 
@@ -278,7 +279,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 }
             });
         }
-        selectBottomNavigationItem(BottomNavigationItem.VOLUME);
+        resetBottomNavigationBackground();
         mVolumeDialog.show(volumePercent, muted);
     }
 
@@ -327,8 +328,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             return;
         }
         mHomeNavigationPending = false;
-        selectBottomNavigationItem(page == MainPage.SETTINGS
-                ? BottomNavigationItem.SETTINGS : BottomNavigationItem.BACK);
+        resetBottomNavigationBackground();
         updateLauncherBackground(page == MainPage.AI);
         View fragmentContainer = binding.fragmentContainer;
         boolean homePageVisible = fragmentContainer.getVisibility() != View.VISIBLE;
@@ -386,7 +386,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (backStackEntryCount == 0 || mHomeNavigationPending) {
             return;
         }
-        selectBottomNavigationItem(BottomNavigationItem.BACK);
+        resetBottomNavigationBackground();
         if (backStackEntryCount == 1) {
             navigateToHome(false);
             return;
@@ -495,26 +495,30 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         });
         binding.modeText.setOnClickListener(view -> showInputModeDialog());
         binding.aiChatEntry.setOnClickListener(view -> presenter.onAiChatEntryClicked());
+        bindBottomNavigationTouchFeedback(binding.bottomNavigationBack, BottomNavigationItem.BACK);
+        bindBottomNavigationTouchFeedback(binding.bottomNavigationHome, BottomNavigationItem.HOME);
+        bindBottomNavigationTouchFeedback(binding.bottomNavigationBackground,
+                BottomNavigationItem.BACKGROUND);
+        bindBottomNavigationTouchFeedback(binding.bottomNavigationVolume,
+                BottomNavigationItem.VOLUME);
+        bindBottomNavigationTouchFeedback(binding.bottomNavigationApps, BottomNavigationItem.APPS);
+        bindBottomNavigationTouchFeedback(binding.bottomNavigationSettings,
+                BottomNavigationItem.SETTINGS);
         binding.bottomNavigationBack.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (getFragmentManager().getBackStackEntryCount() > 0) {
-                    selectBottomNavigationItem(BottomNavigationItem.BACK);
-                }
                 presenter.onBottomNavigationBackClicked();
             }
         });
         binding.bottomNavigationHome.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                selectBottomNavigationItem(BottomNavigationItem.HOME);
                 presenter.onBottomNavigationHomeClicked();
             }
         });
         binding.bottomNavigationBackground.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                selectBottomNavigationItem(BottomNavigationItem.BACKGROUND);
                 presenter.onBottomNavigationRecentsClicked();
             }
         });
@@ -527,15 +531,34 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.bottomNavigationApps.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                selectBottomNavigationItem(BottomNavigationItem.APPS);
                 presenter.onBottomNavigationAppsClicked();
             }
         });
         binding.bottomNavigationSettings.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                selectBottomNavigationItem(BottomNavigationItem.SETTINGS);
                 presenter.onBottomNavigationSettingsClicked();
+            }
+        });
+    }
+
+    private void bindBottomNavigationTouchFeedback(View navigationItem,
+            final BottomNavigationItem item) {
+        navigationItem.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                switch (event.getActionMasked()) {
+                    case MotionEvent.ACTION_DOWN:
+                        selectBottomNavigationItem(item);
+                        break;
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        resetBottomNavigationBackground();
+                        break;
+                    default:
+                        break;
+                }
+                return false;
             }
         });
     }
@@ -788,8 +811,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
+        resetBottomNavigationBackground();
         if (isVolumeDialogShowing()) {
-            selectBottomNavigationItem(BottomNavigationItem.VOLUME);
             return;
         }
         Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
@@ -804,8 +827,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         boolean aiConversationVisible = fragment instanceof AiConversationFragment;
         updateLauncherBackground(aiConversationVisible);
         hideAiChatEntry();
-        selectBottomNavigationItem(fragment instanceof SettingsFragment
-                ? BottomNavigationItem.SETTINGS : BottomNavigationItem.BACK);
     }
 
     private void applyHomePageUi(boolean resetPageBody) {
@@ -819,7 +840,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             binding.pageBody.setAlpha(1f);
         }
         showAiChatEntry();
-        selectBottomNavigationItem(BottomNavigationItem.HOME);
+        resetBottomNavigationBackground();
     }
 
     private void hideAiChatEntry() {
@@ -886,6 +907,12 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     private boolean isVolumeDialogShowing() {
         return mVolumeDialog != null && mVolumeDialog.isShowing();
+    }
+
+    private void resetBottomNavigationBackground() {
+        if (binding != null) {
+            binding.bottomNavigation.setBackgroundResource(R.drawable.bg_navigation);
+        }
     }
 
     private void selectBottomNavigationItem(BottomNavigationItem selectedItem) {
