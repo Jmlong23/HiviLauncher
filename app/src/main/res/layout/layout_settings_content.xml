@@ -37,20 +37,23 @@
         android:layout_height="0dp"
         android:layout_marginTop="29dp"
         android:layout_weight="1"
+        android:clipChildren="false"
         android:orientation="horizontal">
 
         <LinearLayout
             android:layout_width="283dp"
             android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:layout_marginRight="37dp">
+            android:layout_marginRight="37dp"
+            android:clipChildren="false"
+            android:orientation="vertical">
 
             <LinearLayout
                 android:id="@+id/settings_tab_network"
                 android:layout_width="match_parent"
-                android:layout_height="45dp"
+                android:layout_height="48dp"
                 android:background="@drawable/settings_menu_item_background"
                 android:clickable="true"
+                android:elevation="8dp"
                 android:focusable="true"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
@@ -80,10 +83,11 @@
             <LinearLayout
                 android:id="@+id/settings_tab_display"
                 android:layout_width="match_parent"
-                android:layout_height="45dp"
-                android:layout_marginTop="12dp"
+                android:layout_height="48dp"
+                android:layout_marginTop="15dp"
                 android:background="@drawable/settings_menu_item_background"
                 android:clickable="true"
+                android:elevation="8dp"
                 android:focusable="true"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
@@ -113,10 +117,11 @@
             <LinearLayout
                 android:id="@+id/settings_tab_system"
                 android:layout_width="match_parent"
-                android:layout_height="45dp"
-                android:layout_marginTop="12dp"
+                android:layout_height="48dp"
+                android:layout_marginTop="15dp"
                 android:background="@drawable/settings_menu_item_background"
                 android:clickable="true"
+                android:elevation="8dp"
                 android:focusable="true"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
@@ -145,10 +150,11 @@
             <LinearLayout
                 android:id="@+id/settings_tab_about"
                 android:layout_width="match_parent"
-                android:layout_height="45dp"
-                android:layout_marginTop="12dp"
+                android:layout_height="48dp"
+                android:layout_marginTop="15dp"
                 android:background="@drawable/settings_menu_item_background"
                 android:clickable="true"
+                android:elevation="8dp"
                 android:focusable="true"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
@@ -177,10 +183,11 @@
             <LinearLayout
                 android:id="@+id/settings_tab_maintenance"
                 android:layout_width="match_parent"
-                android:layout_height="45dp"
-                android:layout_marginTop="12dp"
+                android:layout_height="48dp"
+                android:layout_marginTop="15dp"
                 android:background="@drawable/settings_menu_item_background"
                 android:clickable="true"
+                android:elevation="8dp"
                 android:focusable="true"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
@@ -477,64 +484,23 @@
                         android:layout_height="81dp"
                         android:layout_marginTop="16dp"
                         android:background="@drawable/item_medium_long_bg"
-                        android:paddingLeft="39dp"
-                        android:paddingRight="29dp"
-                        android:paddingBottom="11dp">
+                        android:paddingRight="30dp"
+                        android:paddingLeft="30dp">
 
-                        <View
+                        <SeekBar
+                            android:id="@+id/settings_brightness"
                             android:layout_width="match_parent"
-                            android:layout_height="4dp"
+                            android:layout_height="42dp"
                             android:layout_gravity="center_vertical"
-                            android:background="@drawable/settings_slider_track" />
-
-                        <View
-                            android:layout_width="145dp"
-                            android:layout_height="4dp"
-                            android:layout_gravity="left|center_vertical"
-                            android:background="@drawable/settings_slider_fill" />
-
-                        <View
-                            android:layout_width="14dp"
-                            android:layout_height="14dp"
-                            android:layout_gravity="left|center_vertical"
-                            android:background="@drawable/settings_slider_thumb" />
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="16dp"
-                            android:layout_gravity="bottom"
-                            android:gravity="center_horizontal"
-                            android:orientation="horizontal"
-                            >
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="@string/settings_brightness_low"
-                                android:textColor="@color/text_color"
-                                android:textSize="11sp" />
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:gravity="center"
-                                android:includeFontPadding="false"
-                                android:text="@string/settings_brightness_medium"
-                                android:textColor="@color/text_color"
-                                android:textSize="11sp" />
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:gravity="right"
-                                android:includeFontPadding="false"
-                                android:text="@string/settings_brightness_high"
-                                android:textColor="@color/text_color"
-                                android:textSize="11sp" />
-                        </LinearLayout>
+                            android:contentDescription="@string/settings_brightness"
+                            android:focusable="true"
+                            android:max="255"
+                            android:paddingLeft="0dp"
+                            android:paddingRight="0dp"
+                            android:progressDrawable="@drawable/settings_slider_progress"
+                            android:splitTrack="false"
+                            android:thumb="@drawable/settings_slider_thumb"
+                            android:thumbOffset="0dp" />
                     </FrameLayout>
                     </LinearLayout>
 

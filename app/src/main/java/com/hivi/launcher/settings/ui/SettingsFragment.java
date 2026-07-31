@@ -9,12 +9,17 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.provider.Settings;
 import android.text.InputType;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.PopupWindow;
+import android.widget.SeekBar;
 
 import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -40,6 +45,7 @@ import java.util.concurrent.Executors;
 
 public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         implements SettingsView, WifiView {
+    private static final String TAG = "SettingsFragment";
     private static final int DISPLAY_POPUP_NONE = 0;
     private static final int DISPLAY_POPUP_LANGUAGE = 1;
     private static final int DISPLAY_POPUP_SCREEN_SAVER_TIMEOUT = 2;
@@ -47,6 +53,11 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private static final int LANGUAGE_POPUP_HEIGHT_DP = 86;
     private static final int SCREEN_SAVER_POPUP_WIDTH_DP = 253;
     private static final int SCREEN_SAVER_POPUP_HEIGHT_DP = 209;
+    private static final int SCREEN_BRIGHTNESS_MIN = 0;
+    private static final int SCREEN_BRIGHTNESS_MAX = 255;
+    private static final int DEFAULT_SCREEN_BRIGHTNESS = 128;
+    private static final int NO_PENDING_SCREEN_BRIGHTNESS = -1;
+    private static final long BRIGHTNESS_SETTINGS_WRITE_THROTTLE_MS = 120L;
 
     private LayoutSettingsContentBinding mBinding;
     private View[] mSectionTabs;
@@ -57,7 +68,11 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private Dialog mWifiPasswordDialog;
     private PopupWindow mDisplayOptionsPopupWindow;
     private ExecutorService mLanguageSwitchExecutor;
+    private final Handler mBrightnessSettingsHandler = new Handler(Looper.getMainLooper());
+    private final Runnable mPendingBrightnessSettingsWriteRunnable =
+            this::flushPendingScreenBrightnessWrite;
     private int mDisplayPopupType = DISPLAY_POPUP_NONE;
+    private int mPendingScreenBrightness = NO_PENDING_SCREEN_BRIGHTNESS;
     private boolean mWifiRefreshing;
     private boolean mLanguageSwitchInProgress;
 
@@ -111,6 +126,8 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
 
     @Override
     public void onDestroyView() {
+        mBrightnessSettingsHandler.removeCallbacks(mPendingBrightnessSettingsWriteRunnable);
+        flushPendingScreenBrightnessWrite();
         dismissDisplayOptionsPopup();
         dismissWifiPasswordDialog();
         setLanguageSwitchLoading(false);
@@ -321,6 +338,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     }
 
     private void setupDisplaySettings() {
+        setupBrightnessSettings();
         mBinding.settingsLanguage.setOnClickListener(view -> {
             SettingsPresenter presenter = getPresenter();
             if (presenter != null) {
@@ -339,6 +357,98 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
                 presenter.onScreenSaverTimeoutSelected();
             }
         });
+    }
+
+    private void setupBrightnessSettings() {
+        mBinding.settingsBrightness.setProgress(getCurrentScreenBrightness());
+        mBinding.settingsBrightness.setOnSeekBarChangeListener(
+                new SeekBar.OnSeekBarChangeListener() {
+                    @Override
+                    public void onProgressChanged(SeekBar seekBar, int progress,
+                            boolean fromUser) {
+                        if (!fromUser) {
+                            return;
+                        }
+                        int brightness = clampScreenBrightness(progress);
+                        applyScreenBrightnessToWindow(brightness);
+                        scheduleScreenBrightnessWrite(brightness);
+                    }
+
+                    @Override
+                    public void onStartTrackingTouch(SeekBar seekBar) {
+                        // Brightness is applied continuously while the user drags the slider.
+                    }
+
+                    @Override
+                    public void onStopTrackingTouch(SeekBar seekBar) {
+                        flushPendingScreenBrightnessWrite();
+                    }
+                });
+    }
+
+    private int getCurrentScreenBrightness() {
+        Activity activity = getActivity();
+        if (activity == null) {
+            return DEFAULT_SCREEN_BRIGHTNESS;
+        }
+        try {
+            return clampScreenBrightness(Settings.System.getInt(activity.getContentResolver(),
+                    Settings.System.SCREEN_BRIGHTNESS));
+        } catch (Exception exception) {
+            Window window = activity.getWindow();
+            if (window != null) {
+                float brightness = window.getAttributes().screenBrightness;
+                if (brightness >= 0f) {
+                    return clampScreenBrightness(Math.round(
+                            brightness * SCREEN_BRIGHTNESS_MAX));
+                }
+            }
+            Log.w(TAG, "Unable to read screen brightness.", exception);
+            return DEFAULT_SCREEN_BRIGHTNESS;
+        }
+    }
+
+    private void scheduleScreenBrightnessWrite(int brightness) {
+        mPendingScreenBrightness = brightness;
+        mBrightnessSettingsHandler.removeCallbacks(mPendingBrightnessSettingsWriteRunnable);
+        mBrightnessSettingsHandler.postDelayed(mPendingBrightnessSettingsWriteRunnable,
+                BRIGHTNESS_SETTINGS_WRITE_THROTTLE_MS);
+    }
+
+    private void flushPendingScreenBrightnessWrite() {
+        int brightness = mPendingScreenBrightness;
+        mPendingScreenBrightness = NO_PENDING_SCREEN_BRIGHTNESS;
+        if (brightness == NO_PENDING_SCREEN_BRIGHTNESS) {
+            return;
+        }
+        Activity activity = getActivity();
+        if (activity == null) {
+            return;
+        }
+        try {
+            Settings.System.putInt(activity.getContentResolver(),
+                    Settings.System.SCREEN_BRIGHTNESS_MODE,
+                    Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
+            Settings.System.putInt(activity.getContentResolver(),
+                    Settings.System.SCREEN_BRIGHTNESS, brightness);
+        } catch (SecurityException exception) {
+            Log.w(TAG, "Unable to persist screen brightness.", exception);
+        }
+    }
+
+    private void applyScreenBrightnessToWindow(int brightness) {
+        Activity activity = getActivity();
+        if (activity == null || activity.getWindow() == null) {
+            return;
+        }
+        WindowManager.LayoutParams attributes = activity.getWindow().getAttributes();
+        attributes.screenBrightness = brightness / (float) SCREEN_BRIGHTNESS_MAX;
+        activity.getWindow().setAttributes(attributes);
+    }
+
+    private int clampScreenBrightness(int brightness) {
+        return Math.max(SCREEN_BRIGHTNESS_MIN,
+                Math.min(SCREEN_BRIGHTNESS_MAX, brightness));
     }
 
     private void showLanguageOptionsPopup(int language) {
