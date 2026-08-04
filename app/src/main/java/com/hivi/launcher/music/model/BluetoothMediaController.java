@@ -14,7 +14,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.text.TextUtils;
-import android.util.Log;
+import com.hivi.launcher.utils.log.AppLog;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -161,7 +161,7 @@ public final class BluetoothMediaController {
             String name = device.getName();
             return TextUtils.isEmpty(name) ? "" : name;
         } catch (SecurityException e) {
-            Log.w(TAG, "Unable to read connected Bluetooth device name", e);
+            AppLog.w(TAG, "Unable to read connected Bluetooth device name", e);
             return "";
         }
     }
@@ -218,7 +218,7 @@ public final class BluetoothMediaController {
                 controller.getTransportControls().play();
             }
         } catch (RuntimeException e) {
-            Log.w(TAG, "Unable to toggle Bluetooth playback", e);
+            AppLog.w(TAG, "Unable to toggle Bluetooth playback", e);
         }
     }
 
@@ -246,7 +246,7 @@ public final class BluetoothMediaController {
         try {
             controller.getTransportControls().seekTo(Math.max(0L, positionMs));
         } catch (RuntimeException e) {
-            Log.w(TAG, "Unable to seek Bluetooth playback", e);
+            AppLog.w(TAG, "Unable to seek Bluetooth playback", e);
         }
     }
 
@@ -274,7 +274,7 @@ public final class BluetoothMediaController {
             }
             return disconnected;
         } catch (ReflectiveOperationException | SecurityException e) {
-            Log.w(TAG, "Unable to disconnect Bluetooth device", e);
+            AppLog.w(TAG, "Unable to disconnect Bluetooth device", e);
             return false;
         }
     }
@@ -299,7 +299,7 @@ public final class BluetoothMediaController {
             }
             return reset;
         } catch (ReflectiveOperationException | SecurityException e) {
-            Log.w(TAG, "Unable to reset Bluetooth device", e);
+            AppLog.w(TAG, "Unable to reset Bluetooth device", e);
             return false;
         }
     }
@@ -313,7 +313,7 @@ public final class BluetoothMediaController {
         try {
             mMediaBrowser.connect();
         } catch (RuntimeException e) {
-            Log.w(TAG, "Unable to connect Bluetooth media browser service", e);
+            AppLog.w(TAG, "Unable to connect Bluetooth media browser service", e);
             mMediaBrowser = null;
             notifyPlaybackChanged();
         }
@@ -332,7 +332,7 @@ public final class BluetoothMediaController {
                     mA2dpSinkProfileListener, PROFILE_A2DP_SINK);
         } catch (SecurityException | IllegalArgumentException e) {
             mA2dpSinkProfileRequested = false;
-            Log.w(TAG, "Unable to request A2DP Sink profile proxy", e);
+            AppLog.w(TAG, "Unable to request A2DP Sink profile proxy", e);
         }
     }
 
@@ -372,7 +372,7 @@ public final class BluetoothMediaController {
                         setMediaController(new MediaController(mAppContext,
                                 mMediaBrowser.getSessionToken()));
                     } catch (RuntimeException e) {
-                        Log.w(TAG, "Unable to create Bluetooth media controller", e);
+                        AppLog.w(TAG, "Unable to create Bluetooth media controller", e);
                         setMediaController(null);
                     }
                     notifyPlaybackChanged();
@@ -441,7 +441,7 @@ public final class BluetoothMediaController {
             }
             return true;
         } catch (RuntimeException e) {
-            Log.w(TAG, "Unable to send Bluetooth playback command", e);
+            AppLog.w(TAG, "Unable to send Bluetooth playback command", e);
             return false;
         }
     }
@@ -458,7 +458,7 @@ public final class BluetoothMediaController {
                 controller.getTransportControls().skipToNext();
             }
         } catch (RuntimeException e) {
-            Log.w(TAG, "Unable to send Bluetooth transport command", e);
+            AppLog.w(TAG, "Unable to send Bluetooth transport command", e);
         }
     }
 

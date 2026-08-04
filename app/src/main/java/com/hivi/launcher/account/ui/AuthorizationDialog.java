@@ -8,7 +8,7 @@ import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.text.TextUtils;
-import android.util.Log;
+import com.hivi.launcher.utils.log.AppLog;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -422,7 +422,7 @@ public class AuthorizationDialog implements AuthorizationView {
 
     private void logAvatarDebug(String message) {
         if (BuildConfig.DEBUG) {
-            Log.d(TAG, message);
+            AppLog.d(TAG, message);
         }
     }
 

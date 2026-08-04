@@ -212,6 +212,17 @@
     <string name="settings_device_diagnosis">Device diagnosis</string>
     <string name="settings_log_upload">Log upload</string>
     <string name="settings_log_status">No upload records</string>
+    <string name="log_upload_confirm_title">Report diagnostic logs?</string>
+    <string name="log_upload_confirm_message">The device diagnostic logs will be collected and reported.</string>
+    <string name="log_upload_confirm_action">Report</string>
+    <string name="log_upload_preparing">Preparing diagnostic logs</string>
+    <string name="log_upload_packaging">Packaging diagnostic logs</string>
+    <string name="log_upload_uploading">Reporting diagnostic logs</string>
+    <string name="log_upload_progress_initial_percent">0%</string>
+    <string name="log_upload_progress_percent_format">%1$d%%</string>
+    <string name="log_upload_success_title">Report successful</string>
+    <string name="log_upload_success_message">Diagnostic logs have been reported.</string>
+    <string name="log_upload_failed">Unable to report diagnostic logs. Please try again later.</string>
     <string name="settings_product_information">Product information</string>
     <string name="settings_help">Help</string>
     <string name="settings_privacy">Privacy</string>

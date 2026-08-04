@@ -4,7 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.bluetooth.BluetoothDevice;
 import android.os.SystemClock;
-import android.util.Log;
+import com.hivi.launcher.utils.log.AppLog;
 import android.view.InputDevice;
 import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
@@ -126,7 +126,7 @@ public class MainPresenter extends BasePresenter<MainView> {
     }
 
     public void onBottomNavigationVolumeClicked() {
-        Log.d(TAG, "Bottom navigation volume clicked");
+        AppLog.d(TAG, "Bottom navigation volume clicked");
         MainView view = getView();
         if (view != null) {
             view.showVolumeDialog(mStatusRepository.getVolumePercent(),
@@ -142,7 +142,7 @@ public class MainPresenter extends BasePresenter<MainView> {
     }
 
     public void onBottomNavigationBackClicked() {
-        Log.d(TAG, "Bottom navigation back clicked");
+        AppLog.d(TAG, "Bottom navigation back clicked");
         MainView view = getView();
         if (view != null) {
             view.navigateBack();
@@ -150,7 +150,7 @@ public class MainPresenter extends BasePresenter<MainView> {
     }
 
     public void onBottomNavigationHomeClicked() {
-        Log.d(TAG, "Bottom navigation home clicked");
+        AppLog.d(TAG, "Bottom navigation home clicked");
         MainView view = getView();
         if (view != null) {
             view.showHomePage();
@@ -158,13 +158,13 @@ public class MainPresenter extends BasePresenter<MainView> {
     }
 
     public void onBottomNavigationRecentsClicked() {
-        Log.d(TAG, "Bottom navigation recents clicked");
+        AppLog.d(TAG, "Bottom navigation recents clicked");
         long downTime = SystemClock.uptimeMillis();
         boolean downInjected = injectSystemKeyEvent(KeyEvent.ACTION_DOWN, downTime, downTime);
         boolean upInjected = injectSystemKeyEvent(KeyEvent.ACTION_UP, downTime,
                 SystemClock.uptimeMillis());
         if (!downInjected || !upInjected) {
-            Log.e(TAG, "Unable to inject recent apps key event");
+            AppLog.e(TAG, "Unable to inject recent apps key event");
         }
     }
 
@@ -181,30 +181,30 @@ public class MainPresenter extends BasePresenter<MainView> {
                     INJECT_INPUT_EVENT_MODE_ASYNC);
             return injected instanceof Boolean && (Boolean) injected;
         } catch (ReflectiveOperationException | SecurityException e) {
-            Log.e(TAG, "Unable to inject system key event", e);
+            AppLog.e(TAG, "Unable to inject system key event", e);
             return false;
         }
     }
 
     public void onBottomNavigationAppsClicked() {
-        Log.d(TAG, "Bottom navigation apps clicked");
+        AppLog.d(TAG, "Bottom navigation apps clicked");
         Intent intent = new Intent(mContext, SystemAppsActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         mContext.startActivity(intent);
     }
 
     public void onBottomNavigationSettingsClicked() {
-        Log.d(TAG, "Bottom navigation settings clicked");
+        AppLog.d(TAG, "Bottom navigation settings clicked");
         navigateToPage(MainPage.SETTINGS);
     }
 
     public void onAiChatEntryClicked() {
-        Log.d(TAG, "AI chat entry clicked");
+        AppLog.d(TAG, "AI chat entry clicked");
         navigateToPage(MainPage.AI);
     }
 
     public void onInputModeClicked(MainPage page) {
-        Log.d(TAG, "Input mode clicked: " + page);
+        AppLog.d(TAG, "Input mode clicked: " + page);
         navigateToPage(page);
     }
 

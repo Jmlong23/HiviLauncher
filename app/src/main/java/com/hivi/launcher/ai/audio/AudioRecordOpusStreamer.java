@@ -4,7 +4,7 @@ import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.os.Process;
-import android.util.Log;
+import com.hivi.launcher.utils.log.AppLog;
 
 import io.github.jaredmdobson.concentus.OpusApplication;
 import io.github.jaredmdobson.concentus.OpusEncoder;
@@ -52,7 +52,7 @@ public final class AudioRecordOpusStreamer {
             int minBufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE,
                     AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
             if (minBufferSize <= 0) {
-                Log.e(TAG, "AudioRecord does not support 16 kHz mono input");
+                AppLog.e(TAG, "AudioRecord does not support 16 kHz mono input");
                 return false;
             }
 
@@ -63,12 +63,12 @@ public final class AudioRecordOpusStreamer {
                         AudioFormat.ENCODING_PCM_16BIT,
                         Math.max(minBufferSize, FRAME_BYTES * 8));
             } catch (RuntimeException exception) {
-                Log.e(TAG, "Unable to create AudioRecord", exception);
+                AppLog.e(TAG, "Unable to create AudioRecord", exception);
                 return false;
             }
             if (recorder.getState() != AudioRecord.STATE_INITIALIZED) {
                 recorder.release();
-                Log.e(TAG, "AudioRecord failed to initialize");
+                AppLog.e(TAG, "AudioRecord failed to initialize");
                 return false;
             }
 
@@ -76,7 +76,7 @@ public final class AudioRecordOpusStreamer {
                 recorder.startRecording();
             } catch (IllegalStateException | SecurityException exception) {
                 recorder.release();
-                Log.e(TAG, "Unable to start microphone capture", exception);
+                AppLog.e(TAG, "Unable to start microphone capture", exception);
                 return false;
             }
 
@@ -134,7 +134,7 @@ public final class AudioRecordOpusStreamer {
             encoder.setBitrate(24_000);
             encoder.setComplexity(3);
         } catch (Throwable throwable) {
-            Log.e(TAG, "Unable to initialize Opus encoder", throwable);
+            AppLog.e(TAG, "Unable to initialize Opus encoder", throwable);
             stop();
             return;
         }
@@ -159,7 +159,7 @@ public final class AudioRecordOpusStreamer {
             try {
                 read = recorder.read(readBuffer, 0, readBuffer.length);
             } catch (RuntimeException exception) {
-                Log.w(TAG, "Microphone capture stopped", exception);
+                AppLog.w(TAG, "Microphone capture stopped", exception);
                 break;
             }
             if (read <= 0) {
@@ -191,7 +191,7 @@ public final class AudioRecordOpusStreamer {
                             mAudioSink.send(opusBuffer, encodedLength);
                         }
                     } catch (Throwable throwable) {
-                        Log.w(TAG, "Unable to encode microphone audio", throwable);
+                        AppLog.w(TAG, "Unable to encode microphone audio", throwable);
                     }
                 }
                 frameByteCount = 0;

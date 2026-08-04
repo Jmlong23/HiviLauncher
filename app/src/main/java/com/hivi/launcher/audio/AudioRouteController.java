@@ -4,7 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
+import com.hivi.launcher.utils.log.AppLog;
 
 import com.hivi.audionativelib.AudioNativeManager;
 import com.hivi.audionativelib.manager.serialport.SerialDevice;
@@ -89,10 +89,10 @@ public final class AudioRouteController {
         String command = getCommand(page);
         Context context = getContext();
         if (command == null || context == null) {
-            Log.w(TAG, "Ignore input mode selection: " + page);
+            AppLog.w(TAG, "Ignore input mode selection: " + page);
             return;
         }
-        Log.i(TAG, "Selected input mode=" + page + ", command=" + formatCommand(command));
+        AppLog.i(TAG, "Selected input mode=" + page + ", command=" + formatCommand(command));
         mSerialExecutor.execute(() -> sendCommand(page, command));
     }
 
@@ -212,43 +212,43 @@ public final class AudioRouteController {
 
     private void sendCommand(MainPage page, String command) {
         if (!openSerialPortIfNeeded()) {
-            Log.w(TAG, "Skip command because serial port is unavailable: " + formatCommand(command));
+            AppLog.w(TAG, "Skip command because serial port is unavailable: " + formatCommand(command));
             return;
         }
-        Log.i(TAG, "Sending serial command: " + formatCommand(command));
+        AppLog.i(TAG, "Sending serial command: " + formatCommand(command));
         boolean sent = AudioNativeManager.instance().getSerialPortManager().sendBytes(
                 command.getBytes());
         if (sent) {
-            Log.i(TAG, "sendCmd: sendBytes=true, content=" + formatCommand(command));
+            AppLog.i(TAG, "sendCmd: sendBytes=true, content=" + formatCommand(command));
             persistSelectedMode(page);
         } else {
-            Log.w(TAG, "sendCmd: sendBytes=false, content=" + formatCommand(command));
+            AppLog.w(TAG, "sendCmd: sendBytes=false, content=" + formatCommand(command));
         }
     }
 
     private void sendVolumeCommand(String key, String commandTemplate, int volumePercent) {
         if (getContext() == null) {
-            Log.w(TAG, "Ignore volume command before serial port initialization: " + key);
+            AppLog.w(TAG, "Ignore volume command before serial port initialization: " + key);
             return;
         }
         int volume = clampVolume(volumePercent);
         String command = commandTemplate.replace("@param", String.valueOf(volume));
-        Log.i(TAG, "Selected volume command=" + key + ", command=" + formatCommand(command));
+        AppLog.i(TAG, "Selected volume command=" + key + ", command=" + formatCommand(command));
         mSerialExecutor.execute(() -> sendCommand(key, command));
     }
 
     private void sendCommand(String key, String command) {
         if (!openSerialPortIfNeeded()) {
-            Log.w(TAG, "Skip command because serial port is unavailable: " + formatCommand(command));
+            AppLog.w(TAG, "Skip command because serial port is unavailable: " + formatCommand(command));
             return;
         }
         boolean sent = AudioNativeManager.instance().getSerialPortManager().sendBytes(
                 command.getBytes());
         if (sent) {
-            Log.i(TAG, "sendCmd: sendBytes=true, content=" + formatCommand(command));
+            AppLog.i(TAG, "sendCmd: sendBytes=true, content=" + formatCommand(command));
             persistCommand(key, command);
         } else {
-            Log.w(TAG, "sendCmd: sendBytes=false, content=" + formatCommand(command));
+            AppLog.w(TAG, "sendCmd: sendBytes=false, content=" + formatCommand(command));
         }
     }
 
@@ -261,38 +261,38 @@ public final class AudioRouteController {
                     .getSerialPortManager();
             File device = findSerialPort();
             if (device == null) {
-                Log.w(TAG, "Serial port " + SERIAL_PORT_NAME + " was not found");
+                AppLog.w(TAG, "Serial port " + SERIAL_PORT_NAME + " was not found");
                 return false;
             }
-            Log.i(TAG, "Opening serial port " + device.getPath()
+            AppLog.i(TAG, "Opening serial port " + device.getPath()
                     + " at " + SERIAL_PORT_BAUD_RATE + " baud");
             serialPortManager.setOnOpenSerialPortListener(new OnOpenSerialPortListener() {
                 @Override
                 public void onSuccess(File openedDevice) {
-                    Log.i(TAG, "Serial port opened: " + openedDevice.getPath());
+                    AppLog.i(TAG, "Serial port opened: " + openedDevice.getPath());
                 }
 
                 @Override
                 public void onFail(File failedDevice, Status status) {
-                    Log.e(TAG, "Unable to open serial port " + failedDevice + ": " + status);
+                    AppLog.e(TAG, "Unable to open serial port " + failedDevice + ": " + status);
                 }
             });
             serialPortManager.setOnSerialPortDataListener(new OnSerialPortDataListener() {
                 @Override
                 public void onDataReceived(String data) {
-                    Log.d(TAG, "Serial data received: " + data);
+                    AppLog.d(TAG, "Serial data received: " + data);
                 }
 
                 @Override
                 public void onDataSent(byte[] data) {
-                    Log.i(TAG, "Serial command sent: "
+                    AppLog.i(TAG, "Serial command sent: "
                             + formatCommand(new String(data, StandardCharsets.UTF_8)));
                 }
             });
             mSerialPortOpened = serialPortManager.openSerialPort(device, SERIAL_PORT_BAUD_RATE);
             return mSerialPortOpened;
         } catch (Throwable throwable) {
-            Log.e(TAG, "Unable to initialize serial port", throwable);
+            AppLog.e(TAG, "Unable to initialize serial port", throwable);
             return false;
         }
     }
@@ -327,7 +327,7 @@ public final class AudioRouteController {
         getPreferences(context).edit()
                 .putString(PREFERENCE_SELECTED_MODE, page.name())
                 .apply();
-        Log.i(TAG, "Persisted input mode=" + page);
+        AppLog.i(TAG, "Persisted input mode=" + page);
     }
 
     private void persistCommand(String key, String command) {
@@ -336,7 +336,7 @@ public final class AudioRouteController {
             return;
         }
         getPreferences(context).edit().putString(key, command).apply();
-        Log.i(TAG, "Persisted serial command key=" + key);
+        AppLog.i(TAG, "Persisted serial command key=" + key);
     }
 
     private int clampVolume(int volumePercent) {

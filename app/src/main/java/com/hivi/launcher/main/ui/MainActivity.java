@@ -22,7 +22,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
-import android.util.Log;
+import com.hivi.launcher.utils.log.AppLog;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.DecelerateInterpolator;
@@ -752,7 +752,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private boolean ensureSystemMusicVolumeAtMaximum() {
         AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         if (audioManager == null) {
-            Log.w(TAG, "Unable to verify Android music volume");
+            AppLog.w(TAG, "Unable to verify Android music volume");
             return false;
         }
         int maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
@@ -761,11 +761,11 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume, 0);
             int updatedVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
             boolean isAtMaximum = updatedVolume >= maxVolume;
-            Log.i(TAG, "Android music volume raised from " + currentVolume + " to "
+            AppLog.i(TAG, "Android music volume raised from " + currentVolume + " to "
                     + updatedVolume + ", maximum=" + maxVolume + ", success=" + isAtMaximum);
             return isAtMaximum;
         }
-        Log.i(TAG, "Android music volume already at maximum: " + maxVolume);
+        AppLog.i(TAG, "Android music volume already at maximum: " + maxVolume);
         return true;
     }
 

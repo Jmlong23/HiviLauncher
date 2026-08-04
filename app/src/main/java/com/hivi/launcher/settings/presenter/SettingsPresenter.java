@@ -2,11 +2,12 @@ package com.hivi.launcher.settings.presenter;
 
 import android.content.Context;
 import android.text.TextUtils;
-import android.util.Log;
+import com.hivi.launcher.utils.log.AppLog;
 
 import com.hivi.launcher.BuildConfig;
 import com.hivi.launcher.R;
 import com.hivi.launcher.base.BasePresenter;
+import com.hivi.launcher.settings.model.LogUploadManager;
 import com.hivi.launcher.settings.model.SettingsModel;
 import com.hivi.launcher.settings.ui.SettingsView;
 import com.hivi.launcher.update.SystemUpdateInfo;
@@ -34,6 +35,8 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
     private SystemUpdateInfo mSystemUpdateInfo;
     private Disposable mSystemUpdateCheckRequest;
     private boolean mSystemUpdateInProgress;
+    private LogUploadManager mLogUploadManager;
+    private boolean mLogUploadInProgress;
 
     public SettingsPresenter(SettingsView view) {
         this(null, view, SettingsModel.LANGUAGE_CHINESE);
@@ -197,9 +200,68 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
         });
     }
 
+    public void onLogUploadSelected() {
+        if (mLogUploadInProgress) {
+            return;
+        }
+        SettingsView view = getView();
+        if (view != null) {
+            view.showLogUploadConfirmation();
+        }
+    }
+
+    public void onLogUploadConfirmed() {
+        if (mLogUploadInProgress) {
+            return;
+        }
+        if (mApplicationContext == null) {
+            handleLogUploadFailure(new IllegalStateException("Log upload manager is unavailable."));
+            return;
+        }
+        if (mLogUploadManager == null) {
+            mLogUploadManager = new LogUploadManager(mApplicationContext);
+        }
+        mLogUploadInProgress = true;
+        mLogUploadManager.upload(new LogUploadManager.Callback() {
+            @Override
+            public void onPreparing() {
+                renderLogUploadProgress(0, R.string.log_upload_preparing);
+            }
+
+            @Override
+            public void onPackaging() {
+                renderLogUploadProgress(0, R.string.log_upload_packaging);
+            }
+
+            @Override
+            public void onUploading() {
+                renderLogUploadProgress(0, R.string.log_upload_uploading);
+            }
+
+            @Override
+            public void onUploadProgress(int percent) {
+                renderLogUploadProgress(percent, R.string.log_upload_uploading);
+            }
+
+            @Override
+            public void onSuccess() {
+                handleLogUploadSuccess();
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                handleLogUploadFailure(throwable);
+            }
+        });
+    }
+
     @Override
     public void detach() {
         disposeSystemUpdateCheckRequest();
+        if (mLogUploadManager != null) {
+            mLogUploadManager.destroy();
+            mLogUploadManager = null;
+        }
         super.detach();
     }
 
@@ -226,7 +288,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
         if (mApiService == null) {
             mApiService = NetworkManager.getApiService();
         }
-        Log.i(TAG, "Checking system update: productType="
+        AppLog.i(TAG, "Checking system update: productType="
                 + Constants.APP_UPDATE_PRODUCT_TYPE
                 + ", currentVersionName=" + getCurrentVersionName()
                 + ", currentVersionCode=" + BuildConfig.VERSION_CODE);
@@ -238,7 +300,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
                         mSystemUpdateCheckRequest = null;
                         try {
                             mSystemUpdateInfo = parseSystemUpdateInfo(response);
-                            Log.i(TAG, "System update check result: currentVersionName="
+                            AppLog.i(TAG, "System update check result: currentVersionName="
                                     + mSystemUpdateInfo.getCurrentVersionName()
                                     + ", currentVersionCode="
                                     + mSystemUpdateInfo.getCurrentVersionCode()
@@ -251,7 +313,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
                                     + ", updateAvailable="
                                     + mSystemUpdateInfo.isUpdateAvailable());
                         } catch (Exception exception) {
-                            Log.w(TAG, "Unable to parse system update response.", exception);
+                            AppLog.w(TAG, "Unable to parse system update response.", exception);
                         }
                         renderSystemUpdate();
                     }
@@ -259,7 +321,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
                     @Override
                     public void onFailure(Throwable throwable) {
                         mSystemUpdateCheckRequest = null;
-                        Log.w(TAG, "Unable to check system update: productType="
+                        AppLog.w(TAG, "Unable to check system update: productType="
                                 + Constants.APP_UPDATE_PRODUCT_TYPE, throwable);
                         renderSystemUpdate();
                     }
@@ -280,7 +342,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
         if (TextUtils.isEmpty(latestVersionName)) {
             throw new IllegalStateException("Update response version name is missing.");
         }
-        Log.i(TAG, "System update service response: code="
+        AppLog.i(TAG, "System update service response: code="
                 + response.optInt("code", 200)
                 + ", message=" + response.optString("message")
                 + ", versionName=" + latestVersionName
@@ -321,7 +383,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
     }
 
     private void handleSystemUpdateFailure(final Throwable throwable) {
-        Log.e(TAG, "System update failed.", throwable);
+        AppLog.e(TAG, "System update failed.", throwable);
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -333,6 +395,46 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
                     if (mApplicationContext != null) {
                         view.showToast(mApplicationContext.getString(R.string.system_update_failed));
                     }
+                }
+            }
+        });
+    }
+
+    private void renderLogUploadProgress(final int progress, final int statusResId) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                SettingsView view = getView();
+                if (view != null && mApplicationContext != null) {
+                    view.showLogUploadProgress(progress,
+                            mApplicationContext.getString(statusResId));
+                }
+            }
+        });
+    }
+
+    private void handleLogUploadSuccess() {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mLogUploadInProgress = false;
+                SettingsView view = getView();
+                if (view != null) {
+                    view.showLogUploadSuccess();
+                }
+            }
+        });
+    }
+
+    private void handleLogUploadFailure(final Throwable throwable) {
+        AppLog.e(TAG, "Log upload failed.", throwable);
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mLogUploadInProgress = false;
+                SettingsView view = getView();
+                if (view != null) {
+                    view.showLogUploadFailure();
                 }
             }
         });

@@ -10,7 +10,7 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.text.Html;
 import android.text.TextUtils;
-import android.util.Log;
+import com.hivi.launcher.utils.log.AppLog;
 
 import com.hivi.launcher.audio.AudioRouteController;
 import com.ljm.audiotoollib.AudioToolManager;
@@ -99,7 +99,7 @@ public final class UpnpPlaybackManager {
             AudioToolManager.instance().getUpnpServerManager().initUpnpServer(
                     appContext, renderServiceConnection, Context.BIND_AUTO_CREATE, DEVICE_NAME);
         } catch (Throwable e) {
-            Log.e(TAG, "start UPnP renderer failed", e);
+            AppLog.e(TAG, "start UPnP renderer failed", e);
         }
         mainHandler.removeCallbacks(progressTicker);
         mainHandler.post(progressTicker);
@@ -129,7 +129,7 @@ public final class UpnpPlaybackManager {
 
     public void playOrPause() {
         boolean playing = isPlaying();
-        Log.i(TAG, "device control play/pause requested: playing=" + playing
+        AppLog.i(TAG, "device control play/pause requested: playing=" + playing
                 + ", hasTrack=" + !TextUtils.isEmpty(currentUrl)
                 + ", preparing=" + preparing + ", bound=" + bound);
         if (playing) {
@@ -152,7 +152,7 @@ public final class UpnpPlaybackManager {
             if (preparing) {
                 return;
             }
-            Log.i(TAG, "local MediaPlayer.start requested");
+            AppLog.i(TAG, "local MediaPlayer.start requested");
             mediaPlayer.start();
             notifyStateChanged();
         } catch (IllegalStateException e) {
@@ -169,10 +169,10 @@ public final class UpnpPlaybackManager {
                 mediaPlayer.pause();
             }
             manualPaused = true;
-            Log.i(TAG, "local MediaPlayer.pause completed");
+            AppLog.i(TAG, "local MediaPlayer.pause completed");
             notifyStateChanged();
         } catch (IllegalStateException e) {
-            Log.w(TAG, "pause failed: " + e.getMessage());
+            AppLog.w(TAG, "pause failed: " + e.getMessage());
         }
     }
 
@@ -184,7 +184,7 @@ public final class UpnpPlaybackManager {
             mediaPlayer.seekTo((int) Math.max(0L, Math.min(positionMs, getCurrentDurationMs())));
             notifyStateChanged();
         } catch (IllegalStateException e) {
-            Log.w(TAG, "seek failed: " + e.getMessage());
+            AppLog.w(TAG, "seek failed: " + e.getMessage());
         }
     }
 
@@ -240,7 +240,7 @@ public final class UpnpPlaybackManager {
                     .setOnMediaControllerListener(mediaControlListener);
             UpnpHttpServer.getInstance().setGetPlayerStatusListener(upnpHttpServerListener);
         } catch (Throwable e) {
-            Log.e(TAG, "configure UPnP controllers failed", e);
+            AppLog.e(TAG, "configure UPnP controllers failed", e);
         }
     }
 
@@ -250,7 +250,7 @@ public final class UpnpPlaybackManager {
             mainHandler.post(() -> {
                 playMusicList = list;
                 playIndex = list == null ? 0 : list.getCurPlayIndex();
-                Log.i(TAG, "UPnP queue play received: index=" + playIndex + ", trackCount="
+                AppLog.i(TAG, "UPnP queue play received: index=" + playIndex + ", trackCount="
                         + getTrackCount(list));
                 playCurrentTrack();
             });
@@ -270,31 +270,31 @@ public final class UpnpPlaybackManager {
     private final OnMediaControlListener mediaControlListener = new OnMediaControlListener() {
         @Override
         public void play() {
-            Log.i(TAG, "UPnP AVTransport Play received");
+            AppLog.i(TAG, "UPnP AVTransport Play received");
             mainHandler.post(UpnpPlaybackManager.this::play);
         }
 
         @Override
         public void pause() {
-            Log.i(TAG, "UPnP AVTransport Pause received");
+            AppLog.i(TAG, "UPnP AVTransport Pause received");
             mainHandler.post(UpnpPlaybackManager.this::pause);
         }
 
         @Override
         public void previous() {
-            Log.i(TAG, "UPnP AVTransport Previous received");
+            AppLog.i(TAG, "UPnP AVTransport Previous received");
             mainHandler.post(UpnpPlaybackManager.this::previous);
         }
 
         @Override
         public void next() {
-            Log.i(TAG, "UPnP AVTransport Next received");
+            AppLog.i(TAG, "UPnP AVTransport Next received");
             mainHandler.post(UpnpPlaybackManager.this::next);
         }
 
         @Override
         public void seek(long position) {
-            Log.i(TAG, "UPnP AVTransport Seek received: positionMs=" + position);
+            AppLog.i(TAG, "UPnP AVTransport Seek received: positionMs=" + position);
             mainHandler.post(() -> seekTo(position));
         }
 
@@ -302,11 +302,11 @@ public final class UpnpPlaybackManager {
         public void onLyricReceived(String text, String terraceType) {
             mainHandler.post(() -> {
                 if (TextUtils.isEmpty(text)) {
-                    Log.w(TAG, "received empty remote lyric, terraceType=" + terraceType);
+                    AppLog.w(TAG, "received empty remote lyric, terraceType=" + terraceType);
                     return;
                 }
                 lyric = normalizeLyric(text);
-                Log.i(TAG, "received remote lyric, terraceType=" + terraceType + ", "
+                AppLog.i(TAG, "received remote lyric, terraceType=" + terraceType + ", "
                         + describeLyric(lyric));
                 notifyStateChanged();
             });
@@ -503,7 +503,7 @@ public final class UpnpPlaybackManager {
             mediaInfo = track.getMediaInfo();
             bean = track.getMusicDataBean();
         } catch (Throwable e) {
-            Log.w(TAG, "parse track metadata failed: " + e.getMessage());
+            AppLog.w(TAG, "parse track metadata failed: " + e.getMessage());
         }
         title = firstNonEmpty(bean != null ? bean.getName() : "",
                 mediaInfo != null ? mediaInfo.getTitle() : "",
@@ -543,7 +543,7 @@ public final class UpnpPlaybackManager {
             trackLyric = extractXmlTagValue(currentMetaData, "lyric");
             lyricSource = "lyric";
         }
-        Log.i(TAG, "track lyric metadata source=" + lyricSource + ", "
+        AppLog.i(TAG, "track lyric metadata source=" + lyricSource + ", "
                 + describeLyric(trackLyric));
         if (!TextUtils.isEmpty(trackLyric)) {
             lyric = normalizeLyric(trackLyric);
@@ -574,7 +574,7 @@ public final class UpnpPlaybackManager {
         } catch (IOException | IllegalStateException e) {
             preparing = false;
             mediaPrepared = false;
-            Log.e(TAG, "prepare local MediaPlayer failed", e);
+            AppLog.e(TAG, "prepare local MediaPlayer failed", e);
             notifyStateChanged();
         }
     }
@@ -604,7 +604,7 @@ public final class UpnpPlaybackManager {
                     mp.start();
                 }
             } catch (IllegalStateException e) {
-                Log.w(TAG, "start on prepared failed: " + e.getMessage());
+                AppLog.w(TAG, "start on prepared failed: " + e.getMessage());
             }
             notifyStateChanged();
         });
@@ -620,7 +620,7 @@ public final class UpnpPlaybackManager {
         mediaPlayer.setOnErrorListener((mp, what, extra) -> {
             preparing = false;
             mediaPrepared = false;
-            Log.e(TAG, "MediaPlayer error what=" + what + ", extra=" + extra);
+            AppLog.e(TAG, "MediaPlayer error what=" + what + ", extra=" + extra);
             notifyStateChanged();
             return true;
         });

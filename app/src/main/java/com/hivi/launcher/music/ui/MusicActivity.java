@@ -5,7 +5,7 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.util.Log;
+import com.hivi.launcher.utils.log.AppLog;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -147,7 +147,7 @@ public class MusicActivity extends BaseActivity<ActivityMusicPlayerBinding, Musi
             options.inPreferredConfig = Bitmap.Config.ARGB_8888;
             return decodeCover(coverUrl, options);
         } catch (IOException e) {
-            Log.w(TAG, "load cover failed", e);
+            AppLog.w(TAG, "load cover failed", e);
             return null;
         }
     }

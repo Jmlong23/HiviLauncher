@@ -14,7 +14,7 @@ import android.os.Looper;
 import android.provider.Settings;
 import android.text.InputType;
 import android.text.TextUtils;
-import android.util.Log;
+import com.hivi.launcher.utils.log.AppLog;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -26,6 +26,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.base.BaseFragment;
+import com.hivi.launcher.databinding.DialogLogUploadBinding;
 import com.hivi.launcher.databinding.DialogSystemUpdateConfirmationBinding;
 import com.hivi.launcher.databinding.DialogSystemUpdateProgressBinding;
 import com.hivi.launcher.databinding.DialogWifiPasswordBinding;
@@ -62,6 +63,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private static final int NO_PENDING_SCREEN_BRIGHTNESS = -1;
     private static final long BRIGHTNESS_SETTINGS_WRITE_THROTTLE_MS = 120L;
     private static final long INITIAL_WIFI_SETUP_DELAY_MS = 500L;
+    private static final long LOG_UPLOAD_SUCCESS_DISMISS_DELAY_MS = 1_500L;
 
     private LayoutSettingsContentBinding mBinding;
     private View[] mSectionTabs;
@@ -73,6 +75,8 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private Dialog mSystemUpdateConfirmationDialog;
     private Dialog mSystemUpdateProgressDialog;
     private DialogSystemUpdateProgressBinding mSystemUpdateProgressBinding;
+    private Dialog mLogUploadDialog;
+    private DialogLogUploadBinding mLogUploadBinding;
     private PopupWindow mDisplayOptionsPopupWindow;
     private ExecutorService mLanguageSwitchExecutor;
     private final Handler mBrightnessSettingsHandler = new Handler(Looper.getMainLooper());
@@ -80,6 +84,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             this::flushPendingScreenBrightnessWrite;
     private final Runnable mDeferredWifiSettingsInitialization =
             this::initializeWifiSettingsIfNeeded;
+    private final Runnable mLogUploadSuccessDismissRunnable = this::dismissLogUploadDialog;
     private int mDisplayPopupType = DISPLAY_POPUP_NONE;
     private int mPendingScreenBrightness = NO_PENDING_SCREEN_BRIGHTNESS;
     private int mSelectedSettingsSection = SettingsPresenter.SECTION_NETWORK;
@@ -143,11 +148,13 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     public void onDestroyView() {
         mBrightnessSettingsHandler.removeCallbacks(mPendingBrightnessSettingsWriteRunnable);
         mBrightnessSettingsHandler.removeCallbacks(mDeferredWifiSettingsInitialization);
+        mBrightnessSettingsHandler.removeCallbacks(mLogUploadSuccessDismissRunnable);
         flushPendingScreenBrightnessWrite();
         dismissDisplayOptionsPopup();
         dismissWifiPasswordDialog();
         dismissSystemUpdateConfirmationDialog();
         dismissSystemUpdateProgress();
+        dismissLogUploadDialog();
         setLanguageSwitchLoading(false);
         if (mLanguageSwitchExecutor != null) {
             mLanguageSwitchExecutor.shutdownNow();
@@ -432,6 +439,59 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         mSystemUpdateProgressBinding = null;
     }
 
+    @Override
+    public void showLogUploadConfirmation() {
+        if (!ensureLogUploadDialog()) {
+            return;
+        }
+        mBrightnessSettingsHandler.removeCallbacks(mLogUploadSuccessDismissRunnable);
+        mLogUploadDialog.setCanceledOnTouchOutside(true);
+        mLogUploadDialog.setCancelable(true);
+        mLogUploadBinding.logUploadConfirmationContent.setVisibility(View.VISIBLE);
+        mLogUploadBinding.logUploadProgressContent.setVisibility(View.GONE);
+        mLogUploadBinding.logUploadSuccessContent.setVisibility(View.GONE);
+        showSystemUpdateDialog(mLogUploadDialog);
+    }
+
+    @Override
+    public void showLogUploadProgress(int progress, String status) {
+        if (!ensureLogUploadDialog()) {
+            return;
+        }
+        mBrightnessSettingsHandler.removeCallbacks(mLogUploadSuccessDismissRunnable);
+        mLogUploadDialog.setCanceledOnTouchOutside(false);
+        mLogUploadDialog.setCancelable(false);
+        mLogUploadBinding.logUploadConfirmationContent.setVisibility(View.GONE);
+        mLogUploadBinding.logUploadProgressContent.setVisibility(View.VISIBLE);
+        mLogUploadBinding.logUploadSuccessContent.setVisibility(View.GONE);
+        int safeProgress = Math.max(0, Math.min(100, progress));
+        mLogUploadBinding.logUploadProgressBar.setProgress(safeProgress);
+        mLogUploadBinding.logUploadProgressPercent.setText(
+                getString(R.string.log_upload_progress_percent_format, safeProgress));
+        mLogUploadBinding.logUploadProgressStatus.setText(status);
+        showSystemUpdateDialog(mLogUploadDialog);
+    }
+
+    @Override
+    public void showLogUploadSuccess() {
+        if (!ensureLogUploadDialog()) {
+            return;
+        }
+        mLogUploadBinding.logUploadConfirmationContent.setVisibility(View.GONE);
+        mLogUploadBinding.logUploadProgressContent.setVisibility(View.GONE);
+        mLogUploadBinding.logUploadSuccessContent.setVisibility(View.VISIBLE);
+        showSystemUpdateDialog(mLogUploadDialog);
+        mBrightnessSettingsHandler.removeCallbacks(mLogUploadSuccessDismissRunnable);
+        mBrightnessSettingsHandler.postDelayed(mLogUploadSuccessDismissRunnable,
+                LOG_UPLOAD_SUCCESS_DISMISS_DELAY_MS);
+    }
+
+    @Override
+    public void showLogUploadFailure() {
+        dismissLogUploadDialog();
+        showToast(getString(R.string.log_upload_failed));
+    }
+
     private void updateTopWifiStatus(String ssid) {
         Activity activity = getActivity();
         if (activity instanceof MainActivity) {
@@ -514,6 +574,12 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
                 presenter.onSystemUpdateSelected();
             }
         });
+        mBinding.settingsLogUpload.setOnClickListener(view -> {
+            SettingsPresenter presenter = getPresenter();
+            if (presenter != null) {
+                presenter.onLogUploadSelected();
+            }
+        });
     }
 
     private void setupBrightnessSettings() {
@@ -560,7 +626,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
                             brightness * SCREEN_BRIGHTNESS_MAX));
                 }
             }
-            Log.w(TAG, "Unable to read screen brightness.", exception);
+            AppLog.w(TAG, "Unable to read screen brightness.", exception);
             return DEFAULT_SCREEN_BRIGHTNESS;
         }
     }
@@ -589,7 +655,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             Settings.System.putInt(activity.getContentResolver(),
                     Settings.System.SCREEN_BRIGHTNESS, brightness);
         } catch (SecurityException exception) {
-            Log.w(TAG, "Unable to persist screen brightness.", exception);
+            AppLog.w(TAG, "Unable to persist screen brightness.", exception);
         }
     }
 
@@ -834,6 +900,45 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             mSystemUpdateConfirmationDialog.dismiss();
             mSystemUpdateConfirmationDialog = null;
         }
+    }
+
+    private boolean ensureLogUploadDialog() {
+        if (!isAdded()) {
+            return false;
+        }
+        if (mLogUploadDialog != null && mLogUploadBinding != null) {
+            return true;
+        }
+        Dialog dialog = new Dialog(getHostActivity());
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        DialogLogUploadBinding dialogBinding = DialogLogUploadBinding.inflate(getLayoutInflater());
+        dialog.setContentView(dialogBinding.getRoot());
+        dialogBinding.logUploadCancel.setOnClickListener(view -> dialog.dismiss());
+        dialogBinding.logUploadConfirm.setOnClickListener(view -> {
+            SettingsPresenter presenter = getPresenter();
+            if (presenter != null) {
+                presenter.onLogUploadConfirmed();
+            }
+        });
+        dialog.setOnDismissListener(ignored -> {
+            if (mLogUploadDialog == dialog) {
+                mLogUploadDialog = null;
+                mLogUploadBinding = null;
+            }
+        });
+        prepareSystemUpdateDialogWindow(dialog);
+        mLogUploadDialog = dialog;
+        mLogUploadBinding = dialogBinding;
+        return true;
+    }
+
+    private void dismissLogUploadDialog() {
+        mBrightnessSettingsHandler.removeCallbacks(mLogUploadSuccessDismissRunnable);
+        if (mLogUploadDialog != null) {
+            mLogUploadDialog.dismiss();
+            mLogUploadDialog = null;
+        }
+        mLogUploadBinding = null;
     }
 
     private void prepareSystemUpdateDialogWindow(Dialog dialog) {

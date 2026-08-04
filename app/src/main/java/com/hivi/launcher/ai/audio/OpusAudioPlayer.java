@@ -5,7 +5,7 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Process;
-import android.util.Log;
+import com.hivi.launcher.utils.log.AppLog;
 
 import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -121,7 +121,7 @@ public final class OpusAudioPlayer {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
         } catch (Throwable throwable) {
-            Log.w(TAG, "AI TTS playback failed", throwable);
+            AppLog.w(TAG, "AI TTS playback failed", throwable);
         } finally {
             boolean notifyFinished;
             synchronized (mLock) {
@@ -169,7 +169,7 @@ public final class OpusAudioPlayer {
             decodedSamples = mDecoder.decode(opusData, 0, opusData.length, mDecodeBuffer, 0,
                     mDecodeBuffer.length, false);
         } catch (Exception exception) {
-            Log.w(TAG, "Skipping invalid AI Opus packet", exception);
+            AppLog.w(TAG, "Skipping invalid AI Opus packet", exception);
             return;
         }
         if (decodedSamples <= 0) {

@@ -13,7 +13,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
-import android.util.Log;
+import com.hivi.launcher.utils.log.AppLog;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -119,7 +119,7 @@ public final class WifiModel {
             if (!mDestroyed && mConnectingNetworkActive
                     && !TextUtils.isEmpty(mConnectingSsid)
                     && TextUtils.isEmpty(getConnectedSsid())) {
-                Log.d(TAG, "Connection lost while connecting. ssid=" + mConnectingSsid);
+                AppLog.d(TAG, "Connection lost while connecting. ssid=" + mConnectingSsid);
                 finishConnectionAttempt(false, false);
             }
         }
@@ -203,7 +203,7 @@ public final class WifiModel {
         mHandler.removeCallbacks(mConnectionDisconnectedRunnable);
         mConnectingSsid = ssid;
         mConnectingNetworkActive = false;
-        Log.d(TAG, "Connect requested. ssid=" + ssid);
+        AppLog.d(TAG, "Connect requested. ssid=" + ssid);
         publishNetworks();
         mCallback.onConnectionStateChanged(ssid, ConnectionState.CONNECTING, false);
 
@@ -284,7 +284,7 @@ public final class WifiModel {
         }
         String connectedSsid = getConnectedSsid();
         NetworkInfo.DetailedState detailedState = networkInfo.getDetailedState();
-        Log.d(TAG, "Network state changed. detailedState=" + detailedState
+        AppLog.d(TAG, "Network state changed. detailedState=" + detailedState
                 + ", connected=" + networkInfo.isConnected()
                 + ", connectedSsid=" + connectedSsid
                 + ", connectingSsid=" + mConnectingSsid);
@@ -293,7 +293,7 @@ public final class WifiModel {
                 finishConnectionAttempt(true, false);
             } else if (!TextUtils.isEmpty(mConnectingSsid)
                     && !TextUtils.isEmpty(connectedSsid)) {
-                Log.d(TAG, "A different Wi-Fi network connected while connecting. connectedSsid="
+                AppLog.d(TAG, "A different Wi-Fi network connected while connecting. connectedSsid="
                         + connectedSsid + ", connectingSsid=" + mConnectingSsid);
                 finishConnectionAttempt(false, false);
             } else {
@@ -334,7 +334,7 @@ public final class WifiModel {
         mHandler.removeCallbacks(mConnectionTimeoutRunnable);
         mHandler.removeCallbacks(mConnectionStatePollRunnable);
         mHandler.removeCallbacks(mConnectionDisconnectedRunnable);
-        Log.d(TAG, "Connection attempt finished. ssid=" + ssid + ", connected=" + connected
+        AppLog.d(TAG, "Connection attempt finished. ssid=" + ssid + ", connected=" + connected
                 + ", authenticationFailure=" + authenticationFailure);
         publishNetworks();
         if (!TextUtils.isEmpty(ssid)) {

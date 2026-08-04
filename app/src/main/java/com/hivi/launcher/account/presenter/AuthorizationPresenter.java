@@ -2,7 +2,7 @@ package com.hivi.launcher.account.presenter;
 
 import android.content.Context;
 import android.text.TextUtils;
-import android.util.Log;
+import com.hivi.launcher.utils.log.AppLog;
 
 import com.hivi.launcher.account.model.AuthorizedUserInfo;
 import com.hivi.launcher.account.model.AuthorizationUiState;
@@ -126,7 +126,7 @@ public final class AuthorizationPresenter extends BasePresenter<AuthorizationVie
                                 handleCancelAuthorizationFailure();
                             }
                         } catch (Exception e) {
-                            Log.e(TAG, "Unable to parse cancel authorization response", e);
+                            AppLog.e(TAG, "Unable to parse cancel authorization response", e);
                             handleCancelAuthorizationFailure();
                         }
                     }
@@ -135,7 +135,7 @@ public final class AuthorizationPresenter extends BasePresenter<AuthorizationVie
                     public void onFailure(Throwable throwable) {
                         mLogoutRequest = null;
                         if (isViewAttached()) {
-                            Log.e(TAG, "Unable to cancel authorization", throwable);
+                            AppLog.e(TAG, "Unable to cancel authorization", throwable);
                             handleCancelAuthorizationFailure();
                         }
                     }
@@ -174,7 +174,7 @@ public final class AuthorizationPresenter extends BasePresenter<AuthorizationVie
                 try {
                     handleQrState(readQrState(response), qrId == null);
                 } catch (Exception e) {
-                    Log.e(TAG, "Unable to parse QR response", e);
+                    AppLog.e(TAG, "Unable to parse QR response", e);
                     handleRequestFailure();
                 }
             }
@@ -268,17 +268,17 @@ public final class AuthorizationPresenter extends BasePresenter<AuthorizationVie
                         try {
                             AuthorizedUserInfo userInfo = readUserDetails(response);
                             AuthorizationStore.saveUserInfo(mContext, userInfo);
-                            Log.d(TAG, "Authorization succeeded. userId=" + userInfo.getId());
+                            AppLog.d(TAG, "Authorization succeeded. userId=" + userInfo.getId());
                             notifyUserInfoUpdated();
                         } catch (Exception e) {
-                            Log.e(TAG, "Unable to parse user details response", e);
+                            AppLog.e(TAG, "Unable to parse user details response", e);
                         }
                     }
 
                     @Override
                     public void onFailure(Throwable throwable) {
                         mUserDetailsRequest = null;
-                        Log.e(TAG, "Unable to load authorized user details", throwable);
+                        AppLog.e(TAG, "Unable to load authorized user details", throwable);
                     }
                 });
     }

@@ -17,4 +17,12 @@ public interface SettingsView extends BaseView {
     void showSystemUpdateProgress(int progress, String status);
 
     void dismissSystemUpdateProgress();
+
+    void showLogUploadConfirmation();
+
+    void showLogUploadProgress(int progress, String status);
+
+    void showLogUploadSuccess();
+
+    void showLogUploadFailure();
 }

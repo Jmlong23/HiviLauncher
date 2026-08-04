@@ -1,7 +1,7 @@
 package com.hivi.launcher.ai.audio;
 
 import android.text.TextUtils;
-import android.util.Log;
+import com.hivi.launcher.utils.log.AppLog;
 
 import org.json.JSONObject;
 
@@ -221,7 +221,7 @@ public final class AiWebSocketManager {
             return false;
         }
         if (webSocket.queueSize() > MAX_AUDIO_QUEUE_BYTES) {
-            Log.w(TAG, "Skipping AI audio frame because the WebSocket queue is full");
+            AppLog.w(TAG, "Skipping AI audio frame because the WebSocket queue is full");
             return false;
         }
         return webSocket.send(ByteString.of(audioData, 0, Math.min(length, audioData.length)));
@@ -295,7 +295,7 @@ public final class AiWebSocketManager {
                 notifyError(TextUtils.isEmpty(detail) ? "AI server error" : detail);
             }
         } catch (Exception exception) {
-            Log.w(TAG, "Unable to parse AI WebSocket message", exception);
+            AppLog.w(TAG, "Unable to parse AI WebSocket message", exception);
             notifyError("AI response parse failed");
         }
     }

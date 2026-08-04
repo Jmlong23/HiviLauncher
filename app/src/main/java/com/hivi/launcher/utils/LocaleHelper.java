@@ -7,7 +7,7 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.os.LocaleList;
-import android.util.Log;
+import com.hivi.launcher.utils.log.AppLog;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -68,7 +68,7 @@ public final class LocaleHelper {
     public static boolean applySystemLocale(Context context, String language) {
         if (context.checkSelfPermission(android.Manifest.permission.CHANGE_CONFIGURATION)
                 != PackageManager.PERMISSION_GRANTED) {
-            Log.w(TAG, "CHANGE_CONFIGURATION permission denied");
+            AppLog.w(TAG, "CHANGE_CONFIGURATION permission denied");
             return false;
         }
 
@@ -130,7 +130,7 @@ public final class LocaleHelper {
                 updatePersistentConfiguration.invoke(activityManager, configuration);
                 return true;
             } catch (Throwable secondError) {
-                Log.w(TAG, "Unable to update system locale through ActivityManager", secondError);
+                AppLog.w(TAG, "Unable to update system locale through ActivityManager", secondError);
                 return false;
             }
         }
@@ -143,7 +143,7 @@ public final class LocaleHelper {
         boolean countryUpdated = setSystemProperty("persist.sys.country", locale.getCountry());
         boolean updated = localeUpdated || (languageUpdated && countryUpdated);
         if (!updated) {
-            Log.w(TAG, "Unable to update system locale through system properties");
+            AppLog.w(TAG, "Unable to update system locale through system properties");
         }
         return updated;
     }
@@ -155,7 +155,7 @@ public final class LocaleHelper {
             set.invoke(null, key, value);
             return true;
         } catch (Throwable error) {
-            Log.w(TAG, "Unable to update system property: " + key, error);
+            AppLog.w(TAG, "Unable to update system property: " + key, error);
             return false;
         }
     }

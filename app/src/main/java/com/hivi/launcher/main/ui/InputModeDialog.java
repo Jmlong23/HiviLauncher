@@ -4,7 +4,7 @@ import android.app.Activity;
 import android.app.Dialog;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
-import android.util.Log;
+import com.hivi.launcher.utils.log.AppLog;
 import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
@@ -90,7 +90,7 @@ final class InputModeDialog {
 
     private void bindModeClick(View card, MainPage page) {
         card.setOnClickListener(view -> {
-            Log.i(TAG, "Input mode dialog selected: " + page);
+            AppLog.i(TAG, "Input mode dialog selected: " + page);
             dismiss();
             mListener.onModeSelected(page);
         });

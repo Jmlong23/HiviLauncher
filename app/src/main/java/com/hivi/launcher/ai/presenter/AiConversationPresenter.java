@@ -9,7 +9,7 @@ import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.SystemClock;
 import android.text.TextUtils;
-import android.util.Log;
+import com.hivi.launcher.utils.log.AppLog;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.account.model.AuthorizedUserInfo;
@@ -139,7 +139,7 @@ public final class AiConversationPresenter extends BasePresenter<AiConversationV
         manager.setListener(new AiWebSocketManager.Listener() {
             @Override
             public void onSessionCreated(String sessionId) {
-                dispatch(generation, () -> Log.d(TAG, "AI session created"));
+                dispatch(generation, () -> AppLog.d(TAG, "AI session created"));
             }
 
             @Override
@@ -253,7 +253,7 @@ public final class AiConversationPresenter extends BasePresenter<AiConversationV
             @Override
             public void onError(String message) {
                 dispatch(generation, () -> {
-                    Log.w(TAG, "AI conversation error: " + message);
+                    AppLog.w(TAG, "AI conversation error: " + message);
                     showConversationError(resolveErrorMessage(message));
                 });
             }

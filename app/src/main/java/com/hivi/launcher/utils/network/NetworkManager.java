@@ -2,7 +2,7 @@ package com.hivi.launcher.utils.network;
 
 import android.content.Context;
 import android.text.TextUtils;
-import android.util.Log;
+import com.hivi.launcher.utils.log.AppLog;
 
 import com.hivi.launcher.utils.Constants;
 
@@ -66,7 +66,7 @@ public final class NetworkManager {
                 }, new Consumer<Throwable>() {
                     @Override
                     public void accept(Throwable throwable) {
-                        Log.e(TAG, "Network request failed", throwable);
+                        AppLog.e(TAG, "Network request failed", throwable);
                         callback.onFailure(throwable);
                     }
                 });
@@ -129,7 +129,7 @@ public final class NetworkManager {
             }
 
             long startNanos = System.nanoTime();
-            Log.i(TAG, "Version API request: method=" + request.method()
+            AppLog.i(TAG, "Version API request: method=" + request.method()
                     + ", url=" + request.url());
             try {
                 Response response = chain.proceed(request);
@@ -142,7 +142,7 @@ public final class NetworkManager {
                 return response;
             } catch (java.io.IOException exception) {
                 long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
-                Log.e(TAG, "Version API request failed: url=" + request.url()
+                AppLog.e(TAG, "Version API request failed: url=" + request.url()
                         + ", durationMs=" + elapsedMs, exception);
                 throw exception;
             }
@@ -151,12 +151,12 @@ public final class NetworkManager {
 
     private static void logLongMessage(String message) {
         if (TextUtils.isEmpty(message)) {
-            Log.i(TAG, "");
+            AppLog.i(TAG, "");
             return;
         }
         for (int start = 0; start < message.length(); start += LOG_CHUNK_SIZE) {
             int end = Math.min(message.length(), start + LOG_CHUNK_SIZE);
-            Log.i(TAG, message.substring(start, end));
+            AppLog.i(TAG, message.substring(start, end));
         }
     }
 
