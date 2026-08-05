@@ -130,6 +130,18 @@
     <string name="input_mode_status_disconnected">Disconnected</string>
     <string name="input_mode_status_connected">Connected</string>
 
+    <!-- HDMI input page -->
+    <string name="hdmi_arc_title">HDMI ARC</string>
+    <string name="hdmi_device_label">Device</string>
+    <string name="hdmi_device_name_default">Living Room TV</string>
+    <string name="hdmi_connection_status_label">Connection</string>
+    <string name="hdmi_audio_format_label">Audio format</string>
+    <string name="hdmi_audio_format_default">PCM 2.1</string>
+    <string name="hdmi_sample_rate_label">Sample rate</string>
+    <string name="hdmi_sample_rate_default">48 kHz</string>
+    <string name="hdmi_latency_label">Latency</string>
+    <string name="hdmi_latency_normal">Normal</string>
+
     <!-- Bluetooth input page -->
     <string name="bluetooth_status_connected">Device connected</string>
     <string name="bluetooth_status_disconnected">Device disconnected</string>

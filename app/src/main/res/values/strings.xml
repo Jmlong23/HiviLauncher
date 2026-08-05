@@ -137,6 +137,18 @@
     <string name="input_mode_status_disconnected">未连接</string>
     <string name="input_mode_status_connected">已连接</string>
 
+    <!-- HDMI input page -->
+    <string name="hdmi_arc_title">HDMI ARC</string>
+    <string name="hdmi_device_label">设备</string>
+    <string name="hdmi_device_name_default">Living Room TV</string>
+    <string name="hdmi_connection_status_label">连接状态</string>
+    <string name="hdmi_audio_format_label">音频格式</string>
+    <string name="hdmi_audio_format_default">PCM 2.1</string>
+    <string name="hdmi_sample_rate_label">采样率</string>
+    <string name="hdmi_sample_rate_default">48 kHz</string>
+    <string name="hdmi_latency_label">延迟</string>
+    <string name="hdmi_latency_normal">正常</string>
+
     <!-- Bluetooth input page -->
     <string name="bluetooth_status_connected">设备已连接</string>
     <string name="bluetooth_status_disconnected">设备未连接</string>

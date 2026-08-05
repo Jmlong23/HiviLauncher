@@ -16,7 +16,7 @@ import com.hivi.launcher.account.model.AuthorizedUserInfo;
 import com.hivi.launcher.ai.audio.AiWebSocketManager;
 import com.hivi.launcher.ai.audio.AudioRecordOpusStreamer;
 import com.hivi.launcher.ai.audio.OpusAudioPlayer;
-import com.hivi.launcher.ai.ui.AiConversationView;
+import com.hivi.launcher.ai.ui.AiView;
 import com.hivi.launcher.base.BasePresenter;
 import com.hivi.launcher.customview.ParticleVisualizerView;
 import com.hivi.launcher.utils.Constants;
@@ -35,7 +35,7 @@ import java.util.Map;
  * upstream, STT -> TTS/Opus downstream) while using Android's AudioRecord path instead of the
  * device-specific VTN wake-word and microphone-processing stack.</p>
  */
-public final class AiConversationPresenter extends BasePresenter<AiConversationView> {
+public final class AiPresenter extends BasePresenter<AiView> {
     private static final String TAG = "AiConversationPresenter";
     private static final String SESSION_PREFERENCES = "ai_conversation";
     private static final String BOOT_WALL_TIME_KEY = "boot_wall_time";
@@ -55,7 +55,7 @@ public final class AiConversationPresenter extends BasePresenter<AiConversationV
     private int mCallbackGeneration;
     private String mLastUserCommand = "";
 
-    public AiConversationPresenter(Context context, AiConversationView view) {
+    public AiPresenter(Context context, AiView view) {
         super(view);
         mContext = context.getApplicationContext();
     }
@@ -71,7 +71,7 @@ public final class AiConversationPresenter extends BasePresenter<AiConversationV
         }
         if (!AuthorizationStore.hasToken(mContext)) {
             renderState(ParticleVisualizerView.State.IDLE, R.string.ai_conversation_welcome);
-            AiConversationView view = getView();
+            AiView view = getView();
             if (view != null) {
                 view.showToast(mContext.getString(R.string.ai_conversation_authorize_required));
             }
@@ -80,7 +80,7 @@ public final class AiConversationPresenter extends BasePresenter<AiConversationV
         if (mContext.checkSelfPermission(Manifest.permission.RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
             mWaitingForRecordPermission = true;
-            AiConversationView view = getView();
+            AiView view = getView();
             if (view != null) {
                 view.requestRecordAudioPermission();
             }
@@ -105,7 +105,7 @@ public final class AiConversationPresenter extends BasePresenter<AiConversationV
             return;
         }
         renderState(ParticleVisualizerView.State.IDLE, R.string.ai_conversation_welcome);
-        AiConversationView view = getView();
+        AiView view = getView();
         if (view != null) {
             view.showToast(mContext.getString(R.string.ai_conversation_microphone_denied));
         }
@@ -134,7 +134,7 @@ public final class AiConversationPresenter extends BasePresenter<AiConversationV
 
         ensureAudioPlayer();
         AiWebSocketManager manager = new AiWebSocketManager(AuthorizationStore.getToken(mContext),
-                Constants.AI_WEBSOCKET_URL);
+                Constants.TEST_WS_URL);
         mWebSocketManager = manager;
         manager.setListener(new AiWebSocketManager.Listener() {
             @Override
@@ -328,7 +328,7 @@ public final class AiConversationPresenter extends BasePresenter<AiConversationV
         mMicrophoneStreamer = new AudioRecordOpusStreamer(manager::sendAudio,
                 volume -> runOnUiThread(() -> {
                     if (!mReleased && mParticleState == ParticleVisualizerView.State.LISTENING) {
-                        AiConversationView view = getView();
+                        AiView view = getView();
                         if (view != null) {
                             view.setParticleVolume(volume);
                         }
@@ -351,7 +351,7 @@ public final class AiConversationPresenter extends BasePresenter<AiConversationV
         if (mMicrophoneStreamer != null) {
             mMicrophoneStreamer.setAudioSendingEnabled(enabled);
         }
-        AiConversationView view = getView();
+        AiView view = getView();
         if (!enabled && view != null) {
             view.setParticleVolume(0f);
         }
@@ -367,7 +367,7 @@ public final class AiConversationPresenter extends BasePresenter<AiConversationV
         stopAudioResources();
         releaseWebSocket();
         renderState(ParticleVisualizerView.State.IDLE, R.string.ai_conversation_unavailable);
-        AiConversationView view = getView();
+        AiView view = getView();
         if (view != null) {
             view.showToast(mContext.getString(messageResId));
         }
@@ -413,21 +413,21 @@ public final class AiConversationPresenter extends BasePresenter<AiConversationV
 
     private void renderState(ParticleVisualizerView.State state, String statusText) {
         mParticleState = state;
-        AiConversationView view = getView();
+        AiView view = getView();
         if (view != null) {
             view.renderConversationState(state, statusText);
         }
     }
 
     private void clearAssistantResponse() {
-        AiConversationView view = getView();
+        AiView view = getView();
         if (view != null) {
             view.clearAssistantResponse();
         }
     }
 
     private void appendAssistantResponse(String responseText) {
-        AiConversationView view = getView();
+        AiView view = getView();
         if (view != null) {
             view.appendAssistantResponse(responseText);
         }

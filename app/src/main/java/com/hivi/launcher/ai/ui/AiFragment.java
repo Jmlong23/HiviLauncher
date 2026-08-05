@@ -13,14 +13,14 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.hivi.launcher.R;
-import com.hivi.launcher.ai.presenter.AiConversationPresenter;
+import com.hivi.launcher.ai.presenter.AiPresenter;
 import com.hivi.launcher.base.BaseFragment;
 import com.hivi.launcher.customview.ParticleVisualizerView;
 import com.hivi.launcher.databinding.FragmentAiConversationBinding;
 import com.hivi.launcher.main.ui.MainActivity;
 
-public final class AiConversationFragment extends BaseFragment<AiConversationPresenter>
-        implements AiConversationView {
+public final class AiFragment extends BaseFragment<AiPresenter>
+        implements AiView {
     private static final int REQUEST_RECORD_AUDIO = 0xA1;
     private static final long TYPEWRITER_DELAY_MS = 100L;
 
@@ -31,12 +31,12 @@ public final class AiConversationFragment extends BaseFragment<AiConversationPre
     private int mAssistantDisplayIndex;
 
     @Override
-    protected AiConversationPresenter createPresenter() {
+    protected AiPresenter createPresenter() {
         Activity activity = getActivity();
         if (activity == null) {
             throw new IllegalStateException("AI conversation fragment is not attached.");
         }
-        return new AiConversationPresenter(activity, this);
+        return new AiPresenter(activity, this);
     }
 
     @Override
@@ -55,7 +55,7 @@ public final class AiConversationFragment extends BaseFragment<AiConversationPre
         mBinding = FragmentAiConversationBinding.bind(view);
         mBinding.aiConversationBack.setOnClickListener(ignored -> requestBackNavigation());
         mBinding.aiConversationParticle.setOnClickListener(ignored -> {
-            AiConversationPresenter presenter = getPresenter();
+            AiPresenter presenter = getPresenter();
             if (presenter != null) {
                 presenter.onParticleClicked();
             }
@@ -67,7 +67,7 @@ public final class AiConversationFragment extends BaseFragment<AiConversationPre
                         mBinding.aiConversationParticle.getHeight());
             }
         });
-        AiConversationPresenter presenter = getPresenter();
+        AiPresenter presenter = getPresenter();
         if (presenter != null) {
             presenter.init();
         }
@@ -75,7 +75,7 @@ public final class AiConversationFragment extends BaseFragment<AiConversationPre
 
     @Override
     public void onDestroyView() {
-        AiConversationPresenter presenter = getPresenter();
+        AiPresenter presenter = getPresenter();
         if (presenter != null) {
             presenter.release();
         }
@@ -91,7 +91,7 @@ public final class AiConversationFragment extends BaseFragment<AiConversationPre
         if (requestCode != REQUEST_RECORD_AUDIO) {
             return;
         }
-        AiConversationPresenter presenter = getPresenter();
+        AiPresenter presenter = getPresenter();
         if (presenter != null) {
             presenter.onRecordAudioPermissionResult(grantResults.length > 0
                     && grantResults[0] == PackageManager.PERMISSION_GRANTED);

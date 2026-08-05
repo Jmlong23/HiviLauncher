@@ -36,7 +36,7 @@ import com.hivi.launcher.R;
 import com.hivi.launcher.audio.AudioRouteController;
 import com.hivi.launcher.account.model.AuthorizedUserInfo;
 import com.hivi.launcher.account.ui.AuthorizationDialog;
-import com.hivi.launcher.ai.ui.AiConversationFragment;
+import com.hivi.launcher.ai.ui.AiFragment;
 import com.hivi.launcher.base.BaseActivity;
 import com.hivi.launcher.databinding.ActivityMainBinding;
 import com.hivi.launcher.main.model.MainPage;
@@ -303,7 +303,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         Fragment currentFragment = getFragmentManager()
                 .findFragmentById(R.id.fragment_container);
-        if (currentFragment instanceof AiConversationFragment && page != MainPage.AI) {
+        if (currentFragment instanceof AiFragment && page != MainPage.AI) {
             removeAiPageBeforeNavigating();
         }
         if (isInputModePage(page)) {
@@ -851,7 +851,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         mHomeNavigationPending = false;
         binding.fragmentContainer.setVisibility(View.VISIBLE);
-        boolean aiConversationVisible = fragment instanceof AiConversationFragment;
+        boolean aiConversationVisible = fragment instanceof AiFragment;
         updateLauncherBackground(aiConversationVisible);
         hideAiChatEntry();
     }
@@ -1022,7 +1022,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             case SETTINGS:
                 return fragment instanceof SettingsFragment;
             case AI:
-                return fragment instanceof AiConversationFragment;
+                return fragment instanceof AiFragment;
             default:
                 return false;
         }
@@ -1077,7 +1077,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             case SETTINGS:
                 return new SettingsFragment();
             case AI:
-                return new AiConversationFragment();
+                return new AiFragment();
             default:
                 throw new IllegalArgumentException("Unsupported page: " + page);
         }

@@ -10,4 +10,19 @@ public final class HdmiPresenter extends BasePresenter<HdmiView> {
     public HdmiPresenter(HdmiView view) {
         super(view);
     }
+
+    public void init() {
+        mModel.start(fftData -> runOnUiThread(() -> {
+            HdmiView view = getView();
+            if (view != null) {
+                view.renderHdmiFftData(fftData);
+            }
+        }));
+    }
+
+    @Override
+    public void detach() {
+        mModel.stop();
+        super.detach();
+    }
 }

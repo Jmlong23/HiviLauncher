@@ -3,7 +3,7 @@ package com.hivi.launcher.ai.ui;
 import com.hivi.launcher.base.BaseView;
 import com.hivi.launcher.customview.ParticleVisualizerView;
 
-public interface AiConversationView extends BaseView {
+public interface AiView extends BaseView {
     void renderConversationState(ParticleVisualizerView.State state, String statusText);
 
     void clearAssistantResponse();
