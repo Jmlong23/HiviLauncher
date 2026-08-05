@@ -12,14 +12,14 @@ import android.view.View;
 import androidx.annotation.Nullable;
 
 /**
- * Renders the HDMI audio FFT as a mirrored spectrum centered on a horizontal axis.
+ * Renders audio FFT data as a mirrored spectrum centered on a horizontal axis.
  *
  * <p>The Android {@link android.media.audiofx.Visualizer} callback supplies packed FFT data:
  * the first two entries represent DC/Nyquist values and the following entries are real/imaginary
  * pairs. Low frequencies are placed nearest the center so bass energy forms the larger central
- * bars shown in the HDMI page design.</p>
+ * bars shown in the input-mode page designs.</p>
  */
-public final class HdmiSpectrumView extends View {
+public final class AudioSpectrumView extends View {
     private static final int HALF_BAR_COUNT = 48;
     private static final float FFT_MAGNITUDE_MAX = (float) Math.hypot(127d, 127d);
 
@@ -30,11 +30,11 @@ public final class HdmiSpectrumView extends View {
     private LinearGradient mSpectrumGradient;
     private int mGradientWidth;
 
-    public HdmiSpectrumView(Context context) {
+    public AudioSpectrumView(Context context) {
         this(context, null);
     }
 
-    public HdmiSpectrumView(Context context, @Nullable AttributeSet attrs) {
+    public AudioSpectrumView(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
         init();
     }

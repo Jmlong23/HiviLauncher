@@ -270,4 +270,12 @@
     <string name="ai_conversation_disconnected">AI conversation disconnected. Tap the particle core to start again.</string>
     <string name="ai_conversation_quota_error">AI service quota is insufficient. Please handle it in the app and try again.</string>
     <string name="ai_conversation_microphone_error">Unable to start microphone. Please try again later.</string>
+    <!-- LINE input page -->
+    <string name="line_audio_detected">Audio detected</string>
+    <string name="line_input_port_label">Input port</string>
+    <string name="line_input_port_value">3.5 mm</string>
+    <string name="line_sample_rate_label">Sample rate</string>
+    <string name="line_sample_rate_value">48 kHz</string>
+    <string name="line_output_status_label">Output status</string>
+    <string name="line_output_status_normal">Normal</string>
 </resources>

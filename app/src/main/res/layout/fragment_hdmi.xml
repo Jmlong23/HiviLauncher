@@ -203,7 +203,7 @@
             </LinearLayout>
         </LinearLayout>
 
-        <com.hivi.launcher.customview.HdmiSpectrumView
+        <com.hivi.launcher.customview.AudioSpectrumView
             android:id="@+id/hdmi_visualizer_panel"
             android:layout_width="469dp"
             android:layout_height="match_parent"
