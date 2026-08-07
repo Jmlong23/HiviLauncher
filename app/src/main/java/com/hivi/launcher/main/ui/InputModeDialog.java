@@ -9,6 +9,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.TextView;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.databinding.DialogInputModeBinding;
@@ -124,7 +125,7 @@ final class InputModeDialog {
         updateConnectionStatus(mBinding.inputModeDialogWifiStatus, wifiConnected);
     }
 
-    private void updateConnectionStatus(android.widget.TextView status, boolean connected) {
+    private void updateConnectionStatus(TextView status, boolean connected) {
         status.setText(connected ? R.string.input_mode_status_connected
                 : R.string.input_mode_status_disconnected);
         status.setTextColor(mActivity.getColor(connected

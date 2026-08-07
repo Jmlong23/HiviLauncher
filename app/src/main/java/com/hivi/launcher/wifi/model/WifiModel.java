@@ -243,6 +243,23 @@ public final class WifiModel {
         mHandler.postDelayed(mConnectionTimeoutRunnable, CONNECTION_TIMEOUT_MS);
     }
 
+    /**
+     * Stops tracking the current user-initiated connection attempt without deleting its saved
+     * network configuration. The platform may still complete the connection independently, but
+     * callers will no longer receive a success/failure result for the cancelled attempt.
+     */
+    public void cancelConnection() {
+        if (mDestroyed || TextUtils.isEmpty(mConnectingSsid)) {
+            return;
+        }
+        mConnectingSsid = "";
+        mConnectingNetworkActive = false;
+        mHandler.removeCallbacks(mConnectionTimeoutRunnable);
+        mHandler.removeCallbacks(mConnectionStatePollRunnable);
+        mHandler.removeCallbacks(mConnectionDisconnectedRunnable);
+        publishNetworks();
+    }
+
     public void destroy() {
         if (mDestroyed) {
             return;

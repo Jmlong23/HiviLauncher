@@ -42,6 +42,8 @@ import com.hivi.launcher.databinding.ActivityMainBinding;
 import com.hivi.launcher.main.model.MainPage;
 import com.hivi.launcher.main.presenter.MainPresenter;
 import com.hivi.launcher.music.model.BluetoothMediaController;
+import com.hivi.launcher.onboarding.model.FirstUseGuideStore;
+import com.hivi.launcher.onboarding.ui.FirstUseGuideActivity;
 import com.hivi.launcher.bluetooth.ui.BluetoothFragment;
 import com.hivi.launcher.coax.ui.CoaxFragment;
 import com.hivi.launcher.hdmi.ui.HdmiFragment;
@@ -64,6 +66,8 @@ import java.util.concurrent.Executors;
 public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresenter>
         implements MainView {
     private static final String TAG = "MainActivity";
+    public static final String EXTRA_INITIAL_MODE =
+            "com.hivi.launcher.main.ui.MainActivity.initial_mode";
     private static final int AVATAR_CONNECT_TIMEOUT_MS = 8_000;
     private static final int AVATAR_READ_TIMEOUT_MS = 10_000;
     private static final int AVATAR_MAX_SIZE_PX = 512;
@@ -87,6 +91,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private boolean mAiConversationBackgroundVisible;
     private boolean mHomeNavigationPending;
     private boolean mSuppressBackStackUiSync;
+    private boolean mActivityResumed;
+    private MainPage mPendingInitialMode;
     private final FragmentManager.OnBackStackChangedListener mBackStackChangedListener =
             new FragmentManager.OnBackStackChangedListener() {
                 @Override
@@ -128,6 +134,17 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     @Override
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        if (!FirstUseGuideStore.isCompleted(this)) {
+            startActivity(new Intent(this, FirstUseGuideActivity.class));
+            finish();
+        } else {
+            mPendingInitialMode = consumeInitialModeIntent(getIntent());
+        }
+    }
+
+    @Override
     protected MainPresenter createPresenter() {
         return new MainPresenter(this, this);
     }
@@ -159,15 +176,18 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     @Override
     protected void onResume() {
         super.onResume();
+        mActivityResumed = true;
         applyLocalizedTexts();
         registerSystemReceiver();
         presenter.onSystemStateChanged();
         presenter.startTicker();
         syncPageUiWithCurrentFragment();
+        applyPendingInitialMode();
     }
 
     @Override
     protected void onPause() {
+        mActivityResumed = false;
         super.onPause();
         unregisterReceiverQuietly();
         presenter.stopTicker();
@@ -178,6 +198,13 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         super.onNewIntent(intent);
         setIntent(intent);
         handleSystemUpdateInstallResult(intent);
+        MainPage initialMode = consumeInitialModeIntent(intent);
+        if (initialMode != null) {
+            mPendingInitialMode = initialMode;
+            if (mActivityResumed) {
+                applyPendingInitialMode();
+            }
+        }
     }
 
     @Override
@@ -719,6 +746,39 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 && mInputModeAdapter.selectMode(
                 AudioRouteController.getInstance().getSelectedMode(this))) {
             scrollToSelectedMode();
+        }
+    }
+
+    private void applyPendingInitialMode() {
+        if (binding == null || mInputModeAdapter == null || mPendingInitialMode == null) {
+            return;
+        }
+        MainPage initialMode = mPendingInitialMode;
+        mPendingInitialMode = null;
+        mInputModeAdapter.selectMode(initialMode);
+        updateModeTextFromSelectedInputMode();
+        scrollToSelectedMode();
+        if (mInputModeDialog != null) {
+            mInputModeDialog.updateState(mInputModeAdapter.getSelectedPage(),
+                    mBluetoothConnected, mWifiConnected);
+        }
+    }
+
+    @Nullable
+    private MainPage consumeInitialModeIntent(Intent intent) {
+        if (intent == null) {
+            return null;
+        }
+        String modeName = intent.getStringExtra(EXTRA_INITIAL_MODE);
+        intent.removeExtra(EXTRA_INITIAL_MODE);
+        if (TextUtils.isEmpty(modeName)) {
+            return null;
+        }
+        try {
+            MainPage mode = MainPage.valueOf(modeName);
+            return isInputModePage(mode) ? mode : null;
+        } catch (IllegalArgumentException ignored) {
+            return null;
         }
     }
 
