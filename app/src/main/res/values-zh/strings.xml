@@ -264,6 +264,14 @@
     <string name="line_sample_rate_value">48 kHz</string>
     <string name="line_output_status_label">输出状态</string>
     <string name="line_output_status_normal">正常</string>
+    <!-- 光纤输入页面 -->
+    <string name="optical_audio_no_signal">未检测到光纤信号</string>
+    <string name="optical_input_port_label">输入接口</string>
+    <string name="optical_input_port_value">光纤</string>
+    <string name="optical_sample_rate_label">采样率</string>
+    <string name="optical_sample_rate_value">--</string>
+    <string name="optical_output_status_label">输出状态</string>
+    <string name="optical_output_status_no_signal">无信号</string>
 
     <!-- First-use onboarding -->
     <string name="onboarding_welcome_title">欢迎使用 Sound bar</string>

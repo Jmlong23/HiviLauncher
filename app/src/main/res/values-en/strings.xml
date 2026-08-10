@@ -293,6 +293,14 @@
     <string name="line_sample_rate_value">48 kHz</string>
     <string name="line_output_status_label">Output status</string>
     <string name="line_output_status_normal">Normal</string>
+    <!-- Optical input page -->
+    <string name="optical_audio_no_signal">No optical signal</string>
+    <string name="optical_input_port_label">Input port</string>
+    <string name="optical_input_port_value">OPTICAL</string>
+    <string name="optical_sample_rate_label">Sample rate</string>
+    <string name="optical_sample_rate_value">--</string>
+    <string name="optical_output_status_label">Output status</string>
+    <string name="optical_output_status_no_signal">No signal</string>
 
     <!-- First-use onboarding -->
     <string name="onboarding_welcome_title">Welcome to Sound bar</string>
