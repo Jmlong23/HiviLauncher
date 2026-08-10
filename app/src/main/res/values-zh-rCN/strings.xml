@@ -276,6 +276,14 @@
     <string name="optical_sample_rate_value">--</string>
     <string name="optical_output_status_label">输出状态</string>
     <string name="optical_output_status_no_signal">无信号</string>
+    <!-- 同轴输入页面 -->
+    <string name="coax_audio_no_signal">未检测到同轴信号</string>
+    <string name="coax_input_port_label">输入接口</string>
+    <string name="coax_input_port_value">同轴</string>
+    <string name="coax_sample_rate_label">采样率</string>
+    <string name="coax_sample_rate_value">--</string>
+    <string name="coax_output_status_label">输出状态</string>
+    <string name="coax_output_status_no_signal">无信号</string>
 
     <!-- First-use onboarding -->
     <string name="onboarding_welcome_title">欢迎使用 Sound bar</string>

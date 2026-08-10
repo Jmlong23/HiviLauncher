@@ -301,6 +301,14 @@
     <string name="optical_sample_rate_value">--</string>
     <string name="optical_output_status_label">Output status</string>
     <string name="optical_output_status_no_signal">No signal</string>
+    <!-- COAX input page -->
+    <string name="coax_audio_no_signal">No coaxial signal</string>
+    <string name="coax_input_port_label">Input port</string>
+    <string name="coax_input_port_value">COAX</string>
+    <string name="coax_sample_rate_label">Sample rate</string>
+    <string name="coax_sample_rate_value">--</string>
+    <string name="coax_output_status_label">Output status</string>
+    <string name="coax_output_status_no_signal">No signal</string>
 
     <!-- First-use onboarding -->
     <string name="onboarding_welcome_title">Welcome to Sound bar</string>
