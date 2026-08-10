@@ -335,17 +335,6 @@
     <string name="onboarding_wifi_failed_general">Check the network and password, then try again.</string>
     <string name="onboarding_wifi_reenter_password">Enter password again</string>
     <string name="onboarding_wifi_other_network">Choose another network</string>
-    <string name="onboarding_remote_waiting">Press any remote button to test it</string>
-    <string name="onboarding_remote_connected">Remote button detected</string>
-
-    <string name="onboarding_accessories_title">Connect accessories</string>
-    <string name="onboarding_accessories_subtitle">Pair the remote and wireless microphone now, or complete this later.</string>
-    <string name="onboarding_accessory_remote">Remote control</string>
-    <string name="onboarding_accessory_microphone">Wireless microphone</string>
-    <string name="onboarding_microphone_waiting">Waiting for microphone</string>
-    <string name="onboarding_microphone_connected">Microphone detected</string>
-    <string name="onboarding_accessories_continue">Skip and continue</string>
-
     <string name="onboarding_volume_title">Confirm the volume</string>
     <string name="onboarding_volume_subtitle">The device starts at a moderate volume. Adjust it for your space.</string>
     <string name="onboarding_amplifier_volume">Amplifier volume</string>

@@ -12,13 +12,9 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
-import android.media.AudioDeviceCallback;
-import android.media.AudioDeviceInfo;
-import android.media.AudioManager;
 import android.os.Bundle;
 import android.text.InputType;
 import android.text.TextUtils;
-import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -58,29 +54,16 @@ public final class FirstUseGuideActivity
     private static final String STATE_PAGE = "page";
     private static final String STATE_LANGUAGE = "language";
     private static final String STATE_SELECTED_INPUT = "selected_input";
-    private static final String STATE_REMOTE_CONFIRMED = "remote_confirmed";
 
     private enum Page {
         LANGUAGE,
         WIFI,
         WIFI_CONNECTING,
         WIFI_FAILED,
-        ACCESSORIES,
         VOLUME,
         INPUT_MODE
     }
 
-    private final AudioDeviceCallback mAudioDeviceCallback = new AudioDeviceCallback() {
-        @Override
-        public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
-            refreshMicrophoneStatus();
-        }
-
-        @Override
-        public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
-            refreshMicrophoneStatus();
-        }
-    };
     private final BroadcastReceiver mConnectivityReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -94,7 +77,6 @@ public final class FirstUseGuideActivity
     private ObjectAnimator mWifiRefreshAnimator;
     private Dialog mWifiPasswordDialog;
     private ExecutorService mLanguageSwitchExecutor;
-    private AudioManager mAudioManager;
 
     private Page mCurrentPage = Page.LANGUAGE;
     private String mSelectedLanguage;
@@ -103,9 +85,6 @@ public final class FirstUseGuideActivity
     private boolean mLanguageSwitchInProgress;
     private boolean mWifiRefreshing;
     private boolean mHasWifiNetworks;
-    private boolean mRemoteConfirmed;
-    private boolean mMicrophoneConnected;
-    private boolean mAudioDeviceCallbackRegistered;
     private boolean mConnectivityReceiverRegistered;
 
     @Override
@@ -128,7 +107,6 @@ public final class FirstUseGuideActivity
         bindClickListeners();
         renderLanguageSelection();
         renderInputModeSelection();
-        renderAccessories();
         showPage(mCurrentPage);
     }
 
@@ -136,7 +114,6 @@ public final class FirstUseGuideActivity
     protected void initData() {
         presenter.init(this);
         mInitialized = true;
-        startAudioDeviceMonitoring();
         onCurrentPageActivated();
     }
 
@@ -170,11 +147,8 @@ public final class FirstUseGuideActivity
             case WIFI_FAILED:
                 showPage(Page.WIFI);
                 break;
-            case ACCESSORIES:
-                showPage(Page.WIFI);
-                break;
             case VOLUME:
-                showPage(Page.ACCESSORIES);
+                showPage(Page.WIFI);
                 break;
             case INPUT_MODE:
                 showPage(Page.VOLUME);
@@ -183,22 +157,6 @@ public final class FirstUseGuideActivity
                 super.onBackPressed();
                 break;
         }
-    }
-
-    @Override
-    public boolean dispatchKeyEvent(KeyEvent event) {
-        if (mCurrentPage == Page.ACCESSORIES && event != null
-                && event.getAction() == KeyEvent.ACTION_DOWN
-                && event.getKeyCode() != KeyEvent.KEYCODE_BACK) {
-            if (!mRemoteConfirmed) {
-                mRemoteConfirmed = true;
-                renderAccessories();
-                showToast(getString(R.string.onboarding_remote_connected));
-            }
-            // A remote key used for this test should not trigger a second launcher action.
-            return true;
-        }
-        return super.dispatchKeyEvent(event);
     }
 
     @Override
@@ -261,7 +219,7 @@ public final class FirstUseGuideActivity
     @Override
     public void showWifiConnected(String ssid) {
         showToast(getString(R.string.settings_wifi_connected_toast, displaySsid(ssid)));
-        showPage(Page.ACCESSORIES);
+        showPage(Page.VOLUME);
     }
 
     @Override
@@ -303,7 +261,6 @@ public final class FirstUseGuideActivity
         outState.putString(STATE_PAGE, mCurrentPage.name());
         outState.putString(STATE_LANGUAGE, mSelectedLanguage);
         outState.putString(STATE_SELECTED_INPUT, mSelectedInputMode.name());
-        outState.putBoolean(STATE_REMOTE_CONFIRMED, mRemoteConfirmed);
     }
 
     @Override
@@ -312,7 +269,6 @@ public final class FirstUseGuideActivity
         unregisterConnectivityReceiver();
         dismissWifiPasswordDialog();
         stopWifiRefreshAnimation();
-        stopAudioDeviceMonitoring();
         if (mLanguageSwitchExecutor != null) {
             mLanguageSwitchExecutor.shutdownNow();
             mLanguageSwitchExecutor = null;
@@ -339,7 +295,7 @@ public final class FirstUseGuideActivity
         binding.firstUseWifiRefresh.setOnClickListener(view -> presenter.refreshWifiNetworks());
         binding.firstUseWifiSkip.setOnClickListener(view -> {
             presenter.cancelWifiConnection();
-            showPage(Page.ACCESSORIES);
+            showPage(Page.VOLUME);
         });
 
         binding.firstUseWifiConnectingCancel.setOnClickListener(view -> {
@@ -349,15 +305,9 @@ public final class FirstUseGuideActivity
 
         binding.firstUseWifiFailedRetry.setOnClickListener(view -> retryWifiConnection());
         binding.firstUseWifiFailedOtherNetwork.setOnClickListener(view -> showPage(Page.WIFI));
-        binding.firstUseWifiFailedSkip.setOnClickListener(view -> showPage(Page.ACCESSORIES));
+        binding.firstUseWifiFailedSkip.setOnClickListener(view -> showPage(Page.VOLUME));
 
-        binding.firstUseAccessoriesBack.setOnClickListener(view -> showPage(Page.WIFI));
-        binding.firstUseAccessoryRemote.setOnClickListener(view ->
-                showToast(getString(R.string.onboarding_remote_waiting)));
-        binding.firstUseAccessoryMicrophone.setOnClickListener(view -> refreshMicrophoneStatus());
-        binding.firstUseAccessoriesContinue.setOnClickListener(view -> showPage(Page.VOLUME));
-
-        binding.firstUseVolumeBack.setOnClickListener(view -> showPage(Page.ACCESSORIES));
+        binding.firstUseVolumeBack.setOnClickListener(view -> showPage(Page.WIFI));
         binding.firstUseVolumeMute.setOnClickListener(view -> presenter.toggleAmplifierMute());
         binding.firstUseVolumeDown.setOnClickListener(view -> presenter.adjustAmplifierVolume(-1));
         binding.firstUseVolumeUp.setOnClickListener(view -> presenter.adjustAmplifierVolume(1));
@@ -541,8 +491,6 @@ public final class FirstUseGuideActivity
                 ? View.VISIBLE : View.GONE);
         binding.firstUsePageWifiFailed.setVisibility(mCurrentPage == Page.WIFI_FAILED
                 ? View.VISIBLE : View.GONE);
-        binding.firstUsePageAccessories.setVisibility(mCurrentPage == Page.ACCESSORIES
-                ? View.VISIBLE : View.GONE);
         binding.firstUsePageVolume.setVisibility(mCurrentPage == Page.VOLUME
                 ? View.VISIBLE : View.GONE);
         binding.firstUsePageInputMode.setVisibility(mCurrentPage == Page.INPUT_MODE
@@ -556,10 +504,6 @@ public final class FirstUseGuideActivity
         switch (mCurrentPage) {
             case WIFI:
                 presenter.startWifiSetup();
-                break;
-            case ACCESSORIES:
-                refreshMicrophoneStatus();
-                renderAccessories();
                 break;
             case VOLUME:
                 renderAmplifierVolume(presenter.getAmplifierVolume(), presenter.isAmplifierMuted());
@@ -706,67 +650,6 @@ public final class FirstUseGuideActivity
         binding.firstUseWifiEmpty.setVisibility(View.VISIBLE);
     }
 
-    private void startAudioDeviceMonitoring() {
-        mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        if (mAudioManager != null && !mAudioDeviceCallbackRegistered) {
-            mAudioManager.registerAudioDeviceCallback(mAudioDeviceCallback, null);
-            mAudioDeviceCallbackRegistered = true;
-        }
-        refreshMicrophoneStatus();
-    }
-
-    private void stopAudioDeviceMonitoring() {
-        if (mAudioDeviceCallbackRegistered && mAudioManager != null) {
-            mAudioManager.unregisterAudioDeviceCallback(mAudioDeviceCallback);
-        }
-        mAudioDeviceCallbackRegistered = false;
-        mAudioManager = null;
-    }
-
-    private void refreshMicrophoneStatus() {
-        mMicrophoneConnected = isExternalMicrophoneConnected();
-        if (binding != null && mCurrentPage == Page.ACCESSORIES) {
-            renderAccessories();
-        }
-    }
-
-    private boolean isExternalMicrophoneConnected() {
-        if (mAudioManager == null) {
-            return false;
-        }
-        AudioDeviceInfo[] devices = mAudioManager.getDevices(AudioManager.GET_DEVICES_INPUTS);
-        for (AudioDeviceInfo device : devices) {
-            switch (device.getType()) {
-                case AudioDeviceInfo.TYPE_BLUETOOTH_SCO:
-                case AudioDeviceInfo.TYPE_WIRED_HEADSET:
-                case AudioDeviceInfo.TYPE_USB_ACCESSORY:
-                case AudioDeviceInfo.TYPE_USB_DEVICE:
-                case AudioDeviceInfo.TYPE_USB_HEADSET:
-                    return true;
-                default:
-                    break;
-            }
-        }
-        return false;
-    }
-
-    private void renderAccessories() {
-        if (binding == null) {
-            return;
-        }
-        binding.firstUseAccessoryRemote.setSelected(mRemoteConfirmed);
-        binding.firstUseAccessoryRemoteStatus.setText(mRemoteConfirmed
-                ? R.string.onboarding_remote_connected : R.string.onboarding_remote_waiting);
-        binding.firstUseAccessoryRemoteStatus.setBackgroundResource(mRemoteConfirmed
-                ? R.drawable.onboarding_status_connected : R.drawable.onboarding_status_pending);
-        binding.firstUseAccessoryMicrophone.setSelected(mMicrophoneConnected);
-        binding.firstUseAccessoryMicrophoneStatus.setText(mMicrophoneConnected
-                ? R.string.onboarding_microphone_connected
-                : R.string.onboarding_microphone_waiting);
-        binding.firstUseAccessoryMicrophoneStatus.setBackgroundResource(mMicrophoneConnected
-                ? R.drawable.onboarding_status_connected : R.drawable.onboarding_status_pending);
-    }
-
     private void restoreState(@Nullable Bundle state) {
         mSelectedLanguage = LocaleHelper.getLanguage(this);
         if (state == null) {
@@ -774,10 +657,15 @@ public final class FirstUseGuideActivity
         }
         String pageName = state.getString(STATE_PAGE);
         if (!TextUtils.isEmpty(pageName)) {
-            try {
-                mCurrentPage = Page.valueOf(pageName);
-            } catch (IllegalArgumentException ignored) {
-                mCurrentPage = Page.LANGUAGE;
+            if ("ACCESSORIES".equals(pageName)) {
+                // Resume older saved guide state at the next remaining page after this step.
+                mCurrentPage = Page.VOLUME;
+            } else {
+                try {
+                    mCurrentPage = Page.valueOf(pageName);
+                } catch (IllegalArgumentException ignored) {
+                    mCurrentPage = Page.LANGUAGE;
+                }
             }
         }
         String language = state.getString(STATE_LANGUAGE);
@@ -795,7 +683,6 @@ public final class FirstUseGuideActivity
                 mSelectedInputMode = MainPage.LINE;
             }
         }
-        mRemoteConfirmed = state.getBoolean(STATE_REMOTE_CONFIRMED, false);
     }
 
     private boolean isSelectableInputMode(MainPage page) {

@@ -306,17 +306,6 @@
     <string name="onboarding_wifi_failed_general">请检查网络和密码后重试。</string>
     <string name="onboarding_wifi_reenter_password">重新输入密码</string>
     <string name="onboarding_wifi_other_network">选择其他网络</string>
-    <string name="onboarding_remote_waiting">按遥控器任意键测试连接</string>
-    <string name="onboarding_remote_connected">遥控器按键已确认</string>
-
-    <string name="onboarding_accessories_title">连接配件</string>
-    <string name="onboarding_accessories_subtitle">配对遥控器和无线麦克风，也可稍后在对应页面完成</string>
-    <string name="onboarding_accessory_remote">遥控器</string>
-    <string name="onboarding_accessory_microphone">无线麦克风</string>
-    <string name="onboarding_microphone_waiting">等待检测麦克风</string>
-    <string name="onboarding_microphone_connected">已检测到麦克风</string>
-    <string name="onboarding_accessories_continue">跳过并继续</string>
-
     <string name="onboarding_volume_title">确认音量</string>
     <string name="onboarding_volume_subtitle">设备将以中等音量使用，请根据当前环境调整</string>
     <string name="onboarding_amplifier_volume">功放音量</string>
