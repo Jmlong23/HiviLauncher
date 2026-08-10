@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="620dp"
+    android:layout_height="330dp"
+    android:background="@drawable/dialog_background"
+    android:measureAllChildren="true">
+
+    <LinearLayout
+        android:id="@+id/factory_reset_confirmation_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingLeft="48dp"
+        android:paddingTop="30dp"
+        android:paddingRight="48dp"
+        android:paddingBottom="30dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:text="@string/settings_restore_factory"
+            android:textColor="@color/text_color"
+            android:textSize="23sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:layout_marginTop="55dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/factory_reset_confirmation_cancel"
+                android:layout_width="118dp"
+                android:layout_height="36dp"
+                android:background="@drawable/secondary_button"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:text="@string/auth_cancel_action"
+                android:textColor="@color/text_color"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/factory_reset_confirmation_continue"
+                android:layout_width="118dp"
+                android:layout_height="36dp"
+                android:layout_marginLeft="48dp"
+                android:background="@drawable/primary_button"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:text="@string/factory_reset_continue_action"
+                android:textColor="@color/text_color"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/factory_reset_final_confirmation_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingLeft="48dp"
+        android:paddingTop="30dp"
+        android:paddingRight="48dp"
+        android:paddingBottom="30dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:text="@string/settings_restore_factory"
+            android:textColor="@color/text_color"
+            android:textSize="23sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="25dp"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:lineSpacingExtra="3dp"
+            android:text="@string/factory_reset_final_confirmation_message"
+            android:textColor="@color/text_color2"
+            android:textSize="15sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:layout_marginTop="35dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/factory_reset_final_confirmation_cancel"
+                android:layout_width="118dp"
+                android:layout_height="36dp"
+                android:background="@drawable/secondary_button"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:text="@string/auth_cancel_action"
+                android:textColor="@color/text_color"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/factory_reset_final_confirmation_confirm"
+                android:layout_width="118dp"
+                android:layout_height="36dp"
+                android:layout_marginLeft="48dp"
+                android:background="@drawable/auth_danger_button"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:text="@string/factory_reset_confirm_action"
+                android:textColor="@color/white"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/factory_reset_progress_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingLeft="44dp"
+        android:paddingTop="34dp"
+        android:paddingRight="44dp"
+        android:paddingBottom="28dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:text="@string/factory_reset_progress_title"
+            android:textColor="@color/text_color"
+            android:textSize="26sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:text="@string/factory_reset_progress_warning"
+            android:textColor="#F04444"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/factory_reset_progress_percent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="47dp"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:text="@string/factory_reset_progress_initial_percent"
+            android:textColor="#4C8EFF"
+            android:textSize="39sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/factory_reset_progress_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:text="@string/factory_reset_preparing"
+            android:textColor="@color/text_color"
+            android:textSize="16sp" />
+
+        <ProgressBar
+            android:id="@+id/factory_reset_progress_bar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="14dp"
+            android:layout_marginTop="30dp"
+            android:max="100"
+            android:progress="0"
+            android:progressDrawable="@drawable/system_update_progress" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/factory_reset_success_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingTop="54dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="92dp"
+            android:layout_height="92dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_success" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="43dp"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:text="@string/factory_reset_success_title"
+            android:textColor="@color/text_color"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="23dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:text="@string/factory_reset_success_message"
+                android:textColor="@color/text_color2"
+                android:textSize="15sp" />
+
+            <ImageView
+                android:id="@+id/factory_reset_success_loading"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginLeft="12dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_loading" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

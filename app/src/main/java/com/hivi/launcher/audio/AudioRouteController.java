@@ -35,6 +35,9 @@ public final class AudioRouteController {
     public static final String SERIAL_PORT_MIC_VOLUME = "AXX+MIC+@param\n";
     public static final String SERIAL_PORT_CMD_SFX_KEY = "AXX_SFX_KEY";
     public static final String SERIAL_PORT_CMD_SFX = "AXX+SFX+@param\n";
+    public static final String SERIAL_PORT_CMD_BLUETOOTH_DISCONNECT = "AXX+BTC+DIS\n";
+    public static final String SERIAL_PORT_CMD_BLUETOOTH_CLEAR = "AXX+BTC+CLR\n";
+    public static final String SERIAL_PORT_CMD_FACTORY_RESET = "AXX+FACTORY+1\n";
 
     private static final String TAG = "AudioRouteController";
     private static final String PREFERENCES_NAME = "audio_route";
@@ -58,6 +61,10 @@ public final class AudioRouteController {
 
     public interface AmplifierVolumeListener {
         void onAmplifierVolumeChanged(int volumePercent, boolean muted);
+    }
+
+    public interface FactoryResetCallback {
+        void onFactoryResetCommandFinished(boolean commandSent);
     }
 
     private AudioRouteController() {
@@ -190,6 +197,56 @@ public final class AudioRouteController {
         sendVolumeCommand(SERIAL_PORT_CMD_SFX_KEY, SERIAL_PORT_CMD_SFX, volumePercent);
     }
 
+    /**
+     * Sends the MCU factory-reset command without persisting it as a normal audio route command.
+     *
+     * <p>The MCU command is the authoritative reset for hardware-side presets, volume, and sound
+     * effects. Bluetooth disconnect/clear commands are sent afterwards as a best-effort cleanup
+     * for the MCU Bluetooth module.</p>
+     */
+    public void requestFactoryReset(FactoryResetCallback callback) {
+        mSerialExecutor.execute(() -> {
+            boolean factoryResetCommandSent = false;
+            try {
+                factoryResetCommandSent = sendTransientCommand(SERIAL_PORT_CMD_FACTORY_RESET);
+                if (factoryResetCommandSent) {
+                    sendTransientCommand(SERIAL_PORT_CMD_BLUETOOTH_DISCONNECT);
+                    waitForBluetoothDisconnect();
+                    sendTransientCommand(SERIAL_PORT_CMD_BLUETOOTH_CLEAR);
+                }
+            } catch (Throwable throwable) {
+                AppLog.e(TAG, "Unable to send factory-reset serial commands.", throwable);
+            }
+            final boolean commandSent = factoryResetCommandSent;
+            if (callback != null) {
+                mMainHandler.post(() -> callback.onFactoryResetCommandFinished(commandSent));
+            }
+        });
+    }
+
+    /**
+     * Removes Launcher-side persisted audio state after the MCU accepted a factory-reset command.
+     */
+    public boolean clearPersistedState(Context context) {
+        if (context == null) {
+            return false;
+        }
+        Context applicationContext = context.getApplicationContext();
+        Context preferencesContext = applicationContext == null ? context : applicationContext;
+        boolean cleared = getPreferences(preferencesContext).edit().clear().commit();
+        if (!cleared) {
+            AppLog.w(TAG, "Unable to clear persisted audio route state.");
+            return false;
+        }
+        synchronized (mLock) {
+            mAmplifierVolumePercent = DEFAULT_AMPLIFIER_VOLUME;
+            mLastAmplifierVolumePercent = DEFAULT_AMPLIFIER_VOLUME;
+            mAmplifierMuted = false;
+        }
+        dispatchAmplifierVolumeChanged();
+        return true;
+    }
+
     public int getStoredVolume(String key, int defaultValue) {
         return getStoredVolume(getContext(), key, defaultValue);
     }
@@ -249,6 +306,37 @@ public final class AudioRouteController {
             persistCommand(key, command);
         } else {
             AppLog.w(TAG, "sendCmd: sendBytes=false, content=" + formatCommand(command));
+        }
+    }
+
+    private boolean sendTransientCommand(String command) {
+        if (!openSerialPortIfNeeded()) {
+            AppLog.w(TAG, "Skip transient command because serial port is unavailable: "
+                    + formatCommand(command));
+            return false;
+        }
+        try {
+            AppLog.i(TAG, "Sending transient serial command: " + formatCommand(command));
+            boolean sent = AudioNativeManager.instance().getSerialPortManager().sendBytes(
+                    command.getBytes(StandardCharsets.UTF_8));
+            if (sent) {
+                AppLog.i(TAG, "Transient serial command sent: " + formatCommand(command));
+            } else {
+                AppLog.w(TAG, "Transient serial command failed: " + formatCommand(command));
+            }
+            return sent;
+        } catch (Throwable throwable) {
+            AppLog.e(TAG, "Unable to send transient serial command: " + formatCommand(command),
+                    throwable);
+            return false;
+        }
+    }
+
+    private void waitForBluetoothDisconnect() {
+        try {
+            Thread.sleep(200L);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
         }
     }
 

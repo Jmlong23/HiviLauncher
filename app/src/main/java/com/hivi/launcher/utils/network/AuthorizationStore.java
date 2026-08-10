@@ -122,6 +122,14 @@ public final class AuthorizationStore {
         editor.apply();
     }
 
+    /**
+     * Clears all account information persisted by the Launcher for a factory reset.
+     */
+    public static boolean clear(Context context) {
+        SharedPreferences preferences = getPreferencesIfUserUnlocked(context);
+        return preferences == null || preferences.edit().clear().commit();
+    }
+
     @Nullable
     private static SharedPreferences getPreferencesIfUserUnlocked(Context context) {
         Context appContext = context.getApplicationContext();

@@ -7,6 +7,7 @@ import com.hivi.launcher.utils.log.AppLog;
 import com.hivi.launcher.BuildConfig;
 import com.hivi.launcher.R;
 import com.hivi.launcher.base.BasePresenter;
+import com.hivi.launcher.settings.model.FactoryResetManager;
 import com.hivi.launcher.settings.model.LogUploadManager;
 import com.hivi.launcher.settings.model.SettingsModel;
 import com.hivi.launcher.settings.ui.SettingsView;
@@ -37,6 +38,8 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
     private boolean mSystemUpdateInProgress;
     private LogUploadManager mLogUploadManager;
     private boolean mLogUploadInProgress;
+    private FactoryResetManager mFactoryResetManager;
+    private boolean mFactoryResetInProgress;
 
     public SettingsPresenter(SettingsView view) {
         this(null, view, SettingsModel.LANGUAGE_CHINESE);
@@ -142,7 +145,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
     }
 
     public void onSystemUpdateSelected() {
-        if (mSystemUpdateInProgress || mSystemUpdateInfo == null
+        if (mFactoryResetInProgress || mSystemUpdateInProgress || mSystemUpdateInfo == null
                 || !mSystemUpdateInfo.isUpdateAvailable()) {
             return;
         }
@@ -153,7 +156,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
     }
 
     public void onSystemUpdateConfirmed() {
-        if (mSystemUpdateInProgress || mSystemUpdateInfo == null
+        if (mFactoryResetInProgress || mSystemUpdateInProgress || mSystemUpdateInfo == null
                 || !mSystemUpdateInfo.isUpdateAvailable()) {
             return;
         }
@@ -201,7 +204,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
     }
 
     public void onLogUploadSelected() {
-        if (mLogUploadInProgress) {
+        if (mFactoryResetInProgress || mLogUploadInProgress) {
             return;
         }
         SettingsView view = getView();
@@ -211,7 +214,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
     }
 
     public void onLogUploadConfirmed() {
-        if (mLogUploadInProgress) {
+        if (mFactoryResetInProgress || mLogUploadInProgress) {
             return;
         }
         if (mApplicationContext == null) {
@@ -255,6 +258,61 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
         });
     }
 
+    public void onFactoryResetSelected() {
+        if (mFactoryResetInProgress || mSystemUpdateInProgress || mLogUploadInProgress) {
+            return;
+        }
+        SettingsView view = getView();
+        if (view != null) {
+            view.showFactoryResetFinalConfirmation();
+        }
+    }
+
+    public void onFactoryResetFirstConfirmed() {
+        if (mFactoryResetInProgress || mSystemUpdateInProgress || mLogUploadInProgress) {
+            return;
+        }
+        SettingsView view = getView();
+        if (view != null) {
+            view.showFactoryResetFinalConfirmation();
+        }
+    }
+
+    public void onFactoryResetConfirmed() {
+        if (mFactoryResetInProgress || mSystemUpdateInProgress || mLogUploadInProgress) {
+            return;
+        }
+        if (mApplicationContext == null) {
+            handleFactoryResetFailure(new IllegalStateException(
+                    "Factory reset manager is unavailable."));
+            return;
+        }
+        disposeSystemUpdateCheckRequest();
+        mFactoryResetInProgress = true;
+        mFactoryResetManager = new FactoryResetManager(mApplicationContext);
+        SettingsView view = getView();
+        if (view != null) {
+            view.showFactoryResetProgress(0,
+                    mApplicationContext.getString(R.string.factory_reset_preparing));
+        }
+        mFactoryResetManager.reset(new FactoryResetManager.Callback() {
+            @Override
+            public void onProgress(int progress, int statusResId) {
+                renderFactoryResetProgress(progress, statusResId);
+            }
+
+            @Override
+            public void onSuccess() {
+                handleFactoryResetSuccess();
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                handleFactoryResetFailure(throwable);
+            }
+        });
+    }
+
     @Override
     public void detach() {
         disposeSystemUpdateCheckRequest();
@@ -262,6 +320,10 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
             mLogUploadManager.destroy();
             mLogUploadManager = null;
         }
+        if (mFactoryResetManager != null && !mFactoryResetInProgress) {
+            mFactoryResetManager.destroy();
+        }
+        mFactoryResetManager = null;
         super.detach();
     }
 
@@ -435,6 +497,48 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
                 SettingsView view = getView();
                 if (view != null) {
                     view.showLogUploadFailure();
+                }
+            }
+        });
+    }
+
+    private void renderFactoryResetProgress(final int progress, final int statusResId) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                SettingsView view = getView();
+                if (view != null && mApplicationContext != null) {
+                    view.showFactoryResetProgress(progress,
+                            mApplicationContext.getString(statusResId));
+                }
+            }
+        });
+    }
+
+    private void handleFactoryResetSuccess() {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mFactoryResetInProgress = false;
+                mFactoryResetManager = null;
+                SettingsView view = getView();
+                if (view != null) {
+                    view.showFactoryResetSuccess();
+                }
+            }
+        });
+    }
+
+    private void handleFactoryResetFailure(final Throwable throwable) {
+        AppLog.e(TAG, "Factory reset failed.", throwable);
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mFactoryResetInProgress = false;
+                mFactoryResetManager = null;
+                SettingsView view = getView();
+                if (view != null) {
+                    view.showFactoryResetFailure();
                 }
             }
         });

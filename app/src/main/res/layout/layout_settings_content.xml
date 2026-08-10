@@ -517,7 +517,7 @@
                 android:paddingTop="19dp"
                 android:paddingRight="30dp"
                 android:paddingBottom="25dp"
-                android:visibility="visible">
+                android:visibility="gone">
 
                 <TextView
                     android:layout_width="match_parent"
@@ -716,10 +716,13 @@
                     android:textStyle="bold" />
 
                 <LinearLayout
+                    android:id="@+id/settings_restore_factory"
                     android:layout_width="match_parent"
                     android:layout_height="42dp"
                     android:layout_marginTop="8dp"
                     android:background="@drawable/item_medium_long_bg"
+                    android:clickable="true"
+                    android:focusable="true"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:paddingLeft="21dp"

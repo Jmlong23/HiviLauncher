@@ -23,6 +23,13 @@ public final class FirstUseGuideStore {
         getPreferences(context).edit().putBoolean(KEY_COMPLETED, true).commit();
     }
 
+    /**
+     * Removes the completion marker so the first-use guide is shown again after a factory reset.
+     */
+    public static boolean clear(Context context) {
+        return getPreferences(context).edit().clear().commit();
+    }
+
     private static SharedPreferences getPreferences(Context context) {
         Context applicationContext = context.getApplicationContext();
         Context preferencesContext = applicationContext == null ? context : applicationContext;

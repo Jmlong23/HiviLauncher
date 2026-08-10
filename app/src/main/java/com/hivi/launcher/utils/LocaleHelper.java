@@ -40,6 +40,14 @@ public final class LocaleHelper {
     }
 
     /**
+     * Clears the persisted language selection. {@link #getLanguage(Context)} then falls back to
+     * Simplified Chinese, which is the Launcher factory default.
+     */
+    public static boolean resetLanguage(Context context) {
+        return getPreferences(context).edit().clear().commit();
+    }
+
+    /**
      * Wraps a Context with the persisted locale. Call this from attachBaseContext.
      */
     public static Context applyLocale(Context context) {

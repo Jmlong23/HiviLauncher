@@ -25,4 +25,14 @@ public interface SettingsView extends BaseView {
     void showLogUploadSuccess();
 
     void showLogUploadFailure();
+
+    void showFactoryResetConfirmation();
+
+    void showFactoryResetFinalConfirmation();
+
+    void showFactoryResetProgress(int progress, String status);
+
+    void showFactoryResetSuccess();
+
+    void showFactoryResetFailure();
 }

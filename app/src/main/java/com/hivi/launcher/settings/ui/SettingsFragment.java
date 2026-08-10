@@ -18,6 +18,7 @@ import com.hivi.launcher.utils.log.AppLog;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.view.animation.LinearInterpolator;
 import android.widget.PopupWindow;
 import android.widget.SeekBar;
 
@@ -26,6 +27,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.base.BaseFragment;
+import com.hivi.launcher.databinding.DialogFactoryResetBinding;
 import com.hivi.launcher.databinding.DialogLogUploadBinding;
 import com.hivi.launcher.databinding.DialogSystemUpdateConfirmationBinding;
 import com.hivi.launcher.databinding.DialogSystemUpdateProgressBinding;
@@ -34,6 +36,7 @@ import com.hivi.launcher.databinding.LayoutSettingsContentBinding;
 import com.hivi.launcher.databinding.PopupSettingsLanguageBinding;
 import com.hivi.launcher.databinding.PopupSettingsScreenSaverBinding;
 import com.hivi.launcher.main.ui.MainActivity;
+import com.hivi.launcher.onboarding.ui.FirstUseGuideActivity;
 import com.hivi.launcher.settings.model.SettingsModel;
 import com.hivi.launcher.settings.presenter.SettingsPresenter;
 import com.hivi.launcher.update.SystemUpdateInfo;
@@ -64,6 +67,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private static final long BRIGHTNESS_SETTINGS_WRITE_THROTTLE_MS = 120L;
     private static final long INITIAL_WIFI_SETUP_DELAY_MS = 500L;
     private static final long LOG_UPLOAD_SUCCESS_DISMISS_DELAY_MS = 1_500L;
+    private static final long FACTORY_RESET_SUCCESS_TRANSITION_DELAY_MS = 1_200L;
 
     private LayoutSettingsContentBinding mBinding;
     private View[] mSectionTabs;
@@ -77,6 +81,9 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private DialogSystemUpdateProgressBinding mSystemUpdateProgressBinding;
     private Dialog mLogUploadDialog;
     private DialogLogUploadBinding mLogUploadBinding;
+    private Dialog mFactoryResetDialog;
+    private DialogFactoryResetBinding mFactoryResetBinding;
+    private ObjectAnimator mFactoryResetSuccessLoadingAnimator;
     private PopupWindow mDisplayOptionsPopupWindow;
     private ExecutorService mLanguageSwitchExecutor;
     private final Handler mBrightnessSettingsHandler = new Handler(Looper.getMainLooper());
@@ -85,6 +92,8 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private final Runnable mDeferredWifiSettingsInitialization =
             this::initializeWifiSettingsIfNeeded;
     private final Runnable mLogUploadSuccessDismissRunnable = this::dismissLogUploadDialog;
+    private final Runnable mFactoryResetSuccessTransitionRunnable =
+            this::openFirstUseGuideAfterFactoryReset;
     private int mDisplayPopupType = DISPLAY_POPUP_NONE;
     private int mPendingScreenBrightness = NO_PENDING_SCREEN_BRIGHTNESS;
     private int mSelectedSettingsSection = SettingsPresenter.SECTION_NETWORK;
@@ -149,12 +158,14 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         mBrightnessSettingsHandler.removeCallbacks(mPendingBrightnessSettingsWriteRunnable);
         mBrightnessSettingsHandler.removeCallbacks(mDeferredWifiSettingsInitialization);
         mBrightnessSettingsHandler.removeCallbacks(mLogUploadSuccessDismissRunnable);
+        mBrightnessSettingsHandler.removeCallbacks(mFactoryResetSuccessTransitionRunnable);
         flushPendingScreenBrightnessWrite();
         dismissDisplayOptionsPopup();
         dismissWifiPasswordDialog();
         dismissSystemUpdateConfirmationDialog();
         dismissSystemUpdateProgress();
         dismissLogUploadDialog();
+        dismissFactoryResetDialog();
         setLanguageSwitchLoading(false);
         if (mLanguageSwitchExecutor != null) {
             mLanguageSwitchExecutor.shutdownNow();
@@ -492,6 +503,72 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         showToast(getString(R.string.log_upload_failed));
     }
 
+    @Override
+    public void showFactoryResetConfirmation() {
+        showFactoryResetFinalConfirmation();
+    }
+
+    @Override
+    public void showFactoryResetFinalConfirmation() {
+        if (!ensureFactoryResetDialog()) {
+            return;
+        }
+        mBrightnessSettingsHandler.removeCallbacks(mFactoryResetSuccessTransitionRunnable);
+        stopFactoryResetSuccessLoadingAnimation();
+        mFactoryResetDialog.setCanceledOnTouchOutside(true);
+        mFactoryResetDialog.setCancelable(true);
+        mFactoryResetBinding.factoryResetConfirmationContent.setVisibility(View.GONE);
+        mFactoryResetBinding.factoryResetFinalConfirmationContent.setVisibility(View.VISIBLE);
+        mFactoryResetBinding.factoryResetProgressContent.setVisibility(View.GONE);
+        mFactoryResetBinding.factoryResetSuccessContent.setVisibility(View.GONE);
+        showSystemUpdateDialog(mFactoryResetDialog);
+    }
+
+    @Override
+    public void showFactoryResetProgress(int progress, String status) {
+        if (!ensureFactoryResetDialog()) {
+            return;
+        }
+        mBrightnessSettingsHandler.removeCallbacks(mFactoryResetSuccessTransitionRunnable);
+        stopFactoryResetSuccessLoadingAnimation();
+        mFactoryResetDialog.setCanceledOnTouchOutside(false);
+        mFactoryResetDialog.setCancelable(false);
+        mFactoryResetBinding.factoryResetConfirmationContent.setVisibility(View.GONE);
+        mFactoryResetBinding.factoryResetFinalConfirmationContent.setVisibility(View.GONE);
+        mFactoryResetBinding.factoryResetProgressContent.setVisibility(View.VISIBLE);
+        mFactoryResetBinding.factoryResetSuccessContent.setVisibility(View.GONE);
+        int safeProgress = Math.max(0, Math.min(100, progress));
+        mFactoryResetBinding.factoryResetProgressBar.setProgress(safeProgress);
+        mFactoryResetBinding.factoryResetProgressPercent.setText(
+                getString(R.string.factory_reset_progress_percent_format, safeProgress));
+        mFactoryResetBinding.factoryResetProgressStatus.setText(status);
+        showSystemUpdateDialog(mFactoryResetDialog);
+    }
+
+    @Override
+    public void showFactoryResetSuccess() {
+        if (!ensureFactoryResetDialog()) {
+            return;
+        }
+        mFactoryResetDialog.setCanceledOnTouchOutside(false);
+        mFactoryResetDialog.setCancelable(false);
+        mFactoryResetBinding.factoryResetConfirmationContent.setVisibility(View.GONE);
+        mFactoryResetBinding.factoryResetFinalConfirmationContent.setVisibility(View.GONE);
+        mFactoryResetBinding.factoryResetProgressContent.setVisibility(View.GONE);
+        mFactoryResetBinding.factoryResetSuccessContent.setVisibility(View.VISIBLE);
+        showSystemUpdateDialog(mFactoryResetDialog);
+        startFactoryResetSuccessLoadingAnimation();
+        mBrightnessSettingsHandler.removeCallbacks(mFactoryResetSuccessTransitionRunnable);
+        mBrightnessSettingsHandler.postDelayed(mFactoryResetSuccessTransitionRunnable,
+                FACTORY_RESET_SUCCESS_TRANSITION_DELAY_MS);
+    }
+
+    @Override
+    public void showFactoryResetFailure() {
+        dismissFactoryResetDialog();
+        showToast(getString(R.string.factory_reset_failed));
+    }
+
     private void updateTopWifiStatus(String ssid) {
         Activity activity = getActivity();
         if (activity instanceof MainActivity) {
@@ -578,6 +655,12 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             SettingsPresenter presenter = getPresenter();
             if (presenter != null) {
                 presenter.onLogUploadSelected();
+            }
+        });
+        mBinding.settingsRestoreFactory.setOnClickListener(view -> {
+            SettingsPresenter presenter = getPresenter();
+            if (presenter != null) {
+                presenter.onFactoryResetSelected();
             }
         });
     }
@@ -900,6 +983,97 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             mSystemUpdateConfirmationDialog.dismiss();
             mSystemUpdateConfirmationDialog = null;
         }
+    }
+
+    private void startFactoryResetSuccessLoadingAnimation() {
+        if (mFactoryResetBinding == null) {
+            return;
+        }
+        stopFactoryResetSuccessLoadingAnimation();
+        View loadingView = mFactoryResetBinding.factoryResetSuccessLoading;
+        ObjectAnimator animator = ObjectAnimator.ofFloat(loadingView, View.ROTATION, 0f, 360f);
+        animator.setDuration(900L);
+        animator.setInterpolator(new LinearInterpolator());
+        animator.setRepeatCount(ObjectAnimator.INFINITE);
+        animator.start();
+        mFactoryResetSuccessLoadingAnimator = animator;
+    }
+
+    private void stopFactoryResetSuccessLoadingAnimation() {
+        if (mFactoryResetSuccessLoadingAnimator != null) {
+            mFactoryResetSuccessLoadingAnimator.cancel();
+            mFactoryResetSuccessLoadingAnimator = null;
+        }
+        if (mFactoryResetBinding != null) {
+            mFactoryResetBinding.factoryResetSuccessLoading.setRotation(0f);
+        }
+    }
+
+    private boolean ensureFactoryResetDialog() {
+        if (!isAdded()) {
+            return false;
+        }
+        if (mFactoryResetDialog != null && mFactoryResetBinding != null) {
+            return true;
+        }
+        Dialog dialog = new Dialog(getHostActivity());
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        DialogFactoryResetBinding dialogBinding =
+                DialogFactoryResetBinding.inflate(getLayoutInflater());
+        dialog.setContentView(dialogBinding.getRoot());
+        dialogBinding.factoryResetConfirmationCancel.setOnClickListener(view -> dialog.dismiss());
+        dialogBinding.factoryResetConfirmationContinue.setOnClickListener(view -> {
+            dismissFactoryResetDialog();
+            SettingsPresenter presenter = getPresenter();
+            if (presenter != null) {
+                presenter.onFactoryResetFirstConfirmed();
+            }
+        });
+        dialogBinding.factoryResetFinalConfirmationCancel.setOnClickListener(view ->
+                dialog.dismiss());
+        dialogBinding.factoryResetFinalConfirmationConfirm.setOnClickListener(view -> {
+            SettingsPresenter presenter = getPresenter();
+            if (presenter != null) {
+                presenter.onFactoryResetConfirmed();
+            }
+        });
+        dialog.setOnDismissListener(ignored -> {
+            if (mFactoryResetDialog == dialog) {
+                mFactoryResetDialog = null;
+                mFactoryResetBinding = null;
+            }
+        });
+        prepareSystemUpdateDialogWindow(dialog);
+        mFactoryResetDialog = dialog;
+        mFactoryResetBinding = dialogBinding;
+        return true;
+    }
+
+    private void dismissFactoryResetDialog() {
+        mBrightnessSettingsHandler.removeCallbacks(mFactoryResetSuccessTransitionRunnable);
+        stopFactoryResetSuccessLoadingAnimation();
+        if (mFactoryResetDialog != null) {
+            mFactoryResetDialog.dismiss();
+            mFactoryResetDialog = null;
+        }
+        mFactoryResetBinding = null;
+    }
+
+    private void openFirstUseGuideAfterFactoryReset() {
+        if (!isAdded()) {
+            return;
+        }
+        Activity activity = getActivity();
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+            return;
+        }
+        dismissFactoryResetDialog();
+        Intent intent = new Intent(activity, FirstUseGuideActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                        | Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        activity.startActivity(intent);
+        activity.finish();
     }
 
     private boolean ensureLogUploadDialog() {

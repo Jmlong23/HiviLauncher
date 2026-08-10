@@ -65,6 +65,21 @@ public final class AiPresenter extends BasePresenter<AiView> {
         clearAssistantResponse();
     }
 
+    /**
+     * Removes the persisted AI session timestamps created by this presenter.
+     */
+    public static boolean clearPersistedSession(Context context) {
+        if (context == null) {
+            return false;
+        }
+        Context applicationContext = context.getApplicationContext();
+        Context preferencesContext = applicationContext == null ? context : applicationContext;
+        return preferencesContext.getSharedPreferences(SESSION_PREFERENCES, Context.MODE_PRIVATE)
+                .edit()
+                .clear()
+                .commit();
+    }
+
     public void onParticleClicked() {
         if (mReleased) {
             return;
