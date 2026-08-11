@@ -521,7 +521,7 @@
 
             <TextView
                 android:id="@+id/first_use_volume_continue"
-                android:layout_width="191dp"
+                android:layout_width="wrap_content"
                 android:layout_height="42dp"
                 android:background="@drawable/primary_button"
                 android:clickable="true"
@@ -530,7 +530,9 @@
                 android:text="@string/onboarding_volume_continue"
                 android:textColor="@color/text_color"
                 android:textSize="15sp"
-                android:layout_marginLeft="20dp"/>
+                android:layout_marginLeft="20dp"
+                android:paddingRight="20dp"
+                android:paddingLeft="20dp"/>
         </LinearLayout>
 
     </LinearLayout>

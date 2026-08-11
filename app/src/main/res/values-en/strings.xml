@@ -114,6 +114,11 @@
     <string name="input_mode_line_top">LINE Mode</string>
     <string name="input_mode_microphone">Microphone</string>
     <string name="input_mode_microphone_top">Microphone</string>
+    <string name="microphone_page_title">Karaoke</string>
+    <string name="microphone_status_connected">Microphone connected</string>
+    <string name="microphone_status_disconnected">Microphone not connected</string>
+    <string name="microphone_volume">Microphone volume</string>
+    <string name="microphone_effect_volume">Effect volume</string>
     <string name="input_mode_bluetooth">Bluetooth</string>
     <string name="input_mode_bluetooth_top">Bluetooth Mode</string>
     <string name="input_mode_optical">Optical</string>
@@ -258,6 +263,18 @@
     <string name="system_update_progress_percent_format">%1$d%%</string>
     <string name="system_update_success_title">Update successful</string>
     <string name="system_update_failed">Update failed. Please try again later.</string>
+    <!-- Wi-Fi music input page -->
+    <string name="wifi_music_app_qq">QQ Music</string>
+    <string name="wifi_music_app_wyy">NetEase Cloud Music</string>
+    <string name="wifi_music_app_kugou">Kugou Music</string>
+    <string name="wifi_music_no_playback">No music playing</string>
+    <string name="wifi_music_unknown_artist">Unknown artist</string>
+    <string name="wifi_music_album_art">Album art</string>
+    <string name="wifi_music_pause">Pause</string>
+    <string name="wifi_music_play">Play</string>
+    <string name="wifi_music_app_not_configured">%1$s app package name is not configured</string>
+    <string name="wifi_music_app_not_available">%1$s is not installed or cannot be launched</string>
+    <string name="wifi_music_app_launch_failed">Unable to open %1$s</string>
     <!-- AI conversation -->
     <string name="ai_conversation_title">AI Conversation</string>
     <string name="ai_conversation_back">Back</string>

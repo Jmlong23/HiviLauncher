@@ -112,6 +112,11 @@
     <string name="input_mode_line_top">有线模式</string>
     <string name="input_mode_microphone">麦克风</string>
     <string name="input_mode_microphone_top">麦克风</string>
+    <string name="microphone_page_title">卡拉OK</string>
+    <string name="microphone_status_connected">麦克风已经连接</string>
+    <string name="microphone_status_disconnected">麦克风未连接</string>
+    <string name="microphone_volume">话筒音量</string>
+    <string name="microphone_effect_volume">音效音量</string>
     <string name="input_mode_bluetooth">蓝牙</string>
     <string name="input_mode_bluetooth_top">蓝牙模式</string>
     <string name="input_mode_optical">光纤</string>
@@ -233,6 +238,19 @@
     <string name="system_update_progress_percent_format">%1$d%%</string>
     <string name="system_update_success_title">升级成功</string>
     <string name="system_update_failed">升级失败，请稍后重试。</string>
+
+    <!-- Wi-Fi music input page -->
+    <string name="wifi_music_app_qq">QQ音乐</string>
+    <string name="wifi_music_app_wyy">网易云音乐</string>
+    <string name="wifi_music_app_kugou">酷狗音乐</string>
+    <string name="wifi_music_no_playback">暂无播放</string>
+    <string name="wifi_music_unknown_artist">未知歌手</string>
+    <string name="wifi_music_album_art">歌曲封面</string>
+    <string name="wifi_music_pause">暂停</string>
+    <string name="wifi_music_play">播放</string>
+    <string name="wifi_music_app_not_configured">%1$s暂未配置应用包名</string>
+    <string name="wifi_music_app_not_available">%1$s未安装或不可启动</string>
+    <string name="wifi_music_app_launch_failed">无法打开%1$s</string>
     <!-- AI conversation -->
     <string name="ai_conversation_title">AI 对话</string>
     <string name="ai_conversation_back">返回</string>

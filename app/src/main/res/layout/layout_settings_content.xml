@@ -555,7 +555,7 @@
 
                     <TextView
                         android:id="@+id/settings_system_update_action"
-                        android:layout_width="40dp"
+                        android:layout_width="45dp"
                         android:layout_height="23dp"
                         android:layout_marginLeft="8dp"
                         android:background="@drawable/system_update_action_button"
@@ -566,7 +566,9 @@
                         android:text="@string/settings_system_update_action"
                         android:textColor="@color/text_color"
                         android:textSize="12sp"
-                        android:visibility="gone" />
+                        android:visibility="gone"
+                        android:paddingLeft="3dp"
+                        android:paddingRight="3dp" />
                 </LinearLayout>
 
                 <LinearLayout
