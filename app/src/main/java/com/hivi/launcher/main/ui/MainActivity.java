@@ -84,10 +84,12 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private final DecelerateInterpolator mPageTransitionInterpolator =
             new DecelerateInterpolator();
     private String mAccountAvatarUrl = "";
+    private int mAmplifierVolumePercent;
     private int mPageTransitionGeneration;
     private int mAiChatEntryTransitionGeneration;
     private boolean mBluetoothConnected;
     private boolean mWifiConnected;
+    private boolean mAmplifierMuted;
     private boolean mAiConversationBackgroundVisible;
     private boolean mHomeNavigationPending;
     private boolean mSuppressBackStackUiSync;
@@ -252,21 +254,14 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     @Override
     public void updateVolume(int volumePercent) {
-        if (binding == null) {
-            return;
-        }
-        binding.bottomNavigationVolume.setText(getString(
-                R.string.main_bottom_navigation_volume_format, volumePercent));
-        if (mVolumeDialog != null) {
-            mVolumeDialog.updateVolume(volumePercent);
-        }
+        mAmplifierVolumePercent = volumePercent;
+        renderAmplifierVolume();
     }
 
     @Override
     public void updateVolumeMuted(boolean muted) {
-        if (mVolumeDialog != null) {
-            mVolumeDialog.updateMuted(muted);
-        }
+        mAmplifierMuted = muted;
+        renderAmplifierVolume();
     }
 
     @Override
@@ -293,6 +288,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (isFinishing() || isDestroyed() || binding == null) {
             return;
         }
+        mAmplifierVolumePercent = volumePercent;
+        mAmplifierMuted = muted;
         if (mVolumeDialog == null) {
             mVolumeDialog = new VolumeDialog(this, new VolumeDialog.Listener() {
                 @Override
@@ -318,6 +315,18 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         resetBottomNavigationBackground();
         mVolumeDialog.show(volumePercent, muted);
+    }
+
+    private void renderAmplifierVolume() {
+        if (binding == null) {
+            return;
+        }
+        int displayedVolume = mAmplifierMuted ? 0 : mAmplifierVolumePercent;
+        binding.bottomNavigationVolume.setText(getString(
+                R.string.main_bottom_navigation_volume_format, displayedVolume));
+        if (mVolumeDialog != null) {
+            mVolumeDialog.updateVolume(mAmplifierVolumePercent, mAmplifierMuted);
+        }
     }
 
     @Override

@@ -135,14 +135,15 @@ public final class MicrophoneFragment extends BaseFragment<MicrophonePresenter>
 
     private void updateVolumeRow(TextView volumeValue, ImageView muteButton, ImageView downButton,
             SeekBar seekBar, ImageView upButton, int volumePercent, boolean muted) {
-        volumeValue.setText(String.valueOf(volumePercent));
+        int displayedVolume = muted ? 0 : volumePercent;
+        volumeValue.setText(String.valueOf(displayedVolume));
         muteButton.setSelected(muted);
         muteButton.setContentDescription(getString(muted
                 ? R.string.main_volume_unmute : R.string.main_volume_mute));
-        setActionEnabled(downButton, volumePercent > 0);
-        setActionEnabled(upButton, volumePercent < 100);
+        setActionEnabled(downButton, displayedVolume > 0);
+        setActionEnabled(upButton, displayedVolume < 100);
         mBindingVolume = true;
-        seekBar.setProgress(volumePercent);
+        seekBar.setProgress(displayedVolume);
         mBindingVolume = false;
     }
 

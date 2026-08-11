@@ -227,8 +227,8 @@ public class MainPresenter extends BasePresenter<MainView> {
     private void updateAudioStatus() {
         MainView view = getView();
         if (view != null) {
-            view.updateVolume(mStatusRepository.getVolumePercent());
             view.updateVolumeMuted(mStatusRepository.isMusicStreamMuted());
+            view.updateVolume(mStatusRepository.getVolumePercent());
         }
     }
 

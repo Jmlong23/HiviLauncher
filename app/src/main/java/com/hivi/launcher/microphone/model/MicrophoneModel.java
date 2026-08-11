@@ -61,6 +61,8 @@ public final class MicrophoneModel {
                 AudioRouteController.SERIAL_PORT_CMD_SFX_KEY, DEFAULT_KARAOKE_VOLUME);
         mLastMicrophoneVolumePercent = mMicrophoneVolumePercent;
         mLastEffectVolumePercent = mEffectVolumePercent;
+        mMicrophoneMuted = mMicrophoneVolumePercent == 0;
+        mEffectMuted = mEffectVolumePercent == 0;
         mAudioRouteController.addAmplifierVolumeListener(mAmplifierVolumeListener);
         if (mAudioManager != null && !mAudioDeviceCallbackRegistered) {
             mAudioManager.registerAudioDeviceCallback(mAudioDeviceCallback, null);
@@ -119,18 +121,30 @@ public final class MicrophoneModel {
     private void setKaraokeVolume(VolumeChannel channel, int volumePercent) {
         int volume = clampVolume(volumePercent);
         if (channel == VolumeChannel.MICROPHONE) {
-            mMicrophoneVolumePercent = volume;
-            if (volume > 0) {
+            if (volume == 0) {
+                if (mMicrophoneVolumePercent > 0) {
+                    mLastMicrophoneVolumePercent = mMicrophoneVolumePercent;
+                }
+                mMicrophoneVolumePercent = 0;
+                mMicrophoneMuted = true;
+            } else {
+                mMicrophoneVolumePercent = volume;
                 mLastMicrophoneVolumePercent = volume;
+                mMicrophoneMuted = false;
             }
-            mMicrophoneMuted = false;
             AudioRouteController.getInstance().setMicrophoneVolume(volume);
         } else {
-            mEffectVolumePercent = volume;
-            if (volume > 0) {
+            if (volume == 0) {
+                if (mEffectVolumePercent > 0) {
+                    mLastEffectVolumePercent = mEffectVolumePercent;
+                }
+                mEffectVolumePercent = 0;
+                mEffectMuted = true;
+            } else {
+                mEffectVolumePercent = volume;
                 mLastEffectVolumePercent = volume;
+                mEffectMuted = false;
             }
-            mEffectMuted = false;
             AudioRouteController.getInstance().setEffectVolume(volume);
         }
         dispatchPageState();
@@ -146,6 +160,7 @@ public final class MicrophoneModel {
                 if (mMicrophoneVolumePercent > 0) {
                     mLastMicrophoneVolumePercent = mMicrophoneVolumePercent;
                 }
+                mMicrophoneVolumePercent = 0;
                 mMicrophoneMuted = true;
                 AudioRouteController.getInstance().setMicrophoneVolume(0);
             }
@@ -158,6 +173,7 @@ public final class MicrophoneModel {
                 if (mEffectVolumePercent > 0) {
                     mLastEffectVolumePercent = mEffectVolumePercent;
                 }
+                mEffectVolumePercent = 0;
                 mEffectMuted = true;
                 AudioRouteController.getInstance().setEffectVolume(0);
             }

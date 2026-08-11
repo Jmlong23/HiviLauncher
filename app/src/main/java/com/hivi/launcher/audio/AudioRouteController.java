@@ -87,6 +87,7 @@ public final class AudioRouteController {
             mAmplifierVolumePercent = getStoredVolume(appContext,
                     SERIAL_PORT_CMD_VOLUME_KEY, DEFAULT_AMPLIFIER_VOLUME);
             mLastAmplifierVolumePercent = mAmplifierVolumePercent;
+            mAmplifierMuted = mAmplifierVolumePercent == 0;
         }
         dispatchAmplifierVolumeChanged();
         mSerialExecutor.execute(this::openSerialPortIfNeeded);
@@ -121,11 +122,17 @@ public final class AudioRouteController {
     public void setAmplifierVolume(int volumePercent) {
         int volume = clampVolume(volumePercent);
         synchronized (mLock) {
-            mAmplifierVolumePercent = volume;
-            if (volume > 0) {
+            if (volume == 0) {
+                if (mAmplifierVolumePercent > 0) {
+                    mLastAmplifierVolumePercent = mAmplifierVolumePercent;
+                }
+                mAmplifierVolumePercent = 0;
+                mAmplifierMuted = true;
+            } else {
+                mAmplifierVolumePercent = volume;
                 mLastAmplifierVolumePercent = volume;
+                mAmplifierMuted = false;
             }
-            mAmplifierMuted = false;
         }
         dispatchAmplifierVolumeChanged();
         sendVolumeCommand(SERIAL_PORT_CMD_VOLUME_KEY, SERIAL_PORT_CMD_VOLUME, volume);
@@ -155,6 +162,7 @@ public final class AudioRouteController {
                 if (mAmplifierVolumePercent > 0) {
                     mLastAmplifierVolumePercent = mAmplifierVolumePercent;
                 }
+                mAmplifierVolumePercent = 0;
                 mAmplifierMuted = true;
                 commandVolume = 0;
             }

@@ -39,8 +39,7 @@ public final class VolumeDialog {
 
     public void show(int volumePercent, boolean muted) {
         if (isShowing()) {
-            updateVolume(volumePercent);
-            updateMuted(muted);
+            updateVolume(volumePercent, muted);
             return;
         }
 
@@ -55,27 +54,21 @@ public final class VolumeDialog {
             mListener.onDialogDismissed();
         });
         bindListeners();
-        updateVolume(volumePercent);
-        updateMuted(muted);
+        updateVolume(volumePercent, muted);
         mDialog.show();
         configureWindow();
     }
 
-    public void updateVolume(int volumePercent) {
+    public void updateVolume(int volumePercent, boolean muted) {
         if (mBinding == null) {
             return;
         }
         int clampedVolume = Math.max(0, Math.min(100, volumePercent));
-        mBinding.volumeValue.setText(String.valueOf(clampedVolume));
-        mBinding.volumeSeekBar.setProgress(clampedVolume);
-        mBinding.volumeDownButton.setEnabled(clampedVolume > 0);
-        mBinding.volumeUpButton.setEnabled(clampedVolume < 100);
-    }
-
-    public void updateMuted(boolean muted) {
-        if (mBinding == null) {
-            return;
-        }
+        int displayedVolume = muted ? 0 : clampedVolume;
+        mBinding.volumeValue.setText(String.valueOf(displayedVolume));
+        mBinding.volumeSeekBar.setProgress(displayedVolume);
+        mBinding.volumeDownButton.setEnabled(displayedVolume > 0);
+        mBinding.volumeUpButton.setEnabled(displayedVolume < 100);
         mBinding.volumeMuteButton.setSelected(muted);
         mBinding.volumeMuteButton.setContentDescription(mActivity.getString(
                 muted ? R.string.main_volume_unmute : R.string.main_volume_mute));
