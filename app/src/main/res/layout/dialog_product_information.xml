@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="460dp"
+    android:layout_height="225dp"
+    android:background="@drawable/dialog_background"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingLeft="36dp"
+    android:paddingTop="24dp"
+    android:paddingRight="36dp"
+    android:paddingBottom="24dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="@string/settings_product_information"
+        android:textColor="@color/text_color"
+        android:textSize="21sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="28dp"
+        android:gravity="center"
+        android:text="@string/product_information_ip_address"
+        android:textColor="@color/text_color2"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/product_information_ip_address"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:textColor="@color/text_color"
+        android:textSize="18sp" />
+
+    <TextView
+        android:id="@+id/product_information_close"
+        android:layout_width="118dp"
+        android:layout_height="36dp"
+        android:layout_marginTop="27dp"
+        android:background="@drawable/primary_button"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:text="@string/product_information_close"
+        android:textColor="@color/text_color"
+        android:textSize="14sp" />
+</LinearLayout>

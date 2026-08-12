@@ -195,6 +195,9 @@
     <string name="log_upload_success_message">设备诊断日志已上报</string>
     <string name="log_upload_failed">日志上报失败，请稍后重试。</string>
     <string name="settings_product_information">产品信息</string>
+    <string name="product_information_ip_address">IP 地址</string>
+    <string name="product_information_ip_unavailable">未连接网络</string>
+    <string name="product_information_close">关闭</string>
     <string name="settings_help">帮助</string>
     <string name="settings_privacy">隐私</string>
     <string name="settings_restore_factory">恢复出厂设置</string>

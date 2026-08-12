@@ -8,6 +8,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -29,6 +31,7 @@ import com.hivi.launcher.R;
 import com.hivi.launcher.base.BaseFragment;
 import com.hivi.launcher.databinding.DialogFactoryResetBinding;
 import com.hivi.launcher.databinding.DialogLogUploadBinding;
+import com.hivi.launcher.databinding.DialogProductInformationBinding;
 import com.hivi.launcher.databinding.DialogSystemUpdateConfirmationBinding;
 import com.hivi.launcher.databinding.DialogSystemUpdateProgressBinding;
 import com.hivi.launcher.databinding.DialogWifiPasswordBinding;
@@ -79,6 +82,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private Dialog mSystemUpdateConfirmationDialog;
     private Dialog mSystemUpdateProgressDialog;
     private DialogSystemUpdateProgressBinding mSystemUpdateProgressBinding;
+    private Dialog mProductInformationDialog;
     private Dialog mLogUploadDialog;
     private DialogLogUploadBinding mLogUploadBinding;
     private Dialog mFactoryResetDialog;
@@ -150,6 +154,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         scheduleWifiSettingsInitialization();
         setupDisplaySettings();
         setupSystemUpdateSettings();
+        setupAboutSettings();
         presenter.init();
     }
 
@@ -164,6 +169,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         dismissWifiPasswordDialog();
         dismissSystemUpdateConfirmationDialog();
         dismissSystemUpdateProgress();
+        dismissProductInformationDialog();
         dismissLogUploadDialog();
         dismissFactoryResetDialog();
         setLanguageSwitchLoading(false);
@@ -665,6 +671,55 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         });
     }
 
+    private void setupAboutSettings() {
+        mBinding.settingsProductInformation.setOnClickListener(
+                view -> showProductInformationDialog());
+    }
+
+    private void showProductInformationDialog() {
+        if (!isAdded()) {
+            return;
+        }
+        dismissProductInformationDialog();
+        Dialog dialog = new Dialog(getHostActivity());
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        DialogProductInformationBinding dialogBinding = DialogProductInformationBinding.inflate(
+                getLayoutInflater());
+        dialog.setContentView(dialogBinding.getRoot());
+        dialog.setCanceledOnTouchOutside(true);
+        dialog.setCancelable(true);
+        dialogBinding.productInformationIpAddress.setText(getCurrentIpAddress());
+        dialogBinding.productInformationClose.setOnClickListener(view -> dialog.dismiss());
+        dialog.setOnDismissListener(ignored -> {
+            if (mProductInformationDialog == dialog) {
+                mProductInformationDialog = null;
+            }
+        });
+        prepareSystemUpdateDialogWindow(dialog);
+        mProductInformationDialog = dialog;
+        showSystemUpdateDialog(dialog);
+    }
+
+    private String getCurrentIpAddress() {
+        WifiManager wifiManager = (WifiManager) getHostActivity().getApplicationContext()
+                .getSystemService(Context.WIFI_SERVICE);
+        if (wifiManager == null) {
+            return getString(R.string.product_information_ip_unavailable);
+        }
+        try {
+            WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+            int ipAddress = wifiInfo == null ? 0 : wifiInfo.getIpAddress();
+            if (ipAddress == 0) {
+                return getString(R.string.product_information_ip_unavailable);
+            }
+            return (ipAddress & 0xFF) + "." + (ipAddress >> 8 & 0xFF) + "."
+                    + (ipAddress >> 16 & 0xFF) + "." + (ipAddress >> 24 & 0xFF);
+        } catch (SecurityException exception) {
+            AppLog.w(TAG, "Unable to read Wi-Fi IP address.", exception);
+            return getString(R.string.product_information_ip_unavailable);
+        }
+    }
+
     private void setupBrightnessSettings() {
         mBinding.settingsBrightness.setProgress(getCurrentScreenBrightness());
         mBinding.settingsBrightness.setOnSeekBarChangeListener(
@@ -982,6 +1037,13 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         if (mSystemUpdateConfirmationDialog != null) {
             mSystemUpdateConfirmationDialog.dismiss();
             mSystemUpdateConfirmationDialog = null;
+        }
+    }
+
+    private void dismissProductInformationDialog() {
+        if (mProductInformationDialog != null) {
+            mProductInformationDialog.dismiss();
+            mProductInformationDialog = null;
         }
     }
 
