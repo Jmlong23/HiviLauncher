@@ -14,9 +14,10 @@ import com.hivi.launcher.utils.log.AppLog;
 import com.hivi.launcher.R;
 import com.hivi.launcher.account.model.AuthorizedUserInfo;
 import com.hivi.launcher.ai.audio.AiWebSocketManager;
-import com.hivi.launcher.ai.audio.AudioRecordOpusStreamer;
+import com.hivi.launcher.ai.audio.MicOpusStreamer;
 import com.hivi.launcher.ai.audio.OpusAudioPlayer;
 import com.hivi.launcher.ai.ui.AiView;
+import com.hivi.launcher.ai.wakeup.AiWakeupController;
 import com.hivi.launcher.base.BasePresenter;
 import com.hivi.launcher.customview.ParticleVisualizerView;
 import com.hivi.launcher.utils.Constants;
@@ -32,10 +33,12 @@ import java.util.Map;
  * AI voice conversation state machine.
  *
  * <p>It keeps the protocol used by HiviAudio (listen/start -> param(closeAudio=3) -> Opus
- * upstream, STT -> TTS/Opus downstream) while using Android's AudioRecord path instead of the
- * device-specific VTN wake-word and microphone-processing stack.</p>
+ * upstream, STT -> TTS/Opus downstream). The microphone audio comes from the ALSA multi-mic
+ * array processed by the VTN front end ({@link MicOpusStreamer}), and voice wake-up events are
+ * delivered through {@link AiWakeupController.Consumer}.</p>
  */
-public final class AiPresenter extends BasePresenter<AiView> {
+public final class AiPresenter extends BasePresenter<AiView>
+        implements AiWakeupController.Consumer {
     private static final String TAG = "AiConversationPresenter";
     private static final String SESSION_PREFERENCES = "ai_conversation";
     private static final String BOOT_WALL_TIME_KEY = "boot_wall_time";
@@ -43,8 +46,9 @@ public final class AiPresenter extends BasePresenter<AiView> {
     private static final int DEFAULT_PARTICLE_ROLE_ID = 476;
 
     private final Context mContext;
+    private final AiWakeupController mWakeupController;
     private AiWebSocketManager mWebSocketManager;
-    private AudioRecordOpusStreamer mMicrophoneStreamer;
+    private MicOpusStreamer mMicrophoneStreamer;
     private OpusAudioPlayer mAudioPlayer;
 
     private ParticleVisualizerView.State mParticleState = ParticleVisualizerView.State.IDLE;
@@ -52,17 +56,80 @@ public final class AiPresenter extends BasePresenter<AiView> {
     private boolean mWaitingForRecordPermission;
     private boolean mTtsStopped;
     private boolean mInterruptPending;
+    private boolean mWakePromptPlaying;
+    private boolean mAwaitingAudioUploadReady;
     private int mCallbackGeneration;
     private String mLastUserCommand = "";
 
     public AiPresenter(Context context, AiView view) {
         super(view);
         mContext = context.getApplicationContext();
+        mWakeupController = AiWakeupController.getInstance(mContext);
     }
 
     public void init() {
         renderState(ParticleVisualizerView.State.IDLE, R.string.ai_conversation_welcome);
         clearAssistantResponse();
+        mWakeupController.setConsumer(this);
+    }
+
+    // ────────────────── 唤醒回调（AiWakeupController.Consumer） ──────────────────
+
+    /**
+     * 唤醒提示音开始播放：提前建立会话，并把上行改为静音帧，避免唤醒词与提示音被上传。
+     */
+    @Override
+    public void onWakeupPromptStarted() {
+        runOnUiThread(() -> {
+            if (mReleased) {
+                return;
+            }
+            mWakePromptPlaying = true;
+            if (mAudioPlayer != null) {
+                mAudioPlayer.stop();
+            }
+            if (mWebSocketManager == null) {
+                openConversation();
+            } else {
+                boolean microphoneOpen = mMicrophoneStreamer != null
+                        && mMicrophoneStreamer.isRunning()
+                        && mMicrophoneStreamer.isAudioSendingEnabled();
+                mTtsStopped = false;
+                if (mMicrophoneStreamer != null && mMicrophoneStreamer.isRunning()) {
+                    mMicrophoneStreamer.setForceSendSilence(true);
+                }
+                boolean canAbortActiveConversation = mWebSocketManager.isConnected()
+                        && !mAwaitingAudioUploadReady;
+                mInterruptPending = canAbortActiveConversation;
+                if (canAbortActiveConversation) {
+                    AppLog.i(TAG, "wake prompt: abort active AI session, microphoneOpen="
+                            + microphoneOpen);
+                    mWebSocketManager.sendAbort(microphoneOpen);
+                } else {
+                    AppLog.i(TAG, "wake prompt: waiting for initial AI audio handshake");
+                }
+                renderState(ParticleVisualizerView.State.LISTENING,
+                        R.string.ai_conversation_preparing);
+            }
+        });
+    }
+
+    /**
+     * 唤醒提示音播放完毕，开麦上传。
+     */
+    @Override
+    public void onWakeupMicrophoneReady() {
+        runOnUiThread(() -> {
+            if (mReleased) {
+                return;
+            }
+            mWakePromptPlaying = false;
+            if (mWebSocketManager == null) {
+                openConversation();
+                return;
+            }
+            enableListening();
+        });
     }
 
     /**
@@ -131,9 +198,12 @@ public final class AiPresenter extends BasePresenter<AiView> {
             return;
         }
         mReleased = true;
+        mWakeupController.clearConsumer(this);
         mWaitingForRecordPermission = false;
         mInterruptPending = false;
         mTtsStopped = false;
+        mWakePromptPlaying = false;
+        mAwaitingAudioUploadReady = false;
         mCallbackGeneration++;
         stopAudioResources();
         releaseWebSocket();
@@ -144,12 +214,13 @@ public final class AiPresenter extends BasePresenter<AiView> {
             return;
         }
         final int generation = ++mCallbackGeneration;
+        mAwaitingAudioUploadReady = true;
         renderState(ParticleVisualizerView.State.LISTENING,
                 R.string.ai_conversation_connecting);
 
         ensureAudioPlayer();
         AiWebSocketManager manager = new AiWebSocketManager(AuthorizationStore.getToken(mContext),
-                Constants.TEST_WS_URL);
+                Constants.getCurrentWsUrl(mContext));
         mWebSocketManager = manager;
         manager.setListener(new AiWebSocketManager.Listener() {
             @Override
@@ -215,17 +286,20 @@ public final class AiPresenter extends BasePresenter<AiView> {
 
             @Override
             public void onAudioData(byte[] audioData) {
+                if (mInterruptPending || audioData == null || audioData.length == 0) {
+                    return;
+                }
+                ensureAudioPlayer();
+                mAudioPlayer.play(audioData);
                 dispatch(generation, () -> {
-                    if (mInterruptPending || audioData == null || audioData.length == 0) {
+                    if (mInterruptPending) {
                         return;
                     }
-                    ensureAudioPlayer();
                     setMicrophoneSendingEnabled(false);
                     if (mParticleState != ParticleVisualizerView.State.SPEAKING) {
                         renderState(ParticleVisualizerView.State.SPEAKING,
                                 getCurrentConversationStatus());
                     }
-                    mAudioPlayer.play(audioData);
                 });
             }
 
@@ -259,9 +333,8 @@ public final class AiPresenter extends BasePresenter<AiView> {
             @Override
             public void onAudioUploadReady() {
                 dispatch(generation, () -> {
-                    if (!mInterruptPending) {
-                        enableListening();
-                    }
+                    mAwaitingAudioUploadReady = false;
+                    enableListening();
                 });
             }
 
@@ -282,6 +355,15 @@ public final class AiPresenter extends BasePresenter<AiView> {
                     showConversationError(R.string.ai_conversation_disconnected);
                 });
             }
+
+            @Override
+            public void onAuthorizationRejected() {
+                dispatch(generation, () -> {
+                    AppLog.w(TAG, "AI authorization rejected by the active server, clearing local token");
+                    AuthorizationStore.clearToken(mContext);
+                    showConversationError(R.string.ai_conversation_authorize_required);
+                });
+            }
         });
         manager.connect(buildWebSocketHeaders());
     }
@@ -293,13 +375,17 @@ public final class AiPresenter extends BasePresenter<AiView> {
         }
         mInterruptPending = true;
         mTtsStopped = false;
+        // 打断时是否处于开麦状态决定 abort 是否携带 mode=2（服务端会收到唤醒词音频）。
+        boolean microphoneOpen = mMicrophoneStreamer != null
+                && mMicrophoneStreamer.isRunning()
+                && mMicrophoneStreamer.isAudioSendingEnabled();
         setMicrophoneSendingEnabled(false);
         if (mAudioPlayer != null) {
             mAudioPlayer.stop();
         }
         renderState(ParticleVisualizerView.State.LISTENING,
                 R.string.ai_conversation_interrupting);
-        manager.sendAbort();
+        manager.sendAbort(microphoneOpen);
 
         final int generation = mCallbackGeneration;
         runOnUiThreadDelayed(() -> {
@@ -318,7 +404,21 @@ public final class AiPresenter extends BasePresenter<AiView> {
             showConversationError(R.string.ai_conversation_microphone_error);
             return;
         }
+        if (mWakePromptPlaying || mInterruptPending || mAwaitingAudioUploadReady) {
+            if (mMicrophoneStreamer != null && mMicrophoneStreamer.isRunning()) {
+                mMicrophoneStreamer.setForceSendSilence(true);
+            }
+            AppLog.i(TAG, "microphone upload held: wakePrompt=" + mWakePromptPlaying
+                    + ", interruptPending=" + mInterruptPending
+                    + ", awaitingAudioReady=" + mAwaitingAudioUploadReady);
+            renderState(ParticleVisualizerView.State.LISTENING,
+                    R.string.ai_conversation_preparing);
+            return;
+        }
         mWebSocketManager.enableAudioSending();
+        if (mMicrophoneStreamer != null && mMicrophoneStreamer.isRunning()) {
+            mMicrophoneStreamer.setForceSendSilence(false);
+        }
         setMicrophoneSendingEnabled(true);
         mTtsStopped = false;
         renderState(ParticleVisualizerView.State.LISTENING,
@@ -340,7 +440,7 @@ public final class AiPresenter extends BasePresenter<AiView> {
         if (manager == null) {
             return false;
         }
-        mMicrophoneStreamer = new AudioRecordOpusStreamer(manager::sendAudio,
+        MicOpusStreamer streamer = new MicOpusStreamer(manager::sendAudio,
                 volume -> runOnUiThread(() -> {
                     if (!mReleased && mParticleState == ParticleVisualizerView.State.LISTENING) {
                         AiView view = getView();
@@ -349,9 +449,14 @@ public final class AiPresenter extends BasePresenter<AiView> {
                         }
                     }
                 }));
-        if (!mMicrophoneStreamer.start()) {
-            mMicrophoneStreamer = null;
+        if (!streamer.start()) {
             return false;
+        }
+        mMicrophoneStreamer = streamer;
+        // 让 VTN 的降噪识别音频回调（兜底路径）也能进入编码器。
+        mWakeupController.attachStreamer(streamer);
+        if (mWakePromptPlaying || mInterruptPending || mAwaitingAudioUploadReady) {
+            streamer.setForceSendSilence(true);
         }
         return true;
     }
@@ -379,6 +484,7 @@ public final class AiPresenter extends BasePresenter<AiView> {
         mCallbackGeneration++;
         mInterruptPending = false;
         mTtsStopped = false;
+        mAwaitingAudioUploadReady = false;
         stopAudioResources();
         releaseWebSocket();
         renderState(ParticleVisualizerView.State.IDLE, R.string.ai_conversation_unavailable);
@@ -398,6 +504,7 @@ public final class AiPresenter extends BasePresenter<AiView> {
 
     private void stopAudioResources() {
         if (mMicrophoneStreamer != null) {
+            mWakeupController.attachStreamer(null);
             mMicrophoneStreamer.stop();
             mMicrophoneStreamer = null;
         }

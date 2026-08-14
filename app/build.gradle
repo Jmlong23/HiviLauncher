@@ -21,6 +21,10 @@ android {
         targetSdk 31
         versionCode 1
         versionName '1.0.0'
+
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
+        }
     }
 
     buildFeatures {
@@ -67,6 +71,9 @@ android {
 dependencies {
     implementation project(':AudioToolLib')
     implementation project(':AudioNativeLib')
+    // 科大讯飞 VTN 唤醒引擎（多麦阵列前端处理 + 端侧唤醒），配套 jniLibs/libvtn_* 与 assets/res
+    implementation files('libs/VTN.jar')
+    implementation files('libs/AIKit.aar')
     implementation 'androidx.recyclerview:recyclerview:1.1.0'
     implementation 'com.google.zxing:core:3.4.1'
 

@@ -7,7 +7,6 @@ import android.media.AudioTrack;
 import android.os.Process;
 import com.hivi.launcher.utils.log.AppLog;
 
-import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -28,7 +27,7 @@ public final class OpusAudioPlayer {
     }
 
     private final Object mLock = new Object();
-    private final LinkedBlockingQueue<byte[]> mQueue = new LinkedBlockingQueue<>(128);
+    private final LinkedBlockingQueue<byte[]> mQueue = new LinkedBlockingQueue<>();
     private final short[] mDecodeBuffer = new short[MAX_DECODE_SAMPLES];
     private final byte[] mPcmBuffer = new byte[MAX_DECODE_SAMPLES * 2];
     private final OpusDecoder mDecoder;
@@ -37,7 +36,9 @@ public final class OpusAudioPlayer {
     private AudioTrack mAudioTrack;
     private Thread mPlaybackThread;
     private volatile boolean mPlaying;
+    private volatile long mActivePlaybackSessionId = -1L;
     private volatile long mLastEnqueueTimeMs;
+    private long mPlaybackSessionId;
 
     public OpusAudioPlayer(Listener listener) {
         mListener = listener;
@@ -54,16 +55,16 @@ public final class OpusAudioPlayer {
         }
         boolean startPlaybackThread = false;
         synchronized (mLock) {
-            if (!mQueue.offer(Arrays.copyOf(opusData, opusData.length))) {
-                mQueue.poll();
-                mQueue.offer(Arrays.copyOf(opusData, opusData.length));
-            }
-            mLastEnqueueTimeMs = System.currentTimeMillis();
             if (!mPlaying) {
                 mPlaying = true;
-                mPlaybackThread = new Thread(this::playbackLoop, "ai-opus-player");
+                mActivePlaybackSessionId = ++mPlaybackSessionId;
+                mQueue.clear();
+                long sessionId = mActivePlaybackSessionId;
+                mPlaybackThread = new Thread(() -> playbackLoop(sessionId), "ai-opus-player");
                 startPlaybackThread = true;
             }
+            mQueue.offer(opusData);
+            mLastEnqueueTimeMs = System.currentTimeMillis();
         }
         if (startPlaybackThread) {
             mPlaybackThread.start();
@@ -77,6 +78,8 @@ public final class OpusAudioPlayer {
     public void stop() {
         Thread playbackThread;
         synchronized (mLock) {
+            ++mPlaybackSessionId;
+            mActivePlaybackSessionId = -1L;
             mPlaying = false;
             mQueue.clear();
             playbackThread = mPlaybackThread;
@@ -84,6 +87,11 @@ public final class OpusAudioPlayer {
         }
         if (playbackThread != null && playbackThread != Thread.currentThread()) {
             playbackThread.interrupt();
+            try {
+                playbackThread.join(1_000L);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+            }
         }
         pauseAndFlushTrack();
     }
@@ -101,13 +109,16 @@ public final class OpusAudioPlayer {
         }
     }
 
-    private void playbackLoop() {
+    private void playbackLoop(long sessionId) {
         Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO);
         try {
+            if (!isSessionActive(sessionId)) {
+                return;
+            }
             ensureAudioTrack();
-            while (mPlaying && !Thread.currentThread().isInterrupted()) {
+            while (isSessionActive(sessionId) && !Thread.currentThread().isInterrupted()) {
                 byte[] opusData = mQueue.poll(150L, TimeUnit.MILLISECONDS);
-                if (!mPlaying) {
+                if (!isSessionActive(sessionId)) {
                     break;
                 }
                 if (opusData == null) {
@@ -116,7 +127,7 @@ public final class OpusAudioPlayer {
                     }
                     continue;
                 }
-                playPacket(opusData);
+                playPacket(opusData, sessionId);
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -125,13 +136,18 @@ public final class OpusAudioPlayer {
         } finally {
             boolean notifyFinished;
             synchronized (mLock) {
-                notifyFinished = mPlaying;
-                mPlaying = false;
+                notifyFinished = isSessionActiveLocked(sessionId);
+                if (notifyFinished) {
+                    mPlaying = false;
+                    mActivePlaybackSessionId = -1L;
+                }
                 if (mPlaybackThread == Thread.currentThread()) {
                     mPlaybackThread = null;
                 }
             }
-            pauseAndFlushTrack();
+            if (notifyFinished) {
+                pauseAndFlushTrack();
+            }
             if (notifyFinished && mListener != null) {
                 mListener.onPlaybackFinished();
             }
@@ -163,7 +179,10 @@ public final class OpusAudioPlayer {
         }
     }
 
-    private void playPacket(byte[] opusData) {
+    private void playPacket(byte[] opusData, long sessionId) {
+        if (!isSessionActive(sessionId)) {
+            return;
+        }
         int decodedSamples;
         try {
             decodedSamples = mDecoder.decode(opusData, 0, opusData.length, mDecodeBuffer, 0,
@@ -182,11 +201,21 @@ public final class OpusAudioPlayer {
             mPcmBuffer[i * 2 + 1] = (byte) ((mDecodeBuffer[i] >> 8) & 0xFF);
         }
         synchronized (mLock) {
-            if (mPlaying && mAudioTrack != null
+            if (isSessionActiveLocked(sessionId) && mAudioTrack != null
                     && mAudioTrack.getState() == AudioTrack.STATE_INITIALIZED) {
                 mAudioTrack.write(mPcmBuffer, 0, pcmLength);
             }
         }
+    }
+
+    private boolean isSessionActive(long sessionId) {
+        synchronized (mLock) {
+            return isSessionActiveLocked(sessionId);
+        }
+    }
+
+    private boolean isSessionActiveLocked(long sessionId) {
+        return mPlaying && sessionId == mActivePlaybackSessionId;
     }
 
     private void pauseAndFlushTrack() {

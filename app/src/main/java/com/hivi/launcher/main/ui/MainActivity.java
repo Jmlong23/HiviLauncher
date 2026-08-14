@@ -37,6 +37,7 @@ import com.hivi.launcher.audio.AudioRouteController;
 import com.hivi.launcher.account.model.AuthorizedUserInfo;
 import com.hivi.launcher.account.ui.AuthorizationDialog;
 import com.hivi.launcher.ai.ui.AiFragment;
+import com.hivi.launcher.ai.wakeup.AiWakeupController;
 import com.hivi.launcher.base.BaseActivity;
 import com.hivi.launcher.databinding.ActivityMainBinding;
 import com.hivi.launcher.main.model.MainPage;
@@ -64,7 +65,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresenter>
-        implements MainView {
+        implements MainView, AiWakeupController.Navigator {
     private static final String TAG = "MainActivity";
     public static final String EXTRA_INITIAL_MODE =
             "com.hivi.launcher.main.ui.MainActivity.initial_mode";
@@ -91,6 +92,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private boolean mWifiConnected;
     private boolean mAmplifierMuted;
     private boolean mAiConversationBackgroundVisible;
+    private AiWakeupController mAiWakeupController;
     private boolean mHomeNavigationPending;
     private boolean mSuppressBackStackUiSync;
     private boolean mActivityResumed;
@@ -167,6 +169,43 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         startSystemMusicVolumeCheck();
         AudioRouteController.getInstance().initialize(this);
         presenter.init();
+        startVoiceWakeupIfGuideCompleted();
+    }
+
+    /**
+     * 启动语音唤醒（ALSA 多麦采集 + VTN 前端处理），Launcher 常驻，唤醒引擎随之常驻。
+     */
+    private void startVoiceWakeupIfGuideCompleted() {
+        if (!FirstUseGuideStore.isCompleted(this) || mAiWakeupController != null) {
+            return;
+        }
+        mAiWakeupController = AiWakeupController.getInstance(this);
+        mAiWakeupController.setNavigator(this);
+        mAiWakeupController.start();
+    }
+
+    @Override
+    public boolean onWakeupRequestAiPage() {
+        if (binding == null) {
+            return false;
+        }
+        Fragment currentFragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        if (currentFragment instanceof AiFragment) {
+            return true;
+        }
+        showPage(MainPage.AI);
+        return true;
+    }
+
+    @Override
+    public void onWakeupRejected(AiWakeupController.Reason reason) {
+        if (reason == AiWakeupController.Reason.NOT_AUTHORIZED) {
+            showAuthorization();
+        }
+        int messageResId = reason == AiWakeupController.Reason.NO_NETWORK
+                ? R.string.ai_conversation_connection_error
+                : R.string.ai_conversation_authorize_required;
+        showToast(getString(messageResId));
     }
 
     @Override
@@ -199,6 +238,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        startVoiceWakeupIfGuideCompleted();
         handleSystemUpdateInstallResult(intent);
         MainPage initialMode = consumeInitialModeIntent(intent);
         if (initialMode != null) {
@@ -507,6 +547,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     @Override
     protected void onDestroy() {
+        if (mAiWakeupController != null) {
+            mAiWakeupController.clearNavigator(this);
+            mAiWakeupController = null;
+        }
         getFragmentManager().removeOnBackStackChangedListener(mBackStackChangedListener);
         mSystemVolumeHandler.removeCallbacks(mSystemMusicVolumeCheck);
         if (mVolumeDialog != null) {

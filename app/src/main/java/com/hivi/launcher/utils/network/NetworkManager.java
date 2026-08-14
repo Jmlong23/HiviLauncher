@@ -83,7 +83,7 @@ public final class NetworkManager {
                 .addInterceptor(new VersionDetailsLoggingInterceptor())
                 .build();
         return new Retrofit.Builder()
-                .baseUrl(Constants.TEST_BASE_URL)
+                .baseUrl(Constants.getCurrentBaseUrl(context))
                 .client(client)
                 .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
                 .addConverterFactory(ScalarsConverterFactory.create())
