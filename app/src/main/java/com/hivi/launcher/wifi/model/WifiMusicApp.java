@@ -1,5 +1,7 @@
 package com.hivi.launcher.wifi.model;
 
+import androidx.annotation.Nullable;
+
 import com.hivi.launcher.R;
 
 /**
@@ -28,5 +30,18 @@ public enum WifiMusicApp {
 
     public String getPackageName() {
         return mPackageName;
+    }
+
+    @Nullable
+    public static WifiMusicApp fromPackageName(String packageName) {
+        if (packageName == null) {
+            return null;
+        }
+        for (WifiMusicApp app : values()) {
+            if (app.mPackageName.equals(packageName)) {
+                return app;
+            }
+        }
+        return null;
     }
 }

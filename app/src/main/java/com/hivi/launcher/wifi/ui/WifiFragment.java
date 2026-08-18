@@ -15,6 +15,7 @@ import com.hivi.launcher.R;
 import com.hivi.launcher.base.BaseFragment;
 import com.hivi.launcher.databinding.FragmentWifiBinding;
 import com.hivi.launcher.music.model.UpnpPlaybackState;
+import com.hivi.launcher.wifi.model.MediaSessionPlaybackState;
 import com.hivi.launcher.wifi.model.WifiMusicApp;
 import com.hivi.launcher.wifi.presenter.WifiMusicPresenter;
 
@@ -39,6 +40,9 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
     private ObjectAnimator mAlbumArtworkAnimator;
     private WifiMusicApp mSelectedMusicApp;
     private String mCoverUrl;
+    private Bitmap mBoundArtwork;
+    private UpnpPlaybackState mUpnpState;
+    private MediaSessionPlaybackState mMediaState;
 
     @Override
     protected WifiMusicPresenter createPresenter() {
@@ -89,31 +93,74 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
         }
         mBinding = null;
         mCoverUrl = null;
+        mBoundArtwork = null;
         super.onDestroyView();
     }
 
     @Override
     public void renderWifiPlayback(UpnpPlaybackState state) {
-        if (mBinding == null || state == null) {
+        mUpnpState = state;
+        renderCurrentPlayback();
+    }
+
+    @Override
+    public void renderMediaPlayback(MediaSessionPlaybackState state) {
+        mMediaState = state;
+        renderCurrentPlayback();
+    }
+
+    /**
+     * Media-session playback from the music apps wins over the UPnP renderer; when neither has a
+     * track the placeholder copy is shown.
+     */
+    private void renderCurrentPlayback() {
+        if (mBinding == null) {
             return;
         }
 
-        boolean hasPlayback = state.hasRealSong();
-        mBinding.trackTitle.setText(hasPlayback ? state.getTitle()
-                : getString(R.string.wifi_music_no_playback));
-        CharSequence artist = TextUtils.isEmpty(state.getArtist())
-                ? state.getAlbum() : state.getArtist();
-        mBinding.trackArtist.setText(hasPlayback && !TextUtils.isEmpty(artist)
+        boolean hasTrack;
+        CharSequence title;
+        CharSequence artist;
+        boolean playing;
+        Bitmap artwork;
+        String coverUrl;
+        if (mMediaState != null && mMediaState.hasSession()) {
+            hasTrack = true;
+            title = mMediaState.getTitle();
+            artist = TextUtils.isEmpty(mMediaState.getArtist())
+                    ? mMediaState.getAlbum() : mMediaState.getArtist();
+            playing = mMediaState.isPlaying();
+            artwork = mMediaState.getArtwork();
+            coverUrl = "";
+        } else if (mUpnpState != null && mUpnpState.hasRealSong()) {
+            hasTrack = true;
+            title = mUpnpState.getTitle();
+            artist = TextUtils.isEmpty(mUpnpState.getArtist())
+                    ? mUpnpState.getAlbum() : mUpnpState.getArtist();
+            playing = mUpnpState.isPlaying();
+            artwork = null;
+            coverUrl = mUpnpState.getCoverUrl();
+        } else {
+            hasTrack = false;
+            title = getString(R.string.wifi_music_no_playback);
+            artist = getString(R.string.wifi_music_unknown_artist);
+            playing = false;
+            artwork = null;
+            coverUrl = "";
+        }
+
+        mBinding.trackTitle.setText(title);
+        mBinding.trackArtist.setText(hasTrack && !TextUtils.isEmpty(artist)
                 ? artist : getString(R.string.wifi_music_unknown_artist));
-        mBinding.btnPlayOrPause.setImageResource(state.isPlaying()
+        mBinding.btnPlayOrPause.setImageResource(playing
                 ? R.drawable.ic_pause : R.drawable.ic_play);
-        mBinding.btnPlayOrPause.setContentDescription(getString(state.isPlaying()
+        mBinding.btnPlayOrPause.setContentDescription(getString(playing
                 ? R.string.wifi_music_pause : R.string.wifi_music_play));
-        setPlaybackActionEnabled(mBinding.btnPlayOrPause, hasPlayback);
-        setPlaybackActionEnabled(mBinding.btnNextSong, hasPlayback);
-        mBinding.albumArtwork.setVisibility(hasPlayback ? View.VISIBLE : View.GONE);
-        setAlbumArtworkRotation(hasPlayback && state.isPlaying());
-        loadCover(hasPlayback ? state.getCoverUrl() : "");
+        setPlaybackActionEnabled(mBinding.btnPlayOrPause, hasTrack);
+        setPlaybackActionEnabled(mBinding.btnNextSong, hasTrack);
+        mBinding.albumArtwork.setVisibility(hasTrack ? View.VISIBLE : View.GONE);
+        setAlbumArtworkRotation(hasTrack && playing);
+        loadCover(coverUrl, artwork);
     }
 
     @Override
@@ -143,6 +190,12 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
             WifiMusicPresenter presenter = getPresenter();
             if (presenter != null) {
                 presenter.nextTrack();
+            }
+        });
+        mBinding.playerCard.setOnClickListener(view -> {
+            WifiMusicPresenter presenter = getPresenter();
+            if (presenter != null) {
+                presenter.openPlayingMusicApp();
             }
         });
     }
@@ -199,7 +252,17 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
         }
     }
 
-    private void loadCover(String coverUrl) {
+    private void loadCover(String coverUrl, @Nullable Bitmap artwork) {
+        if (artwork != null) {
+            if (mBoundArtwork != artwork) {
+                mBoundArtwork = artwork;
+                mCoverUrl = "";
+                mBinding.albumArtwork.setImageBitmap(artwork);
+            }
+            return;
+        }
+        mBoundArtwork = null;
+
         String requestedUrl = coverUrl == null ? "" : coverUrl;
         if (TextUtils.equals(mCoverUrl, requestedUrl)) {
             return;

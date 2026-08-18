@@ -94,9 +94,12 @@
             android:layout_height="106dp"
             android:layout_marginTop="29dp">
             <LinearLayout
+                android:id="@+id/player_card"
                 android:layout_width="match_parent"
                 android:layout_height="99dp"
                 android:background="@drawable/bluetooth_page_long_bg"
+                android:clickable="true"
+                android:focusable="true"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:layout_alignParentBottom="true"
