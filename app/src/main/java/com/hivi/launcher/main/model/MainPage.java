@@ -9,5 +9,6 @@ public enum MainPage {
     BLUETOOTH,
     WIFI,
     SETTINGS,
-    AI
+    AI,
+    SYSTEM_APPS
 }

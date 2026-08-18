@@ -53,6 +53,7 @@ import com.hivi.launcher.microphone.ui.MicrophoneFragment;
 import com.hivi.launcher.optical.ui.OpticalFragment;
 import com.hivi.launcher.settings.ui.SettingsFragment;
 import com.hivi.launcher.settings.ui.SystemUpdateSuccessDialog;
+import com.hivi.launcher.systemapps.ui.SystemAppsFragment;
 import com.hivi.launcher.update.SystemUpdateInstallReceiver;
 import com.hivi.launcher.utils.network.AuthorizationStore;
 import com.hivi.launcher.wifi.ui.WifiFragment;
@@ -1118,6 +1119,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 return true;
             case SETTINGS:
             case AI:
+            case SYSTEM_APPS:
             default:
                 return false;
         }
@@ -1146,6 +1148,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 return fragment instanceof SettingsFragment;
             case AI:
                 return fragment instanceof AiFragment;
+            case SYSTEM_APPS:
+                return fragment instanceof SystemAppsFragment;
             default:
                 return false;
         }
@@ -1201,6 +1205,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 return new SettingsFragment();
             case AI:
                 return new AiFragment();
+            case SYSTEM_APPS:
+                return new SystemAppsFragment();
             default:
                 throw new IllegalArgumentException("Unsupported page: " + page);
         }
