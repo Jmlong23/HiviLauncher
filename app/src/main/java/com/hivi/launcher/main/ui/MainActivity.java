@@ -472,6 +472,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (backStackEntryCount == 0 || mHomeNavigationPending) {
             return;
         }
+        releaseAiConversationIfVisible();
         resetBottomNavigationBackground();
         if (backStackEntryCount == 1) {
             navigateToHome(false);
@@ -502,6 +503,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         final int transitionGeneration = ++mPageTransitionGeneration;
         final View fragmentContainer = binding.fragmentContainer;
         Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        releaseAiConversationIfVisible();
         cancelPageAnimations();
         updateLauncherBackground(false);
         showAiChatEntry();
@@ -926,10 +928,18 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (getFragmentManager().getBackStackEntryCount() == 0) {
             return;
         }
+        releaseAiConversationIfVisible();
         mHomeNavigationPending = false;
         ++mPageTransitionGeneration;
         cancelPageAnimations();
         popBackStackImmediately(false);
+    }
+
+    private void releaseAiConversationIfVisible() {
+        Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        if (fragment instanceof AiFragment) {
+            ((AiFragment) fragment).releaseForNavigation();
+        }
     }
 
     private void popBackStackImmediately(boolean clearBackStack) {

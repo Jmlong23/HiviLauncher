@@ -45,6 +45,7 @@ public final class AudioRouteController {
     private static final String SERIAL_PORT_NAME = "ttyS9";
     private static final int SERIAL_PORT_BAUD_RATE = 9600;
     private static final int DEFAULT_AMPLIFIER_VOLUME = 50;
+    private static final int DEFAULT_KARAOKE_VOLUME = 50;
     private static final AudioRouteController INSTANCE = new AudioRouteController();
 
     private final ExecutorService mSerialExecutor = Executors.newSingleThreadExecutor();
@@ -91,6 +92,7 @@ public final class AudioRouteController {
         }
         dispatchAmplifierVolumeChanged();
         mSerialExecutor.execute(this::openSerialPortIfNeeded);
+        restoreStoredVolumes(appContext);
     }
 
     public void selectMode(MainPage page) {
@@ -203,6 +205,25 @@ public final class AudioRouteController {
 
     public void setEffectVolume(int volumePercent) {
         sendVolumeCommand(SERIAL_PORT_CMD_SFX_KEY, SERIAL_PORT_CMD_SFX, volumePercent);
+    }
+
+    /**
+     * Re-applies the last persisted amplifier, microphone and effect volumes to the MCU.
+     *
+     * <p>The MCU keeps no volume state across reboots, so after every boot the Launcher has to
+     * send the stored values back. Otherwise the amplifier stays at the hardware default and
+     * playback is silent until the user manually changes the volume.</p>
+     */
+    private void restoreStoredVolumes(Context context) {
+        int amplifierVolume;
+        synchronized (mLock) {
+            amplifierVolume = mAmplifierVolumePercent;
+        }
+        sendVolumeCommand(SERIAL_PORT_CMD_VOLUME_KEY, SERIAL_PORT_CMD_VOLUME, amplifierVolume);
+        sendVolumeCommand(SERIAL_PORT_MIC_VOLUME_KEY, SERIAL_PORT_MIC_VOLUME,
+                getStoredVolume(context, SERIAL_PORT_MIC_VOLUME_KEY, DEFAULT_KARAOKE_VOLUME));
+        sendVolumeCommand(SERIAL_PORT_CMD_SFX_KEY, SERIAL_PORT_CMD_SFX,
+                getStoredVolume(context, SERIAL_PORT_CMD_SFX_KEY, DEFAULT_KARAOKE_VOLUME));
     }
 
     /**

@@ -84,6 +84,13 @@ public final class AiFragment extends BaseFragment<AiPresenter>
         super.onDestroyView();
     }
 
+    public void releaseForNavigation() {
+        AiPresenter presenter = getPresenter();
+        if (presenter != null) {
+            presenter.release();
+        }
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
             @NonNull int[] grantResults) {
@@ -143,6 +150,14 @@ public final class AiFragment extends BaseFragment<AiPresenter>
     @Override
     public void requestRecordAudioPermission() {
         requestPermissions(new String[] {Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO);
+    }
+
+    @Override
+    public void requestHomeNavigation() {
+        Activity activity = getActivity();
+        if (activity instanceof MainActivity) {
+            ((MainActivity) activity).showHomePage();
+        }
     }
 
     private void requestBackNavigation() {

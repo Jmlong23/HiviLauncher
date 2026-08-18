@@ -13,4 +13,6 @@ public interface AiView extends BaseView {
     void setParticleVolume(float volume);
 
     void requestRecordAudioPermission();
+
+    void requestHomeNavigation();
 }

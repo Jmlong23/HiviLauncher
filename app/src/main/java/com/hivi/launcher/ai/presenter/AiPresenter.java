@@ -352,7 +352,12 @@ public final class AiPresenter extends BasePresenter<AiView>
                     if (mReleased) {
                         return;
                     }
-                    showConversationError(R.string.ai_conversation_disconnected);
+                    AppLog.i(TAG, "AI conversation closed by service, returning home");
+                    release();
+                    AiView view = getView();
+                    if (view != null) {
+                        view.requestHomeNavigation();
+                    }
                 });
             }
 
