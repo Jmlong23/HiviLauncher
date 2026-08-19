@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/ai_overlay_default">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="15dp">
+            <com.hivi.launcher.ai.ui.VoiceWaveformView
+                android:id="@+id/voice_waveform_view"
+                android:layout_width="90dp"
+                android:layout_height="38dp" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/tv_listening_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="0"
+            android:maxWidth="188dp"
+            android:text="@string/ai_conversation_listening"
+            android:textColor="#FFFFFF"
+            android:textSize="23sp"
+            android:layout_marginRight="71dp"
+            android:ellipsize="none"
+            android:scrollHorizontally="false"/>
+
+    </LinearLayout>
+
+</LinearLayout>

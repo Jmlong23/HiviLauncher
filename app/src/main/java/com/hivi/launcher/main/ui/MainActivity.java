@@ -36,7 +36,10 @@ import com.hivi.launcher.R;
 import com.hivi.launcher.audio.AudioRouteController;
 import com.hivi.launcher.account.model.AuthorizedUserInfo;
 import com.hivi.launcher.account.ui.AuthorizationDialog;
+import com.hivi.launcher.ai.presenter.AiPresenter;
 import com.hivi.launcher.ai.ui.AiFragment;
+import com.hivi.launcher.ai.ui.AiHeadlessConversationView;
+import com.hivi.launcher.ai.ui.AiListeningOverlay;
 import com.hivi.launcher.ai.wakeup.AiWakeupController;
 import com.hivi.launcher.base.BaseActivity;
 import com.hivi.launcher.databinding.ActivityMainBinding;
@@ -94,6 +97,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private boolean mAmplifierMuted;
     private boolean mAiConversationBackgroundVisible;
     private AiWakeupController mAiWakeupController;
+    private AiHeadlessConversationView mAiHeadlessView;
     private boolean mHomeNavigationPending;
     private boolean mSuppressBackStackUiSync;
     private boolean mActivityResumed;
@@ -175,6 +179,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     /**
      * 启动语音唤醒（ALSA 多麦采集 + VTN 前端处理），Launcher 常驻，唤醒引擎随之常驻。
+     * 同时创建共享 AI 会话 presenter（headless 视图驱动左上角悬浮条）。
      */
     private void startVoiceWakeupIfGuideCompleted() {
         if (!FirstUseGuideStore.isCompleted(this) || mAiWakeupController != null) {
@@ -183,18 +188,26 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         mAiWakeupController = AiWakeupController.getInstance(this);
         mAiWakeupController.setNavigator(this);
         mAiWakeupController.start();
+        AiListeningOverlay.getInstance().attach(this, binding.launcherRoot);
+        mAiHeadlessView = new AiHeadlessConversationView(this);
+        AiPresenter.obtainShared(this, mAiHeadlessView);
     }
 
     @Override
-    public boolean onWakeupRequestAiPage() {
+    public boolean onWakeupBeginListening() {
         if (binding == null) {
             return false;
         }
         Fragment currentFragment = getFragmentManager().findFragmentById(R.id.fragment_container);
         if (currentFragment instanceof AiFragment) {
+            // AI 页已可见：对话直接渲染在页面内，不再弹悬浮条。
             return true;
         }
-        showPage(MainPage.AI);
+        // 唤醒先进入悬浮条聆听模式；AI 页等首个对话正文到达后再打开。
+        AiPresenter presenter = AiPresenter.peekShared();
+        if (presenter != null && mAiHeadlessView != null) {
+            presenter.attachConversationView(mAiHeadlessView);
+        }
         return true;
     }
 
@@ -554,6 +567,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             mAiWakeupController.clearNavigator(this);
             mAiWakeupController = null;
         }
+        AiListeningOverlay.getInstance().detach();
+        mAiHeadlessView = null;
         getFragmentManager().removeOnBackStackChangedListener(mBackStackChangedListener);
         mSystemVolumeHandler.removeCallbacks(mSystemMusicVolumeCheck);
         if (mVolumeDialog != null) {

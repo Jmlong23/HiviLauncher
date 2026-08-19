@@ -7,6 +7,8 @@ import android.content.pm.PackageManager;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import com.hivi.launcher.utils.log.AppLog;
@@ -16,6 +18,7 @@ import com.hivi.launcher.account.model.AuthorizedUserInfo;
 import com.hivi.launcher.ai.audio.AiWebSocketManager;
 import com.hivi.launcher.ai.audio.MicOpusStreamer;
 import com.hivi.launcher.ai.audio.OpusAudioPlayer;
+import com.hivi.launcher.ai.iot.AiIotCommandExecutor;
 import com.hivi.launcher.ai.ui.AiView;
 import com.hivi.launcher.ai.wakeup.AiWakeupController;
 import com.hivi.launcher.base.BasePresenter;
@@ -36,6 +39,12 @@ import java.util.Map;
  * upstream, STT -> TTS/Opus downstream). The microphone audio comes from the ALSA multi-mic
  * array processed by the VTN front end ({@link MicOpusStreamer}), and voice wake-up events are
  * delivered through {@link AiWakeupController.Consumer}.</p>
+ *
+ * <p>The presenter is a process-wide singleton owned by the wakeup flow: voice wake-up first
+ * drives the top-left listening bar through the headless view (no AI page), a normal dialogue
+ * answer hands rendering over to {@link com.hivi.launcher.ai.ui.AiFragment}, and IoT commands
+ * (volume / music transport) are executed in place without ever opening the AI page — the same
+ * behaviour as HiviAudio.</p>
  */
 public final class AiPresenter extends BasePresenter<AiView>
         implements AiWakeupController.Consumer {
@@ -44,22 +53,48 @@ public final class AiPresenter extends BasePresenter<AiView>
     private static final String BOOT_WALL_TIME_KEY = "boot_wall_time";
     private static final String BOOT_ELAPSED_TIME_KEY = "boot_elapsed_time";
     private static final int DEFAULT_PARTICLE_ROLE_ID = 476;
+    /** IoT 提示音播完后的会话收尾兜底超时（与 HiviAudio AUDIO_PLAYBACK_WAIT_TIMEOUT_MS 一致）。 */
+    private static final long IOT_SESSION_FINISH_TIMEOUT_MS = 30_000L;
+    /**
+     * 监听中无输入的收尾超时。HiviAudio 依赖服务端"无输入超时断开"来隐藏悬浮条，
+     * 这里再兜底一次，保证服务端不断开时悬浮条也能按时隐藏。
+     */
+    private static final long LISTENING_NO_INPUT_TIMEOUT_MS = 20_000L;
+    /** 收到 STT 后等待 TTS 开始的超时。 */
+    private static final long THINKING_TIMEOUT_MS = 20_000L;
+    /** TTS 播放无进展的兜底超时（与 HiviAudio AUDIO_PLAYBACK_WAIT_TIMEOUT_MS 一致）。 */
+    private static final long SPEAKING_TIMEOUT_MS = 30_000L;
+
+    private static AiPresenter sSharedInstance;
 
     private final Context mContext;
     private final AiWakeupController mWakeupController;
+    /** 会话无进展看门狗：超时未收到 STT/TTS 即收尾会话并隐藏悬浮条。 */
+    private final Handler mSessionWatchdogHandler = new Handler(Looper.getMainLooper());
+    private Runnable mSessionWatchdogRunnable;
     private AiWebSocketManager mWebSocketManager;
     private MicOpusStreamer mMicrophoneStreamer;
     private OpusAudioPlayer mAudioPlayer;
 
     private ParticleVisualizerView.State mParticleState = ParticleVisualizerView.State.IDLE;
+    private String mLastStatusText = "";
+    private boolean mInitialized;
     private boolean mReleased;
     private boolean mWaitingForRecordPermission;
     private boolean mTtsStopped;
     private boolean mInterruptPending;
     private boolean mWakePromptPlaying;
     private boolean mAwaitingAudioUploadReady;
+    private boolean mIotCommandActive;
+    private Integer mPendingIotVolume;
+    /** 提示语已通过 detect 发给服务端，等待其 TTS 音频回来（同 HiviAudio pendingDisconnectAfterIotPromptTts）。 */
+    private boolean mIotPromptPending;
+    /** 提示音 TTS 文本/音频已到达，播完即可收尾。 */
+    private boolean mIotPromptArrived;
     private int mCallbackGeneration;
     private String mLastUserCommand = "";
+    /** 已下发的回答正文缓冲，headless → AI 页切换时回放给新视图。 */
+    private String mAssistantResponseBuffer = "";
 
     public AiPresenter(Context context, AiView view) {
         super(view);
@@ -67,10 +102,52 @@ public final class AiPresenter extends BasePresenter<AiView>
         mWakeupController = AiWakeupController.getInstance(mContext);
     }
 
-    public void init() {
-        renderState(ParticleVisualizerView.State.IDLE, R.string.ai_conversation_welcome);
-        clearAssistantResponse();
+    /**
+     * 进程级共享实例：MainActivity 启动时以 headless 视图创建并常驻注册为唤醒 Consumer；
+     * AiFragment 显示时把自己的视图挂上来接管渲染。
+     */
+    public static AiPresenter obtainShared(Context context, AiView initialView) {
+        if (sSharedInstance == null) {
+            synchronized (AiPresenter.class) {
+                if (sSharedInstance == null) {
+                    AiPresenter presenter =
+                            new AiPresenter(context.getApplicationContext(), initialView);
+                    presenter.initAsConversationOwner();
+                    sSharedInstance = presenter;
+                }
+            }
+        }
+        sSharedInstance.attachConversationView(initialView);
+        return sSharedInstance;
+    }
+
+    public static AiPresenter peekShared() {
+        return sSharedInstance;
+    }
+
+    private void initAsConversationOwner() {
+        mInitialized = true;
         mWakeupController.setConsumer(this);
+    }
+
+    /** 挂接新的渲染视图（headless ↔ AiFragment 切换）并回放当前状态与已显示的回答。 */
+    public void attachConversationView(AiView view) {
+        attach(view);
+        renderState(mParticleState, mLastStatusText);
+        if (!TextUtils.isEmpty(mAssistantResponseBuffer)) {
+            view.clearAssistantResponse();
+            view.appendAssistantResponse(mAssistantResponseBuffer);
+        }
+    }
+
+    public void init() {
+        if (!mInitialized) {
+            initAsConversationOwner();
+        }
+        if (mWebSocketManager == null) {
+            renderState(ParticleVisualizerView.State.IDLE, R.string.ai_conversation_welcome);
+            clearAssistantResponse();
+        }
     }
 
     // ────────────────── 唤醒回调（AiWakeupController.Consumer） ──────────────────
@@ -84,7 +161,13 @@ public final class AiPresenter extends BasePresenter<AiView>
             if (mReleased) {
                 return;
             }
+            // 新一轮唤醒：清掉上一轮 IoT 遗留的抑制与延迟音量状态（同 HiviAudio）。
+            mIotCommandActive = false;
+            mPendingIotVolume = null;
+            mIotPromptPending = false;
+            mIotPromptArrived = false;
             mWakePromptPlaying = true;
+            scheduleSessionWatchdog(LISTENING_NO_INPUT_TIMEOUT_MS, "wakePrompt");
             if (mAudioPlayer != null) {
                 mAudioPlayer.stop();
             }
@@ -193,20 +276,65 @@ public final class AiPresenter extends BasePresenter<AiView>
         }
     }
 
+    /**
+     * 结束当前会话（停麦、断开 WebSocket），但保留唤醒 Consumer 注册，
+     * 下一次唤醒直接重新开场。离开 AI 页 / IoT 收尾 / 服务端断开都会走到这里。
+     */
+    public void endConversation() {
+        mWaitingForRecordPermission = false;
+        mInterruptPending = false;
+        mTtsStopped = false;
+        mWakePromptPlaying = false;
+        mAwaitingAudioUploadReady = false;
+        mIotCommandActive = false;
+        mPendingIotVolume = null;
+        mIotPromptPending = false;
+        mIotPromptArrived = false;
+        mCallbackGeneration++;
+        cancelSessionWatchdog();
+        stopAudioResources();
+        releaseWebSocket();
+        mLastUserCommand = "";
+        mAssistantResponseBuffer = "";
+        renderState(ParticleVisualizerView.State.IDLE, R.string.ai_conversation_welcome);
+    }
+
+    /**
+     * 会话无进展看门狗：HiviAudio 靠服务端超时断开来隐藏悬浮条（其本地超时代码从未启用），
+     * 这里在监听无输入、思考无响应、播报无进展时兜底收尾，行为对齐但不再依赖服务端。
+     */
+    private void scheduleSessionWatchdog(long delayMs, String reason) {
+        cancelSessionWatchdog();
+        mSessionWatchdogRunnable = () -> {
+            mSessionWatchdogRunnable = null;
+            if (mReleased) {
+                return;
+            }
+            AppLog.w(TAG, "AI session watchdog fired: " + reason);
+            endConversation();
+            AiView view = getView();
+            if (view != null) {
+                view.requestHomeNavigation();
+            }
+        };
+        mSessionWatchdogHandler.postDelayed(mSessionWatchdogRunnable, delayMs);
+    }
+
+    private void cancelSessionWatchdog() {
+        if (mSessionWatchdogRunnable != null) {
+            mSessionWatchdogHandler.removeCallbacks(mSessionWatchdogRunnable);
+            mSessionWatchdogRunnable = null;
+        }
+    }
+
+    /** 完全销毁并注销唤醒 Consumer，仅进程退出级别使用。 */
     public void release() {
         if (mReleased) {
             return;
         }
         mReleased = true;
         mWakeupController.clearConsumer(this);
-        mWaitingForRecordPermission = false;
-        mInterruptPending = false;
-        mTtsStopped = false;
-        mWakePromptPlaying = false;
-        mAwaitingAudioUploadReady = false;
-        mCallbackGeneration++;
-        stopAudioResources();
-        releaseWebSocket();
+        endConversation();
     }
 
     private void openConversation() {
@@ -215,6 +343,7 @@ public final class AiPresenter extends BasePresenter<AiView>
         }
         final int generation = ++mCallbackGeneration;
         mAwaitingAudioUploadReady = true;
+        scheduleSessionWatchdog(LISTENING_NO_INPUT_TIMEOUT_MS, "connecting");
         renderState(ParticleVisualizerView.State.LISTENING,
                 R.string.ai_conversation_connecting);
 
@@ -235,6 +364,7 @@ public final class AiPresenter extends BasePresenter<AiView>
                         return;
                     }
                     setMicrophoneSendingEnabled(false);
+                    scheduleSessionWatchdog(THINKING_TIMEOUT_MS, "thinking");
                     String result = TextUtils.isEmpty(text)
                             ? mContext.getString(R.string.ai_conversation_recognizing)
                             : text;
@@ -252,6 +382,11 @@ public final class AiPresenter extends BasePresenter<AiView>
                     }
                     mTtsStopped = false;
                     setMicrophoneSendingEnabled(false);
+                    if (mIotCommandActive) {
+                        // IoT 提示音 TTS：不展示 AI 页面与文案，仅播放（同 HiviAudio 抑制逻辑）。
+                        return;
+                    }
+                    scheduleSessionWatchdog(SPEAKING_TIMEOUT_MS, "speaking");
                     clearAssistantResponse();
                     renderState(ParticleVisualizerView.State.SPEAKING,
                             getCurrentConversationStatus());
@@ -264,6 +399,17 @@ public final class AiPresenter extends BasePresenter<AiView>
                     if (mInterruptPending) {
                         return;
                     }
+                    if (AiIotCommandExecutor.isIotCommandText(text)) {
+                        handleIotCommand(text);
+                        return;
+                    }
+                    if (mIotCommandActive) {
+                        // IoT 提示音的正文（如"声音已调到50"）已到达：不上屏、不进 AI 页，
+                        // 音频照常播放，播完后收尾会话。
+                        mIotPromptArrived = true;
+                        return;
+                    }
+                    scheduleSessionWatchdog(SPEAKING_TIMEOUT_MS, "speaking");
                     String displayText = extractDisplayText(text);
                     if (!TextUtils.isEmpty(displayText)) {
                         renderState(ParticleVisualizerView.State.SPEAKING,
@@ -295,6 +441,11 @@ public final class AiPresenter extends BasePresenter<AiView>
                     if (mInterruptPending) {
                         return;
                     }
+                    if (mIotCommandActive) {
+                        // 提示音音频开始到达（部分回包可能没有 sentence_start）。
+                        mIotPromptArrived = true;
+                    }
+                    scheduleSessionWatchdog(SPEAKING_TIMEOUT_MS, "speaking");
                     setMicrophoneSendingEnabled(false);
                     if (mParticleState != ParticleVisualizerView.State.SPEAKING) {
                         renderState(ParticleVisualizerView.State.SPEAKING,
@@ -352,8 +503,8 @@ public final class AiPresenter extends BasePresenter<AiView>
                     if (mReleased) {
                         return;
                     }
-                    AppLog.i(TAG, "AI conversation closed by service, returning home");
-                    release();
+                    AppLog.i(TAG, "AI conversation closed by service");
+                    endConversation();
                     AiView view = getView();
                     if (view != null) {
                         view.requestHomeNavigation();
@@ -371,6 +522,61 @@ public final class AiPresenter extends BasePresenter<AiView>
             }
         });
         manager.connect(buildWebSocketHeaders());
+    }
+
+    // ────────────────── IoT 指令（不进入 AI 页面） ──────────────────
+
+    private void handleIotCommand(String text) {
+        AppLog.i(TAG, "AI IoT command received, executing without opening the AI page");
+        mIotCommandActive = true;
+        // IoT 分支自带提示音播完后的 30 秒收尾兜底，看门狗无需重复计时。
+        cancelSessionWatchdog();
+        setMicrophoneSendingEnabled(false);
+        AiIotCommandExecutor.Result result = AiIotCommandExecutor.execute(mContext, text);
+        mPendingIotVolume = result.deferredVolume;
+        AiView view = getView();
+        if (view != null) {
+            view.onIotCommandHandled();
+        }
+        if (!TextUtils.isEmpty(result.promptText) && mWebSocketManager != null) {
+            // 提示语走 WS detect 文本，由服务器合成 TTS 播报（同 HiviAudio）。
+            // 原始回答的 tts stop 会先于提示音 TTS 到达，需等提示音播完再收尾。
+            mIotPromptPending = true;
+            mIotPromptArrived = false;
+            mWebSocketManager.sendTextMessage(result.promptText);
+            final int generation = mCallbackGeneration;
+            runOnUiThreadDelayed(() -> {
+                if (!mReleased && generation == mCallbackGeneration && mIotCommandActive) {
+                    AppLog.w(TAG, "IoT prompt playback timeout, finishing session anyway");
+                    finishIotCommandSession();
+                }
+            }, IOT_SESSION_FINISH_TIMEOUT_MS);
+        } else {
+            mIotPromptPending = false;
+            mIotPromptArrived = false;
+            finishIotCommandSession();
+        }
+    }
+
+    private void finishIotCommandSession() {
+        if (mPendingIotVolume != null) {
+            AiIotCommandExecutor.applyVolume(mPendingIotVolume);
+            mPendingIotVolume = null;
+        }
+        boolean wasIot = mIotCommandActive;
+        mIotCommandActive = false;
+        mIotPromptPending = false;
+        mIotPromptArrived = false;
+        AiView view = getView();
+        if (view != null && view.isConversationPageActive()) {
+            // AI 页面上收到 IoT 指令：仅执行指令与提示音，之后继续对话，不退出页面。
+            enableListening();
+            return;
+        }
+        endConversation();
+        if (wasIot && view != null) {
+            view.requestHomeNavigation();
+        }
     }
 
     private void interruptAndResumeListening() {
@@ -416,6 +622,7 @@ public final class AiPresenter extends BasePresenter<AiView>
             AppLog.i(TAG, "microphone upload held: wakePrompt=" + mWakePromptPlaying
                     + ", interruptPending=" + mInterruptPending
                     + ", awaitingAudioReady=" + mAwaitingAudioUploadReady);
+            scheduleSessionWatchdog(LISTENING_NO_INPUT_TIMEOUT_MS, "listeningHeld");
             renderState(ParticleVisualizerView.State.LISTENING,
                     R.string.ai_conversation_preparing);
             return;
@@ -426,12 +633,22 @@ public final class AiPresenter extends BasePresenter<AiView>
         }
         setMicrophoneSendingEnabled(true);
         mTtsStopped = false;
+        scheduleSessionWatchdog(LISTENING_NO_INPUT_TIMEOUT_MS, "listening");
         renderState(ParticleVisualizerView.State.LISTENING,
                 R.string.ai_conversation_listening);
     }
 
     private void resumeListeningAfterPlayback() {
         if (!mTtsStopped || (mAudioPlayer != null && mAudioPlayer.isPlaying())) {
+            // 音频尚未播完：OpusAudioPlayer 的完成回调会再次进入这里。
+            return;
+        }
+        if (mIotCommandActive) {
+            if (mIotPromptPending && !mIotPromptArrived) {
+                // 原始回答已结束，但提示音 TTS 尚未回来：继续等待（30 秒兜底超时）。
+                return;
+            }
+            finishIotCommandSession();
             return;
         }
         enableListening();
@@ -469,6 +686,14 @@ public final class AiPresenter extends BasePresenter<AiView>
     private void ensureAudioPlayer() {
         if (mAudioPlayer == null) {
             mAudioPlayer = new OpusAudioPlayer(() -> runOnUiThread(this::resumeListeningAfterPlayback));
+            // 同 HiviAudio：TTS 播报期间由播放器心跳驱动 WS ping 保活；监听阶段不发 ping，
+            // 服务端才能对无输入的会话超时断开，唤醒悬浮条随之隐藏。
+            mAudioPlayer.setHeartbeatAction(() -> {
+                AiWebSocketManager manager = mWebSocketManager;
+                if (manager != null) {
+                    manager.sendPing();
+                }
+            });
         }
     }
 
@@ -490,6 +715,11 @@ public final class AiPresenter extends BasePresenter<AiView>
         mInterruptPending = false;
         mTtsStopped = false;
         mAwaitingAudioUploadReady = false;
+        mIotCommandActive = false;
+        mPendingIotVolume = null;
+        mIotPromptPending = false;
+        mIotPromptArrived = false;
+        cancelSessionWatchdog();
         stopAudioResources();
         releaseWebSocket();
         renderState(ParticleVisualizerView.State.IDLE, R.string.ai_conversation_unavailable);
@@ -540,6 +770,7 @@ public final class AiPresenter extends BasePresenter<AiView>
 
     private void renderState(ParticleVisualizerView.State state, String statusText) {
         mParticleState = state;
+        mLastStatusText = statusText == null ? "" : statusText;
         AiView view = getView();
         if (view != null) {
             view.renderConversationState(state, statusText);
@@ -547,6 +778,7 @@ public final class AiPresenter extends BasePresenter<AiView>
     }
 
     private void clearAssistantResponse() {
+        mAssistantResponseBuffer = "";
         AiView view = getView();
         if (view != null) {
             view.clearAssistantResponse();
@@ -554,6 +786,9 @@ public final class AiPresenter extends BasePresenter<AiView>
     }
 
     private void appendAssistantResponse(String responseText) {
+        if (!TextUtils.isEmpty(responseText)) {
+            mAssistantResponseBuffer += responseText;
+        }
         AiView view = getView();
         if (view != null) {
             view.appendAssistantResponse(responseText);

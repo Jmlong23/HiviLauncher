@@ -4,6 +4,8 @@ import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Process;
 import com.hivi.launcher.utils.log.AppLog;
 
@@ -21,6 +23,8 @@ public final class OpusAudioPlayer {
     private static final int CHANNEL_COUNT = 1;
     private static final int MAX_DECODE_SAMPLES = SAMPLE_RATE / 50 * 12;
     private static final long IDLE_STOP_DELAY_MS = 500L;
+    /** TTS 播报期间的 WebSocket ping 间隔（同 HiviAudio OpusAudioPlayer）。 */
+    private static final long HEARTBEAT_INTERVAL_MS = 5_000L;
 
     public interface Listener {
         void onPlaybackFinished();
@@ -32,6 +36,22 @@ public final class OpusAudioPlayer {
     private final byte[] mPcmBuffer = new byte[MAX_DECODE_SAMPLES * 2];
     private final OpusDecoder mDecoder;
     private final Listener mListener;
+    private final Handler mHeartbeatHandler = new Handler(Looper.getMainLooper());
+    private final Runnable mHeartbeatRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!mHeartbeatStarted) {
+                return;
+            }
+            Runnable action = mHeartbeatAction;
+            if (action != null) {
+                action.run();
+            }
+            mHeartbeatHandler.postDelayed(this, HEARTBEAT_INTERVAL_MS);
+        }
+    };
+    private volatile Runnable mHeartbeatAction;
+    private volatile boolean mHeartbeatStarted;
 
     private AudioTrack mAudioTrack;
     private Thread mPlaybackThread;
@@ -47,6 +67,14 @@ public final class OpusAudioPlayer {
         } catch (Exception exception) {
             throw new IllegalStateException("Unable to initialize Opus decoder", exception);
         }
+    }
+
+    /**
+     * TTS 播报期间的心跳回调：上层在此发送 WebSocket ping 保活（同 HiviAudio 的
+     * OpusAudioPlayerListener.playOpusData）。仅在播放会话存续期间周期触发。
+     */
+    public void setHeartbeatAction(Runnable action) {
+        mHeartbeatAction = action;
     }
 
     public void play(byte[] opusData) {
@@ -69,6 +97,7 @@ public final class OpusAudioPlayer {
         if (startPlaybackThread) {
             mPlaybackThread.start();
         }
+        startHeartbeatIfNeeded();
     }
 
     public boolean isPlaying() {
@@ -85,6 +114,7 @@ public final class OpusAudioPlayer {
             playbackThread = mPlaybackThread;
             mPlaybackThread = null;
         }
+        stopHeartbeat();
         if (playbackThread != null && playbackThread != Thread.currentThread()) {
             playbackThread.interrupt();
             try {
@@ -148,9 +178,35 @@ public final class OpusAudioPlayer {
             if (notifyFinished) {
                 pauseAndFlushTrack();
             }
+            stopHeartbeat();
             if (notifyFinished && mListener != null) {
                 mListener.onPlaybackFinished();
             }
+        }
+    }
+
+    /** 有音频入队即启动播报心跳；重复调用无副作用（同 HiviAudio startHeartbeatIfNeeded）。 */
+    private void startHeartbeatIfNeeded() {
+        synchronized (mLock) {
+            if (mHeartbeatStarted) {
+                return;
+            }
+            mHeartbeatStarted = true;
+        }
+        mHeartbeatHandler.removeCallbacks(mHeartbeatRunnable);
+        mHeartbeatHandler.postDelayed(mHeartbeatRunnable, HEARTBEAT_INTERVAL_MS);
+        AppLog.i(TAG, "TTS playback started, WebSocket ping heartbeat enabled");
+    }
+
+    private void stopHeartbeat() {
+        boolean wasStarted;
+        synchronized (mLock) {
+            wasStarted = mHeartbeatStarted;
+            mHeartbeatStarted = false;
+        }
+        mHeartbeatHandler.removeCallbacks(mHeartbeatRunnable);
+        if (wasStarted) {
+            AppLog.i(TAG, "TTS playback finished, WebSocket ping heartbeat disabled");
         }
     }
 

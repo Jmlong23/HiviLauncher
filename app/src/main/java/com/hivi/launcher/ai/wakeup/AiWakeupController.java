@@ -19,27 +19,26 @@ import com.hivi.launcher.utils.network.AuthorizationStore;
  *
  * <p>职责划分：</p>
  * <ul>
- *   <li>{@link Navigator}（MainActivity 实现）—— 被唤醒时把界面切到 AI 页；</li>
+ *   <li>{@link Navigator}（MainActivity 实现）—— 被唤醒时进入悬浮条聆听模式（不直接切
+ *       AI 页；AI 页已可见时保持不动）；</li>
  *   <li>{@link Consumer}（AiPresenter 实现）—— 建立 WebSocket、提示音结束后开麦。</li>
  * </ul>
  *
- * <p>唤醒时序：VTN 判决 → {@link #onFlyAIWakeupDetected} 请求跳转 AI 页并返回等待时长
+ * <p>唤醒时序：VTN 判决 → {@link #onFlyAIWakeupDetected} 请求进入悬浮条聆听模式
  * → {@link #onFlyAIPreWakeStop} 校验网络/授权并通知 Consumer 预热
  * → 播放唤醒提示音 → {@link #onFlyAIResponse} 通知 Consumer 开麦。</p>
  */
 public final class AiWakeupController implements FlyAiIVWListener {
     private static final String TAG = "AiWakeupController";
-    /** 唤醒后等待 AI 页面就绪（Fragment 事务 + 粒子预热）再播放提示音。 */
-    private static final long NAVIGATION_SETTLE_DELAY_MS = 400L;
 
     private static volatile AiWakeupController sInstance;
 
-    /** 被唤醒时负责把界面切到 AI 页。 */
+    /** 被唤醒时进入悬浮条聆听模式（AI 页可见时保持页面）。 */
     public interface Navigator {
         /**
-         * @return true 表示已经（或即将）显示 AI 页，唤醒流程继续
+         * @return true 表示唤醒流程继续（悬浮条模式就绪或 AI 页已可见）
          */
-        boolean onWakeupRequestAiPage();
+        boolean onWakeupBeginListening();
 
         /** 网络或授权不满足时提示用户。 */
         void onWakeupRejected(Reason reason);
@@ -298,16 +297,16 @@ public final class AiWakeupController implements FlyAiIVWListener {
             AppLog.w(TAG, "wakeup rejected: not authorized");
             return 0L;
         }
-        AppLog.i(TAG, "WAKEUP_ACCEPTED: requesting AI page");
-        // VTN 回调运行在原生线程，界面切换必须回到主线程。
+        AppLog.i(TAG, "WAKEUP_ACCEPTED: entering listening bar mode");
+        // VTN 回调运行在原生线程，界面处理必须回到主线程。
         mMainHandler.post(() -> {
             Navigator current = mNavigator;
             if (current != null) {
-                current.onWakeupRequestAiPage();
+                current.onWakeupBeginListening();
             }
         });
-        // 让出时间给 Fragment 事务与粒子预热，再播放提示音。
-        return NAVIGATION_SETTLE_DELAY_MS;
+        // 悬浮条模式没有 Fragment 事务，提示音可以立即播放。
+        return 0L;
     }
 
     @Override

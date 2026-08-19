@@ -26,6 +26,10 @@ import okio.ByteString;
  *
  * <p>下行消息：{@code session} / {@code stt} / {@code tts} / {@code listen} /
  * {@code param} / {@code abort} / {@code error}，二进制帧为 16kHz 单声道 Opus。</p>
+ *
+ * <p>与 HiviAudio 一致：本类不自带定时心跳，ping 由 TTS 播放器在播报期间驱动
+ * （{@code OpusAudioPlayer} 心跳回调 → {@link #sendPing()}）。监听阶段靠麦克风音频
+ * 流量保活、不发 ping，服务端才能对无输入的唤醒会话超时断开，悬浮条随之隐藏。</p>
  */
 public final class AiWebSocketManager {
     private static final String TAG = "AiWebSocketManager";
@@ -35,7 +39,6 @@ public final class AiWebSocketManager {
     private static final long CLOSE_AFTER_STOP_ACK_MS = 200L;
     /** 未收到 listen/stop ack 时的兜底关闭时间。 */
     private static final long CLOSE_FALLBACK_MS = 1_500L;
-    private static final long HEARTBEAT_INTERVAL_MS = 5_000L;
 
     public interface Listener {
         void onSessionCreated(String sessionId);
@@ -80,7 +83,6 @@ public final class AiWebSocketManager {
     private final String mAuthorization;
     private final String mWebSocketUrl;
     private final Runnable mCloseFallbackRunnable = this::performClose;
-    private final Runnable mHeartbeatRunnable = this::sendHeartbeat;
 
     private volatile WebSocket mWebSocket;
     private volatile Listener mListener;
@@ -90,7 +92,6 @@ public final class AiWebSocketManager {
     private volatile boolean mListenStartSent;
     private volatile boolean mWaitingForStopAck;
     private volatile boolean mClosedNotified;
-    private volatile boolean mHeartbeatActive;
     private volatile String mListenState = "";
     private volatile String mListenMode = "";
     private int mDroppedAudioPackets;
@@ -155,7 +156,6 @@ public final class AiWebSocketManager {
                     mWebSocket = webSocket;
                 }
                 AppLog.i(TAG, "WebSocket connected, code=" + response.code());
-                startHeartbeat();
                 sendListenStart(false);
             }
 
@@ -174,7 +174,6 @@ public final class AiWebSocketManager {
 
             @Override
             public void onFailure(WebSocket webSocket, Throwable throwable, Response response) {
-                stopHeartbeat();
                 boolean forbidden = response != null && response.code() == 403;
                 synchronized (mLock) {
                     if (mWebSocket == webSocket) {
@@ -199,13 +198,11 @@ public final class AiWebSocketManager {
 
             @Override
             public void onClosing(WebSocket webSocket, int code, String reason) {
-                stopHeartbeat();
                 webSocket.close(code, reason);
             }
 
             @Override
             public void onClosed(WebSocket webSocket, int code, String reason) {
-                stopHeartbeat();
                 synchronized (mLock) {
                     if (mWebSocket == webSocket) {
                         mWebSocket = null;
@@ -269,6 +266,10 @@ public final class AiWebSocketManager {
         send(buildListenStop());
     }
 
+    /**
+     * 应用层心跳。仅在 TTS 播报期间由 {@link OpusAudioPlayer} 的心跳回调驱动发送
+     * （同 HiviAudio），避免全局定时 ping 让服务端永远不断开空闲会话。
+     */
     public boolean sendPing() {
         WebSocket webSocket = mWebSocket;
         return webSocket != null && !mClosing && webSocket.send("ping");
@@ -403,7 +404,6 @@ public final class AiWebSocketManager {
             mListenStartSent = false;
             webSocket = mWebSocket;
         }
-        stopHeartbeat();
         if (webSocket == null) {
             shutdownClient();
             return;
@@ -428,12 +428,10 @@ public final class AiWebSocketManager {
             mReadyForAudio = false;
             mListenStartSent = false;
         }
-        stopHeartbeat();
         performClose();
     }
 
     private void performClose() {
-        stopHeartbeat();
         WebSocket webSocket;
         synchronized (mLock) {
             mWaitingForStopAck = false;
@@ -453,55 +451,6 @@ public final class AiWebSocketManager {
     }
 
     // ────────────────────── 下行消息 ──────────────────────
-
-    private void startHeartbeat() {
-        synchronized (mLock) {
-            if (mClosing || mWebSocket == null) {
-                return;
-            }
-            mHeartbeatActive = true;
-        }
-        mMainHandler.removeCallbacks(mHeartbeatRunnable);
-        mMainHandler.postDelayed(mHeartbeatRunnable, HEARTBEAT_INTERVAL_MS);
-        AppLog.i(TAG, "WebSocket heartbeat started");
-    }
-
-    private void sendHeartbeat() {
-        WebSocket webSocket;
-        synchronized (mLock) {
-            if (!mHeartbeatActive || mClosing || mWebSocket == null) {
-                return;
-            }
-            webSocket = mWebSocket;
-        }
-        if (!webSocket.send("ping")) {
-            synchronized (mLock) {
-                if (!mClosing && mWebSocket == webSocket) {
-                    AppLog.w(TAG, "WebSocket heartbeat send failed");
-                }
-            }
-            stopHeartbeat();
-            return;
-        }
-        synchronized (mLock) {
-            if (!mHeartbeatActive || mClosing || mWebSocket != webSocket) {
-                return;
-            }
-            mMainHandler.postDelayed(mHeartbeatRunnable, HEARTBEAT_INTERVAL_MS);
-        }
-    }
-
-    private void stopHeartbeat() {
-        boolean wasActive;
-        synchronized (mLock) {
-            wasActive = mHeartbeatActive;
-            mHeartbeatActive = false;
-        }
-        mMainHandler.removeCallbacks(mHeartbeatRunnable);
-        if (wasActive) {
-            AppLog.i(TAG, "WebSocket heartbeat stopped");
-        }
-    }
 
     private boolean send(JSONObject message) {
         WebSocket webSocket = mWebSocket;

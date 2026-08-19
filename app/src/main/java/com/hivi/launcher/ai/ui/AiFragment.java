@@ -36,7 +36,8 @@ public final class AiFragment extends BaseFragment<AiPresenter>
         if (activity == null) {
             throw new IllegalStateException("AI conversation fragment is not attached.");
         }
-        return new AiPresenter(activity, this);
+        // 共享会话 presenter：唤醒链路已用 headless 视图开场，这里接管渲染。
+        return AiPresenter.obtainShared(activity, this);
     }
 
     @Override
@@ -53,6 +54,8 @@ public final class AiFragment extends BaseFragment<AiPresenter>
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         mBinding = FragmentAiConversationBinding.bind(view);
+        // AI 页面与监听悬浮条不同时显示：手动进入页面时隐藏唤醒留下的悬浮条。
+        AiListeningOverlay.getInstance().hide();
         mBinding.aiConversationBack.setOnClickListener(ignored -> requestBackNavigation());
         mBinding.aiConversationParticle.setOnClickListener(ignored -> {
             AiPresenter presenter = getPresenter();
@@ -77,7 +80,7 @@ public final class AiFragment extends BaseFragment<AiPresenter>
     public void onDestroyView() {
         AiPresenter presenter = getPresenter();
         if (presenter != null) {
-            presenter.release();
+            presenter.endConversation();
         }
         resetAssistantResponse();
         mBinding = null;
@@ -87,7 +90,7 @@ public final class AiFragment extends BaseFragment<AiPresenter>
     public void releaseForNavigation() {
         AiPresenter presenter = getPresenter();
         if (presenter != null) {
-            presenter.release();
+            presenter.endConversation();
         }
     }
 
@@ -103,6 +106,11 @@ public final class AiFragment extends BaseFragment<AiPresenter>
             presenter.onRecordAudioPermissionResult(grantResults.length > 0
                     && grantResults[0] == PackageManager.PERMISSION_GRANTED);
         }
+    }
+
+    @Override
+    public boolean isConversationPageActive() {
+        return mBinding != null;
     }
 
     @Override

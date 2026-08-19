@@ -126,6 +126,13 @@ public final class MediaSessionPlaybackManager {
         }
     }
 
+    public void previous() {
+        MediaController controller = pickActiveController();
+        if (controller != null && controller.getTransportControls() != null) {
+            controller.getTransportControls().skipToPrevious();
+        }
+    }
+
     private void refreshSessions() {
         if (mediaSessionManager == null || appContext == null) {
             return;
