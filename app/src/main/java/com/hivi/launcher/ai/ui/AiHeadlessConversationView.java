@@ -46,8 +46,9 @@ public final class AiHeadlessConversationView implements AiView {
         mAiPageRequested = true;
         MainActivity activity = mActivity.get();
         if (activity != null) {
+            // 其他应用（如 QQ 音乐）在前台时拉回 launcher 前台再打开 AI 对话页。
+            activity.bringToFrontAndShowPage(MainPage.AI);
             AiListeningOverlay.getInstance().hide();
-            activity.showPage(MainPage.AI);
         }
     }
 
@@ -74,12 +75,13 @@ public final class AiHeadlessConversationView implements AiView {
 
     @Override
     public void requestMusicPageNavigation() {
-        // 点播音乐：隐藏悬浮条并切到 WiFi 音乐页，QQ 音乐打开后覆盖其上。
-        AiListeningOverlay.getInstance().hide();
+        // 点播音乐：隐藏悬浮条并切到 WiFi 音乐页，QQ 音乐随后打开覆盖其上；
+        // QQ 音乐已在前台（连续点播）时也先把 launcher 拉回前台再切页。
         MainActivity activity = mActivity.get();
         if (activity != null) {
-            activity.showPage(MainPage.WIFI);
+            activity.bringToFrontAndShowPage(MainPage.WIFI);
         }
+        AiListeningOverlay.getInstance().hide();
     }
 
     @Override

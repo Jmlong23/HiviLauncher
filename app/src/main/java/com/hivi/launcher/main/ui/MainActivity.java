@@ -102,6 +102,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private boolean mSuppressBackStackUiSync;
     private boolean mActivityResumed;
     private MainPage mPendingInitialMode;
+    /** 后台时请求打开的页面（如 QQ 音乐前台期间收到 AI 应答），onResume 时消费。 */
+    private MainPage mPendingPageToShow;
     private final FragmentManager.OnBackStackChangedListener mBackStackChangedListener =
             new FragmentManager.OnBackStackChangedListener() {
                 @Override
@@ -238,6 +240,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         presenter.startTicker();
         syncPageUiWithCurrentFragment();
         applyPendingInitialMode();
+        applyPendingPageToShow();
     }
 
     @Override
@@ -403,6 +406,39 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         showStackedPage(page);
     }
 
+    /**
+     * 其他应用（如 QQ 音乐）在前台时收到页面请求：先把 launcher 任务拉回前台，
+     * 页面切换推迟到 onResume 执行——避免 stopped 状态下 FragmentTransaction
+     * 抛 "Can not perform this action after onSaveInstanceState" 崩溃。
+     */
+    public void bringToFrontAndShowPage(MainPage page) {
+        if (binding == null || isFinishing() || isDestroyed()) {
+            return;
+        }
+        if (!mActivityResumed) {
+            mPendingPageToShow = page;
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                    | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            try {
+                startActivity(intent);
+            } catch (Exception e) {
+                AppLog.w("MainActivity", "bring launcher to front failed", e);
+            }
+            return;
+        }
+        showPage(page);
+    }
+
+    private void applyPendingPageToShow() {
+        MainPage page = mPendingPageToShow;
+        if (page == null) {
+            return;
+        }
+        mPendingPageToShow = null;
+        showPage(page);
+    }
+
     private void showInputModePage(MainPage page) {
         FragmentManager fragmentManager = getFragmentManager();
         Fragment currentFragment = fragmentManager.findFragmentById(R.id.fragment_container);
@@ -454,7 +490,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         getFragmentManager().beginTransaction()
                 .replace(R.id.fragment_container, createPageFragment(page))
                 .addToBackStack(page.name())
-                .commit();
+                .commitAllowingStateLoss();
 
         if (homePageVisible) {
             fragmentContainer.animate()
