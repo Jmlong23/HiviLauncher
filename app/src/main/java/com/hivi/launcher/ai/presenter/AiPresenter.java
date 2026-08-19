@@ -19,12 +19,14 @@ import com.hivi.launcher.ai.audio.AiWebSocketManager;
 import com.hivi.launcher.ai.audio.MicOpusStreamer;
 import com.hivi.launcher.ai.audio.OpusAudioPlayer;
 import com.hivi.launcher.ai.iot.AiIotCommandExecutor;
+import com.hivi.launcher.ai.iot.AiMusicRequest;
 import com.hivi.launcher.ai.ui.AiView;
 import com.hivi.launcher.ai.wakeup.AiWakeupController;
 import com.hivi.launcher.base.BasePresenter;
 import com.hivi.launcher.customview.ParticleVisualizerView;
 import com.hivi.launcher.utils.Constants;
 import com.hivi.launcher.utils.network.AuthorizationStore;
+import com.hivi.launcher.wifi.model.QQMusicLauncher;
 import com.ljm.audiotoollib.upnpserver.entity.SWDeviceStatus;
 
 import org.json.JSONObject;
@@ -399,6 +401,12 @@ public final class AiPresenter extends BasePresenter<AiView>
                     if (mInterruptPending) {
                         return;
                     }
+                    // 音乐点播 JSON 优先于 IoT 指令识别（同 HiviAudio onTTSSentenceStart）。
+                    AiMusicRequest musicRequest = AiMusicRequest.parse(text);
+                    if (musicRequest != null) {
+                        handleMusicRequest(musicRequest);
+                        return;
+                    }
                     if (AiIotCommandExecutor.isIotCommandText(text)) {
                         handleIotCommand(text);
                         return;
@@ -525,6 +533,27 @@ public final class AiPresenter extends BasePresenter<AiView>
     }
 
     // ────────────────── IoT 指令（不进入 AI 页面） ──────────────────
+
+    // ────────────────── 音乐点播（跳 WiFi 音乐页 + QQ 音乐播放） ──────────────────
+
+    private void handleMusicRequest(AiMusicRequest request) {
+        String keyword = request.buildSearchKeyword();
+        AppLog.i(TAG, "AI music request received, keyword=" + keyword
+                + ", success=" + request.success);
+        // 同 HiviAudio handleAiMusicLink：点播即结束 AI 会话（停麦断连），播放交给音乐应用。
+        endConversation();
+        AiView view = getView();
+        if (!request.success) {
+            if (view != null) {
+                view.showToast(TextUtils.isEmpty(request.message) ? "暂不支持播放" : request.message);
+            }
+            return;
+        }
+        if (view != null) {
+            view.requestMusicPageNavigation();
+        }
+        QQMusicLauncher.openForSearch(mContext, keyword);
+    }
 
     private void handleIotCommand(String text) {
         AppLog.i(TAG, "AI IoT command received, executing without opening the AI page");

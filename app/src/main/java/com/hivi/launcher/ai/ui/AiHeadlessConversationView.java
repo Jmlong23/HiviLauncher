@@ -73,6 +73,16 @@ public final class AiHeadlessConversationView implements AiView {
     }
 
     @Override
+    public void requestMusicPageNavigation() {
+        // 点播音乐：隐藏悬浮条并切到 WiFi 音乐页，QQ 音乐打开后覆盖其上。
+        AiListeningOverlay.getInstance().hide();
+        MainActivity activity = mActivity.get();
+        if (activity != null) {
+            activity.showPage(MainPage.WIFI);
+        }
+    }
+
+    @Override
     public void showToast(String message) {
         MainActivity activity = mActivity.get();
         if (activity != null) {

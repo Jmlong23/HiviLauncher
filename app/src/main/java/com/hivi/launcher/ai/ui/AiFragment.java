@@ -17,6 +17,7 @@ import com.hivi.launcher.ai.presenter.AiPresenter;
 import com.hivi.launcher.base.BaseFragment;
 import com.hivi.launcher.customview.ParticleVisualizerView;
 import com.hivi.launcher.databinding.FragmentAiConversationBinding;
+import com.hivi.launcher.main.model.MainPage;
 import com.hivi.launcher.main.ui.MainActivity;
 
 public final class AiFragment extends BaseFragment<AiPresenter>
@@ -165,6 +166,15 @@ public final class AiFragment extends BaseFragment<AiPresenter>
         Activity activity = getActivity();
         if (activity instanceof MainActivity) {
             ((MainActivity) activity).showHomePage();
+        }
+    }
+
+    @Override
+    public void requestMusicPageNavigation() {
+        // 点播音乐：AI 页让位给 WiFi 音乐页，QQ 音乐随后打开覆盖其上。
+        Activity activity = getActivity();
+        if (activity instanceof MainActivity) {
+            ((MainActivity) activity).showPage(MainPage.WIFI);
         }
     }
 

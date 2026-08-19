@@ -27,4 +27,8 @@ public interface AiView extends BaseView {
     default boolean isConversationPageActive() {
         return false;
     }
+
+    /** AI 点播音乐：切到 WiFi 音乐页，QQ 音乐随后打开覆盖其上。 */
+    default void requestMusicPageNavigation() {
+    }
 }
