@@ -20,6 +20,8 @@ import com.hivi.launcher.utils.network.NetworkManager;
 
 import org.json.JSONObject;
 
+import java.io.File;
+
 import io.reactivex.disposables.Disposable;
 
 public final class SettingsPresenter extends BasePresenter<SettingsView> {
@@ -186,14 +188,25 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
             }
 
             @Override
-            public void onInstalling() {
-                renderSystemUpdateProgress(100, R.string.system_update_installing);
-            }
-
-            @Override
-            public void onInstallSubmitted() {
-                // The package installer reports the final success/failure through the manifest
-                // receiver, allowing the result to survive replacement of this package.
+            public void onPackageReady(final File packageFile) {
+                AppLog.i(TAG, "Update package downloaded; requesting system installer.");
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        SettingsView view = getView();
+                        if (view == null) {
+                            handleSystemUpdateFailure(new IllegalStateException(
+                                    "Settings view is unavailable."));
+                            return;
+                        }
+                        view.dismissSystemUpdateProgress();
+                        try {
+                            view.launchSystemUpdateInstaller(packageFile);
+                        } catch (Throwable throwable) {
+                            handleSystemUpdateFailure(throwable);
+                        }
+                    }
+                });
             }
 
             @Override
@@ -211,6 +224,12 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
         if (view != null) {
             view.showLogUploadConfirmation();
         }
+    }
+
+    public void onSystemUpdateInstallerReturned() {
+        AppLog.w(TAG, "System package installer returned without replacing the launcher.");
+        handleSystemUpdateFailure(new IllegalStateException(
+                "System package installer was cancelled or rejected the update."));
     }
 
     public void onLogUploadConfirmed() {

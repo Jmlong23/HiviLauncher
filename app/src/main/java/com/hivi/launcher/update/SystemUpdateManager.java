@@ -1,15 +1,12 @@
 package com.hivi.launcher.update;
 
-import android.app.PendingIntent;
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageInfo;
-import android.content.pm.PackageInstaller;
-import android.os.Build;
 import android.text.TextUtils;
 
+import com.hivi.launcher.utils.log.AppLog;
+
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,23 +18,18 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 /**
- * Downloads a verified launcher APK and submits it to Android's package installer.
- *
- * <p>The terminal install result is delivered by {@link SystemUpdateInstallReceiver}, which
- * survives replacement of the current launcher package.</p>
+ * Downloads and validates a launcher APK before the UI hands it to the system installer.
  */
 public final class SystemUpdateManager {
+    private static final String TAG = "SystemUpdateManager";
     private static final long MAX_UPDATE_PACKAGE_BYTES = 1024L * 1024L * 1024L;
-    private static final int INSTALL_STATUS_PENDING_INTENT_MUTABLE = 0x02000000;
 
     public interface Callback {
         void onDownloadStarted();
 
         void onDownloadProgress(int progress);
 
-        void onInstalling();
-
-        void onInstallSubmitted();
+        void onPackageReady(File packageFile);
 
         void onFailure(Throwable throwable);
     }
@@ -56,10 +48,9 @@ public final class SystemUpdateManager {
                 try {
                     callback.onDownloadStarted();
                     File packageFile = downloadPackage(updateInfo, callback);
-                    verifyPackage(packageFile, updateInfo);
-                    callback.onInstalling();
-                    submitPackageInstall(packageFile);
-                    callback.onInstallSubmitted();
+                    verifyPackage(packageFile);
+                    AppLog.i(TAG, "Update package is ready: " + packageFile.getAbsolutePath());
+                    callback.onPackageReady(packageFile);
                 } catch (Throwable throwable) {
                     callback.onFailure(throwable);
                 }
@@ -147,69 +138,12 @@ public final class SystemUpdateManager {
         return updateDirectory;
     }
 
-    private void verifyPackage(File packageFile, SystemUpdateInfo updateInfo) throws IOException {
+    private void verifyPackage(File packageFile) throws IOException {
         PackageInfo packageInfo = mApplicationContext.getPackageManager().getPackageArchiveInfo(
                 packageFile.getAbsolutePath(), 0);
         if (packageInfo == null
                 || !TextUtils.equals(mApplicationContext.getPackageName(), packageInfo.packageName)) {
             throw new IOException("Downloaded package does not belong to this launcher.");
-        }
-        long packageVersionCode = getVersionCode(packageInfo);
-        if (packageVersionCode <= updateInfo.getCurrentVersionCode()) {
-            throw new IOException("Downloaded package is not newer than the installed version.");
-        }
-        if (updateInfo.getLatestVersionCode() > 0L
-                && packageVersionCode < updateInfo.getLatestVersionCode()) {
-            throw new IOException("Downloaded package version does not match the update service.");
-        }
-    }
-
-    private long getVersionCode(PackageInfo packageInfo) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            return packageInfo.getLongVersionCode();
-        }
-        return packageInfo.versionCode;
-    }
-
-    private void submitPackageInstall(File packageFile) throws Exception {
-        PackageInstaller packageInstaller = mApplicationContext.getPackageManager()
-                .getPackageInstaller();
-        PackageInstaller.SessionParams params = new PackageInstaller.SessionParams(
-                PackageInstaller.SessionParams.MODE_FULL_INSTALL);
-        params.setAppPackageName(mApplicationContext.getPackageName());
-        int sessionId = packageInstaller.createSession(params);
-        PackageInstaller.Session session = null;
-        try {
-            session = packageInstaller.openSession(sessionId);
-            try (InputStream input = new FileInputStream(packageFile);
-                    OutputStream output = session.openWrite("base.apk", 0L, packageFile.length())) {
-                byte[] buffer = new byte[16 * 1024];
-                int read;
-                while ((read = input.read(buffer)) != -1) {
-                    output.write(buffer, 0, read);
-                }
-                session.fsync(output);
-            }
-
-            Intent statusIntent = new Intent(mApplicationContext,
-                    SystemUpdateInstallReceiver.class)
-                    .setAction(SystemUpdateInstallReceiver.ACTION_INSTALL_STATUS);
-            int pendingIntentFlags = PendingIntent.FLAG_UPDATE_CURRENT;
-            if (Build.VERSION.SDK_INT >= 31) {
-                // PackageInstaller supplies its result extras after Android 12, so this
-                // PendingIntent must be mutable. compileSdk 30 does not expose the constant.
-                pendingIntentFlags |= INSTALL_STATUS_PENDING_INTENT_MUTABLE;
-            }
-            PendingIntent statusPendingIntent = PendingIntent.getBroadcast(mApplicationContext,
-                    sessionId, statusIntent, pendingIntentFlags);
-            session.commit(statusPendingIntent.getIntentSender());
-        } catch (Exception exception) {
-            packageInstaller.abandonSession(sessionId);
-            throw exception;
-        } finally {
-            if (session != null) {
-                session.close();
-            }
         }
     }
 
