@@ -473,7 +473,9 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         Uri packageUri = UpdatePackageProvider.getPackageUri(context);
         Intent installIntent = new Intent(Intent.ACTION_VIEW)
                 .setDataAndType(packageUri, APK_MIME_TYPE)
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                .putExtra("EXTRA_CALLING_PACKAGE", context.getPackageName())
+                .putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
         installIntent.setClipData(ClipData.newRawUri("update-package", packageUri));
         ComponentName installerComponent = installIntent.resolveActivity(context.getPackageManager());
         if (installerComponent == null) {
@@ -492,12 +494,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             return;
         }
         AppLog.i(TAG, "System package installer returned: resultCode=" + resultCode);
-        if (resultCode != Activity.RESULT_OK) {
-            SettingsPresenter presenter = getPresenter();
-            if (presenter != null) {
-                presenter.onSystemUpdateInstallerReturned();
-            }
-        }
+        AppLog.i(TAG, "Waiting for MY_PACKAGE_REPLACED to confirm the launcher update.");
     }
 
     @Override

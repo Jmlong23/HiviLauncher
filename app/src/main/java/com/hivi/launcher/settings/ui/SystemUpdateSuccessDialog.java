@@ -16,7 +16,7 @@ import com.hivi.launcher.databinding.DialogSystemUpdateSuccessBinding;
  * Final state displayed after PackageInstaller confirms that the new launcher was installed.
  */
 public final class SystemUpdateSuccessDialog {
-    private static final long DISMISS_DELAY_MS = 2500L;
+    private static final long DISMISS_DELAY_MS = 5000L;
 
     private SystemUpdateSuccessDialog() {
     }

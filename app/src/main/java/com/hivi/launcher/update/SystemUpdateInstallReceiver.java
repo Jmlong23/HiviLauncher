@@ -13,6 +13,8 @@ import com.hivi.launcher.utils.log.AppLog;
  * Reopens the launcher from the replacement package after a system-installer update.
  */
 public final class SystemUpdateInstallReceiver extends BroadcastReceiver {
+    private static final String PREFERENCES_NAME = "system_update_result";
+    private static final String KEY_UPDATE_SUCCEEDED = "update_succeeded";
     private static final String TAG = "SystemUpdateReceiver";
     public static final String EXTRA_UPDATE_SUCCEEDED =
             "com.hivi.launcher.extra.SYSTEM_UPDATE_SUCCEEDED";
@@ -26,11 +28,28 @@ public final class SystemUpdateInstallReceiver extends BroadcastReceiver {
             return;
         }
         AppLog.i(TAG, "Launcher package replaced; starting the updated home screen.");
+        context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean(KEY_UPDATE_SUCCEEDED, true)
+                .commit();
         Intent launchIntent = new Intent(Intent.ACTION_MAIN)
                 .addCategory(Intent.CATEGORY_HOME)
                 .setComponent(new ComponentName(context, MainActivity.class))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         launchIntent.putExtra(EXTRA_UPDATE_SUCCEEDED, true);
         context.startActivity(launchIntent);
+    }
+
+    public static boolean consumeUpdateSucceeded(Context context) {
+        if (context == null) {
+            return false;
+        }
+        android.content.SharedPreferences preferences = context.getSharedPreferences(
+                PREFERENCES_NAME, Context.MODE_PRIVATE);
+        boolean succeeded = preferences.getBoolean(KEY_UPDATE_SUCCEEDED, false);
+        if (succeeded) {
+            preferences.edit().remove(KEY_UPDATE_SUCCEEDED).apply();
+        }
+        return succeeded;
     }
 }

@@ -101,6 +101,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private boolean mHomeNavigationPending;
     private boolean mSuppressBackStackUiSync;
     private boolean mActivityResumed;
+    private boolean mPendingSystemUpdateSuccess;
     private MainPage mPendingInitialMode;
     /** 后台时请求打开的页面（如 QQ 音乐前台期间收到 AI 应答），onResume 时消费。 */
     private MainPage mPendingPageToShow;
@@ -241,6 +242,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         syncPageUiWithCurrentFragment();
         applyPendingInitialMode();
         applyPendingPageToShow();
+        handleSystemUpdateInstallResult(getIntent());
     }
 
     @Override
@@ -624,20 +626,26 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     private void handleSystemUpdateInstallResult(Intent intent) {
-        if (intent == null
-                || !intent.hasExtra(SystemUpdateInstallReceiver.EXTRA_UPDATE_SUCCEEDED)) {
-            return;
-        }
-        boolean succeeded = intent.getBooleanExtra(
-                SystemUpdateInstallReceiver.EXTRA_UPDATE_SUCCEEDED, false);
-        intent.removeExtra(SystemUpdateInstallReceiver.EXTRA_UPDATE_SUCCEEDED);
-        if (succeeded) {
+        boolean hasIntentResult = intent != null
+                && intent.hasExtra(SystemUpdateInstallReceiver.EXTRA_UPDATE_SUCCEEDED);
+        if (intent != null) {
+            boolean succeeded = hasIntentResult && intent.getBooleanExtra(
+                    SystemUpdateInstallReceiver.EXTRA_UPDATE_SUCCEEDED, false);
+            intent.removeExtra(SystemUpdateInstallReceiver.EXTRA_UPDATE_SUCCEEDED);
             intent.removeExtra(SystemUpdateInstallReceiver.EXTRA_UPDATE_ERROR);
-            SystemUpdateSuccessDialog.show(this);
-            return;
+            if (succeeded) {
+                mPendingSystemUpdateSuccess = true;
+            } else if (hasIntentResult && mActivityResumed) {
+                showToast(getString(R.string.system_update_failed));
+            }
         }
-        intent.removeExtra(SystemUpdateInstallReceiver.EXTRA_UPDATE_ERROR);
-        showToast(getString(R.string.system_update_failed));
+        if (mActivityResumed && SystemUpdateInstallReceiver.consumeUpdateSucceeded(this)) {
+            mPendingSystemUpdateSuccess = true;
+        }
+        if (mActivityResumed && mPendingSystemUpdateSuccess) {
+            mPendingSystemUpdateSuccess = false;
+            SystemUpdateSuccessDialog.show(this);
+        }
     }
 
     private void applyLocalizedTexts() {
