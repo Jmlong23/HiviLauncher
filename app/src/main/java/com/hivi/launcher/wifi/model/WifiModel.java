@@ -163,8 +163,16 @@ public final class WifiModel {
         }
 
         if (!mWifiManager.isWifiEnabled()) {
-            setRefreshing(false);
-            mCallback.onWifiError(Error.WIFI_ENABLE_FAILED);
+            setRefreshing(true);
+            try {
+                if (!mWifiManager.setWifiEnabled(true)) {
+                    setRefreshing(false);
+                    mCallback.onWifiError(Error.WIFI_ENABLE_FAILED);
+                }
+            } catch (SecurityException e) {
+                setRefreshing(false);
+                mCallback.onWifiError(Error.WIFI_ENABLE_FAILED);
+            }
             return;
         }
 
