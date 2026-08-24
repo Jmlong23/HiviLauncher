@@ -171,6 +171,10 @@
     <string name="settings_screensaver_timeout_thirty_minutes">30 分钟</string>
     <string name="settings_screensaver_timeout_never">从不</string>
     <string name="settings_screensaver_style">屏保样式</string>
+    <string name="settings_screensaver_style_simple">简约时钟</string>
+    <string name="settings_screensaver_style_weather">天气时钟</string>
+    <string name="settings_screensaver_style_flip">翻页时钟</string>
+    <string name="settings_screensaver_style_black">夜间息屏</string>
     <string name="settings_brightness">亮度</string>
     <string name="settings_brightness_low">低</string>
     <string name="settings_brightness_medium">中</string>

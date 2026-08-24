@@ -10,6 +10,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Outline;
 import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.net.wifi.WifiInfo;
@@ -24,9 +25,11 @@ import com.hivi.launcher.utils.log.AppLog;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.view.ViewOutlineProvider;
 import android.view.animation.LinearInterpolator;
 import android.widget.PopupWindow;
 import android.widget.SeekBar;
+import android.widget.ImageView;
 
 import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -347,7 +350,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     @Override
     public void renderDisplaySettings(int language, boolean languageOptionsExpanded,
             boolean screenSaverEnabled, int screenSaverTimeout,
-            boolean screenSaverTimeoutOptionsExpanded) {
+            boolean screenSaverTimeoutOptionsExpanded, int screenSaverStyle) {
         if (mBinding == null) {
             return;
         }
@@ -362,6 +365,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
                 : R.drawable.ic_screen_saver_off);
         mBinding.settingsTimeScreenSaver.setEnabled(screenSaverEnabled);
         mBinding.settingsTimeScreenSaver.setAlpha(screenSaverEnabled ? 1f : 0.45f);
+        updateScreenSaverStyles(screenSaverEnabled, screenSaverStyle);
         mBinding.settingsTimeScreenSaverValue.setText(
                 getScreenSaverTimeoutText(screenSaverTimeout));
 
@@ -671,6 +675,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
 
     private void setupDisplaySettings() {
         setupBrightnessSettings();
+        setupRoundedScreenSaverThumbnails();
         mBinding.settingsLanguage.setOnClickListener(view -> {
             SettingsPresenter presenter = getPresenter();
             if (presenter != null) {
@@ -689,6 +694,49 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
                 presenter.onScreenSaverTimeoutSelected();
             }
         });
+        mBinding.screensaverItemSimple.setOnClickListener(view -> selectScreenSaverStyle(
+                SettingsModel.SCREEN_SAVER_STYLE_SIMPLE));
+        mBinding.screensaverItemWeather.setOnClickListener(view -> selectScreenSaverStyle(
+                SettingsModel.SCREEN_SAVER_STYLE_WEATHER));
+        mBinding.screensaverItemFlip.setOnClickListener(view -> selectScreenSaverStyle(
+                SettingsModel.SCREEN_SAVER_STYLE_FLIP));
+        mBinding.screensaverItemBlack.setOnClickListener(view -> selectScreenSaverStyle(
+                SettingsModel.SCREEN_SAVER_STYLE_BLACK));
+    }
+
+    private void setupRoundedScreenSaverThumbnails() {
+        ImageView[] thumbnails = {mBinding.screensaverThumbnailSimple,
+                mBinding.screensaverThumbnailWeather, mBinding.screensaverThumbnailFlip};
+        for (ImageView thumbnail : thumbnails) {
+            thumbnail.setOutlineProvider(new ViewOutlineProvider() {
+                @Override
+                public void getOutline(View view, Outline outline) {
+                    outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), dp(7));
+                }
+            });
+            thumbnail.setClipToOutline(true);
+        }
+    }
+
+    private void selectScreenSaverStyle(int style) {
+        SettingsPresenter presenter = getPresenter();
+        if (presenter != null) {
+            presenter.onScreenSaverStyleSelected(style);
+        }
+    }
+
+    private void updateScreenSaverStyles(boolean enabled, int selectedStyle) {
+        View[] items = {mBinding.screensaverItemSimple, mBinding.screensaverItemWeather,
+                mBinding.screensaverItemFlip, mBinding.screensaverItemBlack};
+        View[] checks = {mBinding.screensaverCheckSimple, mBinding.screensaverCheckWeather,
+                mBinding.screensaverCheckFlip, mBinding.screensaverCheckBlack};
+        for (int index = 0; index < items.length; index++) {
+            items[index].setEnabled(enabled);
+            items[index].setAlpha(enabled ? 1f : 0.45f);
+            items[index].setSelected(enabled && index == selectedStyle);
+            checks[index].setVisibility(enabled && index == selectedStyle
+                    ? View.VISIBLE : View.GONE);
+        }
     }
 
     private void setupSystemUpdateSettings() {

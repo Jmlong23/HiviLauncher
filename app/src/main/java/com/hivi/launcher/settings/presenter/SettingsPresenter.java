@@ -137,6 +137,15 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
         renderDisplaySettings();
     }
 
+    public void onScreenSaverStyleSelected(int style) {
+        if (!mModel.isScreenSaverEnabled() || style < SettingsModel.SCREEN_SAVER_STYLE_SIMPLE
+                || style > SettingsModel.SCREEN_SAVER_STYLE_BLACK) {
+            return;
+        }
+        mModel.setScreenSaverStyle(style);
+        renderDisplaySettings();
+    }
+
     public void onDisplayDropdownDismissed() {
         if (!mModel.isLanguageOptionsExpanded()
                 && !mModel.isScreenSaverTimeoutOptionsExpanded()) {
@@ -358,7 +367,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
         if (view != null) {
             view.renderDisplaySettings(mModel.getLanguage(), mModel.isLanguageOptionsExpanded(),
                     mModel.isScreenSaverEnabled(), mModel.getScreenSaverTimeout(),
-                    mModel.isScreenSaverTimeoutOptionsExpanded());
+                    mModel.isScreenSaverTimeoutOptionsExpanded(), mModel.getScreenSaverStyle());
         }
     }
 
