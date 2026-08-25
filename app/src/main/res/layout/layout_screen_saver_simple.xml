@@ -7,6 +7,7 @@
     android:clickable="true"
     android:focusable="true">
     <ImageView
+        android:id="@+id/simple_screen_saver_wallpaper"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:contentDescription="@null"
@@ -31,7 +32,7 @@
             android:layout_marginTop="24dp"
             android:includeFontPadding="false"
             android:fontFamily="@font/clock_detail_font"
-            android:textColor="#A6FFFFFF"
+            android:textColor="#C2FFFFFF"
             android:textSize="27sp" />
     </LinearLayout>
 </FrameLayout>

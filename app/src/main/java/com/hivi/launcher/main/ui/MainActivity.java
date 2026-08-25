@@ -28,6 +28,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.view.animation.DecelerateInterpolator;
 
 import androidx.annotation.Nullable;
@@ -45,6 +46,7 @@ import com.hivi.launcher.ai.ui.AiHeadlessConversationView;
 import com.hivi.launcher.ai.ui.AiListeningOverlay;
 import com.hivi.launcher.ai.wakeup.AiWakeupController;
 import com.hivi.launcher.base.BaseActivity;
+import com.hivi.launcher.customview.FrostedTextView;
 import com.hivi.launcher.databinding.ActivityMainBinding;
 import com.hivi.launcher.main.model.MainPage;
 import com.hivi.launcher.main.presenter.MainPresenter;
@@ -339,8 +341,16 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         mScreenSaverOverlay = LayoutInflater.from(this)
                 .inflate(R.layout.layout_screen_saver_simple, binding.launcherRoot, false);
-        mScreenSaverTime = mScreenSaverOverlay.findViewById(R.id.simple_screen_saver_time);
+        FrostedTextView screenSaverTime = mScreenSaverOverlay.findViewById(
+                R.id.simple_screen_saver_time);
+        mScreenSaverTime = screenSaverTime;
         mScreenSaverDate = mScreenSaverOverlay.findViewById(R.id.simple_screen_saver_date);
+        ImageView wallpaper = mScreenSaverOverlay.findViewById(
+                R.id.simple_screen_saver_wallpaper);
+        int wallpaperResource = ScreenSaverSettings.getSimpleWallpaperResource(
+                ScreenSaverSettings.getSimpleWallpaper(this));
+        wallpaper.setImageResource(wallpaperResource);
+        screenSaverTime.setBackdropResource(wallpaperResource);
         binding.launcherRoot.addView(mScreenSaverOverlay,
                 new FrameLayout.LayoutParams(-1, -1));
         updateSimpleScreenSaverClock();

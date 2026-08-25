@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/simple_clock_wallpaper_item"
+    android:layout_width="303dp"
+    android:layout_height="175dp"
+    android:layout_marginEnd="23dp"
+    android:background="@drawable/bg_screensaver_wallpaper"
+    android:clickable="true"
+    android:focusable="true"
+    android:padding="3dp">
+
+    <ImageView
+        android:id="@+id/simple_clock_wallpaper_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop" />
+
+    <ImageView
+        android:id="@+id/simple_clock_wallpaper_check"
+        android:layout_width="23dp"
+        android:layout_height="23dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="17dp"
+        android:layout_marginEnd="17dp"
+        android:src="@drawable/ic_screensaver_check"
+        android:visibility="gone" />
+</FrameLayout>

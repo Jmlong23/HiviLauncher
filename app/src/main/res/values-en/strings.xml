@@ -209,6 +209,7 @@
     <string name="settings_screensaver_timeout_thirty_minutes">30 minutes</string>
     <string name="settings_screensaver_timeout_never">Never</string>
     <string name="settings_screensaver_style">Screensaver style</string>
+    <string name="settings_select_wallpaper">Select wallpaper</string>
     <string name="settings_screensaver_style_simple">Simple Clock</string>
     <string name="settings_screensaver_style_weather">Weather Clock</string>
     <string name="settings_screensaver_style_flip">Flip Clock</string>

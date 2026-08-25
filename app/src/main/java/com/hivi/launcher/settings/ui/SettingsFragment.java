@@ -33,6 +33,7 @@ import android.widget.ImageView;
 
 import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.base.BaseFragment;
@@ -48,6 +49,7 @@ import com.hivi.launcher.databinding.PopupSettingsScreenSaverBinding;
 import com.hivi.launcher.main.ui.MainActivity;
 import com.hivi.launcher.onboarding.ui.FirstUseGuideActivity;
 import com.hivi.launcher.settings.model.SettingsModel;
+import com.hivi.launcher.settings.model.ScreenSaverSettings;
 import com.hivi.launcher.settings.presenter.SettingsPresenter;
 import com.hivi.launcher.update.SystemUpdateInfo;
 import com.hivi.launcher.update.UpdatePackageProvider;
@@ -94,6 +96,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private Dialog mSystemUpdateProgressDialog;
     private DialogSystemUpdateProgressBinding mSystemUpdateProgressBinding;
     private Dialog mProductInformationDialog;
+    private Dialog mSimpleClockWallpaperDialog;
     private Dialog mLogUploadDialog;
     private DialogLogUploadBinding mLogUploadBinding;
     private Dialog mFactoryResetDialog;
@@ -181,6 +184,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         dismissSystemUpdateConfirmationDialog();
         dismissSystemUpdateProgress();
         dismissProductInformationDialog();
+        dismissSimpleClockWallpaperDialog();
         dismissLogUploadDialog();
         dismissFactoryResetDialog();
         setLanguageSwitchLoading(false);
@@ -683,8 +687,10 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
                 presenter.onScreenSaverTimeoutSelected();
             }
         });
-        mBinding.screensaverItemSimple.setOnClickListener(view -> selectScreenSaverStyle(
-                SettingsModel.SCREEN_SAVER_STYLE_SIMPLE));
+        mBinding.screensaverItemSimple.setOnClickListener(view -> {
+            selectScreenSaverStyle(SettingsModel.SCREEN_SAVER_STYLE_SIMPLE);
+            showSimpleClockWallpaperDialog();
+        });
         mBinding.screensaverItemWeather.setOnClickListener(view -> selectScreenSaverStyle(
                 SettingsModel.SCREEN_SAVER_STYLE_WEATHER));
         mBinding.screensaverItemFlip.setOnClickListener(view -> selectScreenSaverStyle(
@@ -711,6 +717,42 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         SettingsPresenter presenter = getPresenter();
         if (presenter != null) {
             presenter.onScreenSaverStyleSelected(style);
+        }
+    }
+
+    private void showSimpleClockWallpaperDialog() {
+        if (!isAdded()) {
+            return;
+        }
+        dismissSimpleClockWallpaperDialog();
+        Dialog dialog = new Dialog(getHostActivity());
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        View content = getLayoutInflater().inflate(R.layout.dialog_simple_clock_wallpaper, null);
+        dialog.setContentView(content);
+        dialog.setCanceledOnTouchOutside(true);
+        dialog.setCancelable(true);
+        RecyclerView wallpaperList = content.findViewById(R.id.simple_clock_wallpaper_list);
+        int selectedWallpaper = ScreenSaverSettings.getSimpleWallpaper(getHostActivity());
+        wallpaperList.setLayoutManager(new LinearLayoutManager(getHostActivity(),
+                RecyclerView.HORIZONTAL, false));
+        wallpaperList.setAdapter(new SimpleClockWallpaperAdapter(selectedWallpaper, wallpaper -> {
+            ScreenSaverSettings.setSimpleWallpaper(getHostActivity(), wallpaper);
+            dialog.dismiss();
+        }));
+        wallpaperList.scrollToPosition(selectedWallpaper);
+        content.findViewById(R.id.simple_clock_wallpaper_back).setOnClickListener(
+                view -> dialog.dismiss());
+        dialog.setOnDismissListener(ignored -> {
+            if (mSimpleClockWallpaperDialog == dialog) {
+                mSimpleClockWallpaperDialog = null;
+            }
+        });
+        prepareSystemUpdateDialogWindow(dialog);
+        mSimpleClockWallpaperDialog = dialog;
+        showSystemUpdateDialog(dialog);
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setLayout(dp(681), dp(349));
         }
     }
 
@@ -1122,6 +1164,13 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         if (mProductInformationDialog != null) {
             mProductInformationDialog.dismiss();
             mProductInformationDialog = null;
+        }
+    }
+
+    private void dismissSimpleClockWallpaperDialog() {
+        if (mSimpleClockWallpaperDialog != null) {
+            mSimpleClockWallpaperDialog.dismiss();
+            mSimpleClockWallpaperDialog = null;
         }
     }
 
