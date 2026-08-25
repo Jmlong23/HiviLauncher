@@ -135,7 +135,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             }
         }
     };
-    private final Runnable mScreenSaverTimeoutRunnable = this::showSimpleScreenSaver;
+    private final Runnable mScreenSaverTimeoutRunnable = this::showScreenSaver;
     private final Runnable mScreenSaverClockRunnable = new Runnable() {
         @Override
         public void run() {
@@ -320,8 +320,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     private void resetScreenSaverTimer() {
         mSystemVolumeHandler.removeCallbacks(mScreenSaverTimeoutRunnable);
+        int style = ScreenSaverSettings.getStyle(this);
         if (!mActivityResumed || mScreenSaverOverlay != null
-                || ScreenSaverSettings.getStyle(this) != SettingsModel.SCREEN_SAVER_STYLE_SIMPLE) {
+                || (style != SettingsModel.SCREEN_SAVER_STYLE_SIMPLE
+                && style != SettingsModel.SCREEN_SAVER_STYLE_BLACK)) {
             return;
         }
         int timeout = ScreenSaverSettings.getTimeout(this);
@@ -335,9 +337,16 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         mSystemVolumeHandler.postDelayed(mScreenSaverTimeoutRunnable, delay);
     }
 
-    private void showSimpleScreenSaver() {
-        if (!mActivityResumed || mScreenSaverOverlay != null
-                || ScreenSaverSettings.getStyle(this) != SettingsModel.SCREEN_SAVER_STYLE_SIMPLE) {
+    private void showScreenSaver() {
+        if (!mActivityResumed || mScreenSaverOverlay != null) {
+            return;
+        }
+        int style = ScreenSaverSettings.getStyle(this);
+        if (style == SettingsModel.SCREEN_SAVER_STYLE_BLACK) {
+            showBlackScreenSaver();
+            return;
+        }
+        if (style != SettingsModel.SCREEN_SAVER_STYLE_SIMPLE) {
             return;
         }
         mScreenSaverOverlay = LayoutInflater.from(this)
@@ -357,6 +366,15 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         updateSimpleScreenSaverClock();
         mSystemVolumeHandler.removeCallbacks(mScreenSaverClockRunnable);
         mSystemVolumeHandler.post(mScreenSaverClockRunnable);
+    }
+
+    private void showBlackScreenSaver() {
+        View blackOverlay = new View(this);
+        blackOverlay.setBackgroundColor(Color.BLACK);
+        blackOverlay.setClickable(true);
+        blackOverlay.setFocusable(true);
+        mScreenSaverOverlay = blackOverlay;
+        binding.launcherRoot.addView(blackOverlay, new FrameLayout.LayoutParams(-1, -1));
     }
 
     private void updateSimpleScreenSaverClock() {
