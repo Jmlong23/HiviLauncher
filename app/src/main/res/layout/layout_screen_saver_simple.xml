@@ -16,23 +16,22 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_horizontal"
-        android:orientation="vertical"
-        android:layout_marginTop="45dp">
+        android:orientation="vertical">
         <com.hivi.launcher.customview.FrostedTextView
             android:id="@+id/simple_screen_saver_time"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:includeFontPadding="false"
-            android:textColor="#DFDFDF"
-            android:textSize="190sp"
-            android:fontFamily="sans-serif" />
+            android:fontFamily="@font/simple_clock_font"
+            android:textSize="190sp" />
         <TextView
             android:id="@+id/simple_screen_saver_date"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:includeFontPadding="false"
-            android:textColor="#DFDFDF"
+            android:fontFamily="@font/clock_detail_font"
+            android:textColor="#A6FFFFFF"
             android:textSize="27sp" />
     </LinearLayout>
 </FrameLayout>
