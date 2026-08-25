@@ -463,14 +463,28 @@
                                     android:orientation="vertical"
                                     android:padding="8dp">
 
+                                <FrameLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="0dp"
+                                    android:layout_weight="1">
+
                                     <ImageView
                                         android:id="@+id/screensaver_thumbnail_simple"
                                         android:layout_width="match_parent"
-                                        android:layout_height="0dp"
-                                        android:layout_weight="1"
+                                        android:layout_height="match_parent"
                                         android:background="@drawable/bg_screensaver_thumbnail"
                                         android:scaleType="centerCrop"
-                                        android:src="@drawable/clock_simple" />
+                                        android:src="@drawable/img_simple_clock_style1" />
+
+                                    <ImageView
+                                        android:id="@+id/screensaver_thumbnail_simple_clock"
+                                        android:layout_width="97dp"
+                                        android:layout_height="54dp"
+                                        android:contentDescription="@null"
+                                        android:src="@drawable/clock_simple_cn"
+                                        android:layout_gravity="center_horizontal"/>
+                                </FrameLayout>
+
 
                                     <TextView
                                         android:layout_width="wrap_content"

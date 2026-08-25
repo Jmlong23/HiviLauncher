@@ -65,6 +65,7 @@ import com.hivi.launcher.settings.model.SettingsModel;
 import com.hivi.launcher.settings.ui.SystemUpdateSuccessDialog;
 import com.hivi.launcher.systemapps.ui.SystemAppsFragment;
 import com.hivi.launcher.update.SystemUpdateInstallReceiver;
+import com.hivi.launcher.utils.LocaleHelper;
 import com.hivi.launcher.utils.network.AuthorizationStore;
 import com.hivi.launcher.wifi.ui.WifiFragment;
 import com.nlf.calendar.Lunar;
@@ -365,8 +366,9 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         Locale locale = getResources().getConfiguration().locale;
         Date now = new Date();
         mScreenSaverTime.setText(new SimpleDateFormat("HH:mm", locale).format(now));
-        if (locale.getLanguage().equals(Locale.ENGLISH)) {
-            mScreenSaverDate.setText(new SimpleDateFormat("MMM d, E", locale).format(now));
+        if (LocaleHelper.LANGUAGE_EN.equals(LocaleHelper.getLanguage(this))) {
+            mScreenSaverDate.setText(new SimpleDateFormat("EEEE, MMMM d", Locale.US)
+                    .format(now));
             return;
         }
         Lunar lunar = Lunar.fromDate(now);

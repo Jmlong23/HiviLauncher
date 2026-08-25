@@ -701,6 +701,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
 
     private void setupRoundedScreenSaverThumbnails() {
         ImageView[] thumbnails = {mBinding.screensaverThumbnailSimple,
+                mBinding.screensaverThumbnailSimpleClock,
                 mBinding.screensaverThumbnailWeather, mBinding.screensaverThumbnailFlip};
         for (ImageView thumbnail : thumbnails) {
             thumbnail.setOutlineProvider(new ViewOutlineProvider() {
@@ -711,6 +712,20 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             });
             thumbnail.setClipToOutline(true);
         }
+        updateSimpleScreenSaverThumbnail();
+    }
+
+    private void updateSimpleScreenSaverThumbnail() {
+        if (mBinding == null || !isAdded()) {
+            return;
+        }
+        int wallpaper = ScreenSaverSettings.getSimpleWallpaper(getHostActivity());
+        mBinding.screensaverThumbnailSimple.setImageResource(
+                ScreenSaverSettings.getSimpleWallpaperResource(wallpaper));
+        boolean english = LocaleHelper.LANGUAGE_EN.equals(
+                LocaleHelper.getLanguage(getHostActivity()));
+        mBinding.screensaverThumbnailSimpleClock.setImageResource(english
+                ? R.drawable.clock_simple_en : R.drawable.clock_simple_cn);
     }
 
     private void selectScreenSaverStyle(int style) {
@@ -737,6 +752,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
                 RecyclerView.HORIZONTAL, false));
         wallpaperList.setAdapter(new SimpleClockWallpaperAdapter(selectedWallpaper, wallpaper -> {
             ScreenSaverSettings.setSimpleWallpaper(getHostActivity(), wallpaper);
+            updateSimpleScreenSaverThumbnail();
             dialog.dismiss();
         }));
         wallpaperList.scrollToPosition(selectedWallpaper);
