@@ -191,7 +191,6 @@
     <string name="settings_language_chinese">中文</string>
     <string name="settings_language_english">English</string>
     <string name="settings_screensaver">屏幕保护</string>
-    <string name="settings_screensaver_toggle">切换屏幕保护</string>
     <string name="settings_screensaver_timeout_value">1 分钟</string>
     <string name="settings_screensaver_timeout_five_minutes">5 分钟</string>
     <string name="settings_screensaver_timeout_ten_minutes">10 分钟</string>

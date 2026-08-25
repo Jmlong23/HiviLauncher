@@ -24,7 +24,10 @@ import android.os.Looper;
 import android.text.TextUtils;
 import com.hivi.launcher.utils.log.AppLog;
 import android.view.MotionEvent;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.TextView;
+import android.widget.FrameLayout;
 import android.view.animation.DecelerateInterpolator;
 
 import androidx.annotation.Nullable;
@@ -55,11 +58,14 @@ import com.hivi.launcher.line.ui.LineFragment;
 import com.hivi.launcher.microphone.ui.MicrophoneFragment;
 import com.hivi.launcher.optical.ui.OpticalFragment;
 import com.hivi.launcher.settings.ui.SettingsFragment;
+import com.hivi.launcher.settings.model.ScreenSaverSettings;
+import com.hivi.launcher.settings.model.SettingsModel;
 import com.hivi.launcher.settings.ui.SystemUpdateSuccessDialog;
 import com.hivi.launcher.systemapps.ui.SystemAppsFragment;
 import com.hivi.launcher.update.SystemUpdateInstallReceiver;
 import com.hivi.launcher.utils.network.AuthorizationStore;
 import com.hivi.launcher.wifi.ui.WifiFragment;
+import com.nlf.calendar.Lunar;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -67,6 +73,9 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresenter>
         implements MainView, AiWakeupController.Navigator {
@@ -80,6 +89,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private static final float PAGE_TRANSITION_OFFSET_DP = 28f;
     private static final float HOME_PAGE_DIMMED_ALPHA = 0.65f;
     private static final long SYSTEM_MUSIC_VOLUME_CHECK_INTERVAL_MS = 10_000L;
+    private static final long SCREEN_SAVER_MINUTE_MS = 60_000L;
     private AuthorizationDialog mAuthorizationDialog;
     private VolumeDialog mVolumeDialog;
     private InputModeDialog mInputModeDialog;
@@ -122,6 +132,17 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             }
         }
     };
+    private final Runnable mScreenSaverTimeoutRunnable = this::showSimpleScreenSaver;
+    private final Runnable mScreenSaverClockRunnable = new Runnable() {
+        @Override
+        public void run() {
+            updateSimpleScreenSaverClock();
+            mSystemVolumeHandler.postDelayed(this, 1_000L);
+        }
+    };
+    private View mScreenSaverOverlay;
+    private TextView mScreenSaverTime;
+    private TextView mScreenSaverDate;
 
     private final BroadcastReceiver mSystemReceiver = new BroadcastReceiver() {
         @Override
@@ -226,15 +247,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     @Override
-    public void onBackPressed() {
-        // The launcher root remains active; content pages use the native Fragment back stack.
-        navigateBack();
-    }
-
-    @Override
     protected void onResume() {
         super.onResume();
         mActivityResumed = true;
+        resetScreenSaverTimer();
         applyLocalizedTexts();
         registerSystemReceiver();
         presenter.onSystemStateChanged();
@@ -248,9 +264,35 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     @Override
     protected void onPause() {
         mActivityResumed = false;
+        hideScreenSaver();
         super.onPause();
         unregisterReceiverQuietly();
         presenter.stopTicker();
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        if (event != null) {
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN && mScreenSaverOverlay != null) {
+                hideScreenSaver();
+                return true;
+            }
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN
+                    || event.getActionMasked() == MotionEvent.ACTION_UP) {
+                resetScreenSaverTimer();
+            }
+        }
+        return super.dispatchTouchEvent(event);
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (mScreenSaverOverlay != null) {
+            hideScreenSaver();
+            return;
+        }
+        // The launcher root remains active; content pages use the native Fragment back stack.
+        navigateBack();
     }
 
     @Override
@@ -271,6 +313,68 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     @Override
     public void updateClock(String time, String date) {
         // The information cards were replaced by the input-mode carousel.
+    }
+
+    private void resetScreenSaverTimer() {
+        mSystemVolumeHandler.removeCallbacks(mScreenSaverTimeoutRunnable);
+        if (!mActivityResumed || mScreenSaverOverlay != null
+                || ScreenSaverSettings.getStyle(this) != SettingsModel.SCREEN_SAVER_STYLE_SIMPLE) {
+            return;
+        }
+        int timeout = ScreenSaverSettings.getTimeout(this);
+        if (timeout == SettingsModel.SCREEN_SAVER_TIMEOUT_NEVER) {
+            return;
+        }
+        long delay = (timeout == SettingsModel.SCREEN_SAVER_TIMEOUT_ONE_MINUTE
+                ? 1L : timeout == SettingsModel.SCREEN_SAVER_TIMEOUT_FIVE_MINUTES
+                ? 5L : timeout == SettingsModel.SCREEN_SAVER_TIMEOUT_TEN_MINUTES
+                ? 10L : 30L) * SCREEN_SAVER_MINUTE_MS;
+        mSystemVolumeHandler.postDelayed(mScreenSaverTimeoutRunnable, delay);
+    }
+
+    private void showSimpleScreenSaver() {
+        if (!mActivityResumed || mScreenSaverOverlay != null
+                || ScreenSaverSettings.getStyle(this) != SettingsModel.SCREEN_SAVER_STYLE_SIMPLE) {
+            return;
+        }
+        mScreenSaverOverlay = LayoutInflater.from(this)
+                .inflate(R.layout.layout_screen_saver_simple, binding.launcherRoot, false);
+        mScreenSaverTime = mScreenSaverOverlay.findViewById(R.id.simple_screen_saver_time);
+        mScreenSaverDate = mScreenSaverOverlay.findViewById(R.id.simple_screen_saver_date);
+        binding.launcherRoot.addView(mScreenSaverOverlay,
+                new FrameLayout.LayoutParams(-1, -1));
+        updateSimpleScreenSaverClock();
+        mSystemVolumeHandler.removeCallbacks(mScreenSaverClockRunnable);
+        mSystemVolumeHandler.post(mScreenSaverClockRunnable);
+    }
+
+    private void updateSimpleScreenSaverClock() {
+        if (mScreenSaverTime == null || mScreenSaverDate == null) {
+            return;
+        }
+        Locale locale = getResources().getConfiguration().locale;
+        Date now = new Date();
+        mScreenSaverTime.setText(new SimpleDateFormat("HH:mm", locale).format(now));
+        if (locale.getLanguage().equals(Locale.ENGLISH)) {
+            mScreenSaverDate.setText(new SimpleDateFormat("MMM d, E", locale).format(now));
+            return;
+        }
+        Lunar lunar = Lunar.fromDate(now);
+        String solarDate = new SimpleDateFormat("M月d日E", locale).format(now);
+        String lunarDate = lunar.getYearInGanZhi() + "年" + lunar.getMonthInChinese()
+                + "月" + lunar.getDayInChinese();
+        mScreenSaverDate.setText(solarDate + " · " + lunarDate);
+    }
+
+    private void hideScreenSaver() {
+        mSystemVolumeHandler.removeCallbacks(mScreenSaverClockRunnable);
+        if (mScreenSaverOverlay != null && binding != null) {
+            binding.launcherRoot.removeView(mScreenSaverOverlay);
+        }
+        mScreenSaverOverlay = null;
+        mScreenSaverTime = null;
+        mScreenSaverDate = null;
+        resetScreenSaverTimer();
     }
 
     @Override

@@ -203,7 +203,6 @@
     <string name="settings_language_chinese">中文</string>
     <string name="settings_language_english">English</string>
     <string name="settings_screensaver">Screensaver</string>
-    <string name="settings_screensaver_toggle">Toggle screensaver</string>
     <string name="settings_screensaver_timeout_value">1 minute</string>
     <string name="settings_screensaver_timeout_five_minutes">5 minutes</string>
     <string name="settings_screensaver_timeout_ten_minutes">10 minutes</string>

@@ -9,7 +9,7 @@ public interface SettingsView extends BaseView {
     void renderSettingsSection(int section);
 
     void renderDisplaySettings(int language, boolean languageOptionsExpanded,
-            boolean screenSaverEnabled, int screenSaverTimeout,
+            int screenSaverTimeout,
             boolean screenSaverTimeoutOptionsExpanded, int screenSaverStyle);
 
     void renderSystemUpdate(SystemUpdateInfo updateInfo, boolean updateInProgress);

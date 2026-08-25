@@ -349,7 +349,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
 
     @Override
     public void renderDisplaySettings(int language, boolean languageOptionsExpanded,
-            boolean screenSaverEnabled, int screenSaverTimeout,
+            int screenSaverTimeout,
             boolean screenSaverTimeoutOptionsExpanded, int screenSaverStyle) {
         if (mBinding == null) {
             return;
@@ -360,18 +360,13 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         mBinding.settingsLanguageValue.setText(languageText);
         mBinding.settingsDisplaySummary.setText(languageText);
 
-        mBinding.settingsScreenSaverToggle.setImageResource(screenSaverEnabled
-                ? R.drawable.ic_screen_saver_on
-                : R.drawable.ic_screen_saver_off);
-        mBinding.settingsTimeScreenSaver.setEnabled(screenSaverEnabled);
-        mBinding.settingsTimeScreenSaver.setAlpha(screenSaverEnabled ? 1f : 0.45f);
-        updateScreenSaverStyles(screenSaverEnabled, screenSaverStyle);
+        updateScreenSaverStyles(screenSaverStyle);
         mBinding.settingsTimeScreenSaverValue.setText(
                 getScreenSaverTimeoutText(screenSaverTimeout));
 
         if (languageOptionsExpanded) {
             showLanguageOptionsPopup(language);
-        } else if (screenSaverEnabled && screenSaverTimeoutOptionsExpanded) {
+        } else if (screenSaverTimeoutOptionsExpanded) {
             showScreenSaverTimeoutOptionsPopup(screenSaverTimeout);
         } else {
             dismissDisplayOptionsPopup();
@@ -682,12 +677,6 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
                 presenter.onLanguageSelected();
             }
         });
-        mBinding.settingsScreenSaverToggle.setOnClickListener(view -> {
-            SettingsPresenter presenter = getPresenter();
-            if (presenter != null) {
-                presenter.onScreenSaverToggled();
-            }
-        });
         mBinding.settingsTimeScreenSaver.setOnClickListener(view -> {
             SettingsPresenter presenter = getPresenter();
             if (presenter != null) {
@@ -725,16 +714,16 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         }
     }
 
-    private void updateScreenSaverStyles(boolean enabled, int selectedStyle) {
+    private void updateScreenSaverStyles(int selectedStyle) {
         View[] items = {mBinding.screensaverItemSimple, mBinding.screensaverItemWeather,
                 mBinding.screensaverItemFlip, mBinding.screensaverItemBlack};
         View[] checks = {mBinding.screensaverCheckSimple, mBinding.screensaverCheckWeather,
                 mBinding.screensaverCheckFlip, mBinding.screensaverCheckBlack};
         for (int index = 0; index < items.length; index++) {
-            items[index].setEnabled(enabled);
-            items[index].setAlpha(enabled ? 1f : 0.45f);
-            items[index].setSelected(enabled && index == selectedStyle);
-            checks[index].setVisibility(enabled && index == selectedStyle
+            items[index].setEnabled(true);
+            items[index].setAlpha(1f);
+            items[index].setSelected(index == selectedStyle);
+            checks[index].setVisibility(index == selectedStyle
                     ? View.VISIBLE : View.GONE);
         }
     }

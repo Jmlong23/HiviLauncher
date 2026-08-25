@@ -26,7 +26,7 @@ import io.reactivex.disposables.Disposable;
 
 public final class SettingsPresenter extends BasePresenter<SettingsView> {
     private static final String TAG = "SettingsPresenter";
-    private final SettingsModel mModel = new SettingsModel();
+    private final SettingsModel mModel;
     public static final int SECTION_NETWORK = 0;
     public static final int SECTION_DISPLAY = 1;
     public static final int SECTION_SYSTEM = 2;
@@ -54,6 +54,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
     public SettingsPresenter(Context context, SettingsView view, int initialLanguage) {
         super(view);
         mApplicationContext = context == null ? null : context.getApplicationContext();
+        mModel = new SettingsModel(mApplicationContext);
         mSystemUpdateInfo = SystemUpdateInfo.currentVersion(getCurrentVersionName(),
                 BuildConfig.VERSION_CODE);
         if (isValidLanguage(initialLanguage)) {
@@ -109,17 +110,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
         renderDisplaySettings();
     }
 
-    public void onScreenSaverToggled() {
-        boolean enabled = !mModel.isScreenSaverEnabled();
-        mModel.setScreenSaverEnabled(enabled);
-        dismissDisplayDropdowns();
-        renderDisplaySettings();
-    }
-
     public void onScreenSaverTimeoutSelected() {
-        if (!mModel.isScreenSaverEnabled()) {
-            return;
-        }
         boolean expanded = !mModel.isScreenSaverTimeoutOptionsExpanded();
         mModel.setScreenSaverTimeoutOptionsExpanded(expanded);
         if (expanded) {
@@ -129,7 +120,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
     }
 
     public void onScreenSaverTimeoutOptionSelected(int timeout) {
-        if (!mModel.isScreenSaverEnabled() || !isValidScreenSaverTimeout(timeout)) {
+        if (!isValidScreenSaverTimeout(timeout)) {
             return;
         }
         mModel.setScreenSaverTimeout(timeout);
@@ -138,7 +129,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
     }
 
     public void onScreenSaverStyleSelected(int style) {
-        if (!mModel.isScreenSaverEnabled() || style < SettingsModel.SCREEN_SAVER_STYLE_SIMPLE
+        if (style < SettingsModel.SCREEN_SAVER_STYLE_SIMPLE
                 || style > SettingsModel.SCREEN_SAVER_STYLE_BLACK) {
             return;
         }
@@ -366,7 +357,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
         SettingsView view = getView();
         if (view != null) {
             view.renderDisplaySettings(mModel.getLanguage(), mModel.isLanguageOptionsExpanded(),
-                    mModel.isScreenSaverEnabled(), mModel.getScreenSaverTimeout(),
+                    mModel.getScreenSaverTimeout(),
                     mModel.isScreenSaverTimeoutOptionsExpanded(), mModel.getScreenSaverStyle());
         }
     }

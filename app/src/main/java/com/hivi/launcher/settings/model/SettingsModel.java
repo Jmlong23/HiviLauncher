@@ -1,5 +1,7 @@
 package com.hivi.launcher.settings.model;
 
+import android.content.Context;
+
 public final class SettingsModel {
     public static final int LANGUAGE_CHINESE = 0;
     public static final int LANGUAGE_ENGLISH = 1;
@@ -17,10 +19,22 @@ public final class SettingsModel {
     private int mSelectedSection;
     private int mLanguage = LANGUAGE_CHINESE;
     private boolean mLanguageOptionsExpanded;
-    private boolean mScreenSaverEnabled;
-    private int mScreenSaverTimeout = SCREEN_SAVER_TIMEOUT_ONE_MINUTE;
+    private int mScreenSaverTimeout = SCREEN_SAVER_TIMEOUT_NEVER;
     private boolean mScreenSaverTimeoutOptionsExpanded;
     private int mScreenSaverStyle = SCREEN_SAVER_STYLE_SIMPLE;
+    private final Context mContext;
+
+    public SettingsModel() {
+        this(null);
+    }
+
+    public SettingsModel(Context context) {
+        mContext = context == null ? null : context.getApplicationContext();
+        if (mContext != null) {
+            mScreenSaverTimeout = ScreenSaverSettings.getTimeout(mContext);
+            mScreenSaverStyle = ScreenSaverSettings.getStyle(mContext);
+        }
+    }
 
     public int getSelectedSection() {
         return mSelectedSection;
@@ -46,20 +60,15 @@ public final class SettingsModel {
         mLanguageOptionsExpanded = languageOptionsExpanded;
     }
 
-    public boolean isScreenSaverEnabled() {
-        return mScreenSaverEnabled;
-    }
-
-    public void setScreenSaverEnabled(boolean screenSaverEnabled) {
-        mScreenSaverEnabled = screenSaverEnabled;
-    }
-
     public int getScreenSaverTimeout() {
         return mScreenSaverTimeout;
     }
 
     public void setScreenSaverTimeout(int screenSaverTimeout) {
         mScreenSaverTimeout = screenSaverTimeout;
+        if (mContext != null) {
+            ScreenSaverSettings.setTimeout(mContext, screenSaverTimeout);
+        }
     }
 
     public boolean isScreenSaverTimeoutOptionsExpanded() {
@@ -76,5 +85,8 @@ public final class SettingsModel {
 
     public void setScreenSaverStyle(int screenSaverStyle) {
         mScreenSaverStyle = screenSaverStyle;
+        if (mContext != null) {
+            ScreenSaverSettings.setStyle(mContext, screenSaverStyle);
+        }
     }
 }

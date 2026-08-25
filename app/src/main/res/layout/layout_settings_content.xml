@@ -392,15 +392,6 @@
                             android:textSize="15sp"
                             android:textStyle="bold" />
 
-                        <ImageView
-                            android:id="@+id/settings_screen_saver_toggle"
-                            android:layout_width="37dp"
-                            android:layout_height="19dp"
-                            android:layout_marginLeft="22dp"
-                            android:clickable="true"
-                            android:contentDescription="@string/settings_screensaver_toggle"
-                            android:focusable="true"
-                            android:src="@drawable/ic_screen_saver_off" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -408,7 +399,6 @@
                         android:layout_width="match_parent"
                         android:layout_height="42dp"
                         android:layout_marginTop="16dp"
-                        android:alpha="0.45"
                         android:background="@drawable/item_medium_long_bg"
                         android:clickable="true"
                         android:enabled="false"
@@ -624,7 +614,7 @@
                                         android:layout_width="match_parent"
                                         android:layout_height="0dp"
                                         android:layout_weight="1"
-                                        android:background="@color/black" />
+                                        android:background="@drawable/bg_screensaver_black" />
 
                                     <TextView
                                         android:layout_width="wrap_content"
