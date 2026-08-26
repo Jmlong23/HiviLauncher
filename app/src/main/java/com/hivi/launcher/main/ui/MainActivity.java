@@ -47,6 +47,7 @@ import com.hivi.launcher.ai.ui.AiListeningOverlay;
 import com.hivi.launcher.ai.wakeup.AiWakeupController;
 import com.hivi.launcher.base.BaseActivity;
 import com.hivi.launcher.customview.FrostedTextView;
+import com.hivi.launcher.customview.FlipLayout;
 import com.hivi.launcher.databinding.ActivityMainBinding;
 import com.hivi.launcher.main.model.MainPage;
 import com.hivi.launcher.main.presenter.MainPresenter;
@@ -77,6 +78,7 @@ import java.net.URL;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
@@ -140,12 +142,19 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         @Override
         public void run() {
             updateSimpleScreenSaverClock();
+            updateFlipScreenSaverClock();
             mSystemVolumeHandler.postDelayed(this, 1_000L);
         }
     };
     private View mScreenSaverOverlay;
     private TextView mScreenSaverTime;
     private TextView mScreenSaverDate;
+    private FlipLayout mFlipHour;
+    private FlipLayout mFlipMinute;
+    private FlipLayout mFlipSecond;
+    private TextView mFlipAmPm;
+    private TextView mFlipDate;
+    private TextView mFlipWeekday;
 
     private final BroadcastReceiver mSystemReceiver = new BroadcastReceiver() {
         @Override
@@ -323,6 +332,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         int style = ScreenSaverSettings.getStyle(this);
         if (!mActivityResumed || mScreenSaverOverlay != null
                 || (style != SettingsModel.SCREEN_SAVER_STYLE_SIMPLE
+                && style != SettingsModel.SCREEN_SAVER_STYLE_FLIP
                 && style != SettingsModel.SCREEN_SAVER_STYLE_BLACK)) {
             return;
         }
@@ -346,6 +356,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             showBlackScreenSaver();
             return;
         }
+        if (style == SettingsModel.SCREEN_SAVER_STYLE_FLIP) {
+            showFlipScreenSaver();
+            return;
+        }
         if (style != SettingsModel.SCREEN_SAVER_STYLE_SIMPLE) {
             return;
         }
@@ -366,6 +380,38 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         updateSimpleScreenSaverClock();
         mSystemVolumeHandler.removeCallbacks(mScreenSaverClockRunnable);
         mSystemVolumeHandler.post(mScreenSaverClockRunnable);
+    }
+
+    private void showFlipScreenSaver() {
+        mScreenSaverOverlay = LayoutInflater.from(this)
+                .inflate(R.layout.layout_screen_saver_flip, binding.launcherRoot, false);
+        mFlipHour = mScreenSaverOverlay.findViewById(R.id.flip_screen_saver_hour);
+        mFlipMinute = mScreenSaverOverlay.findViewById(R.id.flip_screen_saver_minute);
+        mFlipSecond = mScreenSaverOverlay.findViewById(R.id.flip_screen_saver_second);
+        mFlipAmPm = mScreenSaverOverlay.findViewById(R.id.flip_screen_saver_ampm);
+        mFlipDate = mScreenSaverOverlay.findViewById(R.id.flip_screen_saver_date);
+        mFlipWeekday = mScreenSaverOverlay.findViewById(R.id.flip_screen_saver_weekday);
+        binding.launcherRoot.addView(mScreenSaverOverlay,
+                new FrameLayout.LayoutParams(-1, -1));
+        updateFlipScreenSaverClock();
+        mSystemVolumeHandler.removeCallbacks(mScreenSaverClockRunnable);
+        mSystemVolumeHandler.post(mScreenSaverClockRunnable);
+    }
+
+    private void updateFlipScreenSaverClock() {
+        if (mFlipHour == null || mFlipMinute == null || mFlipSecond == null) {
+            return;
+        }
+        Date now = new Date();
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(now);
+        int hour = calendar.get(Calendar.HOUR);
+        mFlipHour.flipTo(hour == 0 ? 12 : hour);
+        mFlipMinute.flipTo(calendar.get(Calendar.MINUTE));
+        mFlipSecond.flipTo(calendar.get(Calendar.SECOND));
+        mFlipAmPm.setText(calendar.get(Calendar.AM_PM) == Calendar.AM ? "AM" : "PM");
+        mFlipDate.setText(new SimpleDateFormat("yyyy.MM.dd", Locale.US).format(now));
+        mFlipWeekday.setText(new SimpleDateFormat("EEE.", Locale.US).format(now));
     }
 
     private void showBlackScreenSaver() {
@@ -404,6 +450,12 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         mScreenSaverOverlay = null;
         mScreenSaverTime = null;
         mScreenSaverDate = null;
+        mFlipHour = null;
+        mFlipMinute = null;
+        mFlipSecond = null;
+        mFlipAmPm = null;
+        mFlipDate = null;
+        mFlipWeekday = null;
         resetScreenSaverTimer();
     }
 

@@ -74,7 +74,9 @@ dependencies {
     // 科大讯飞 VTN 唤醒引擎（多麦阵列前端处理 + 端侧唤醒），配套 jniLibs/libvtn_* 与 assets/res
     implementation files('libs/VTN.jar')
     implementation files('libs/AIKit.aar')
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.recyclerview:recyclerview:1.1.0'
+    implementation 'androidx.cardview:cardview:1.0.0'
     implementation 'com.google.zxing:core:3.4.1'
 
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
