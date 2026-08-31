@@ -830,7 +830,23 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         if (mActivityResumed && mPendingSystemUpdateSuccess) {
             mPendingSystemUpdateSuccess = false;
+            refreshSystemUpdateVersion();
+            dismissSystemUpdateProgress();
             SystemUpdateSuccessDialog.show(this);
+        }
+    }
+
+    private void refreshSystemUpdateVersion() {
+        Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        if (fragment instanceof SettingsFragment) {
+            ((SettingsFragment) fragment).onSystemUpdatePackageReplaced();
+        }
+    }
+
+    private void dismissSystemUpdateProgress() {
+        Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        if (fragment instanceof SettingsFragment) {
+            ((SettingsFragment) fragment).dismissSystemUpdateProgress();
         }
     }
 

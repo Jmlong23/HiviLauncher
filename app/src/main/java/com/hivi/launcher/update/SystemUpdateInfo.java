@@ -49,9 +49,7 @@ public final class SystemUpdateInfo {
 
     public boolean isUpdateAvailable() {
         return !TextUtils.isEmpty(mDownloadUrl)
-                && (mLatestVersionCode > mCurrentVersionCode
-                || (mLatestVersionCode <= 0
-                && compareVersionNames(mLatestVersionName, mCurrentVersionName) > 0));
+                && compareVersionNames(mLatestVersionName, mCurrentVersionName) > 0;
     }
 
     private static int compareVersionNames(String first, String second) {

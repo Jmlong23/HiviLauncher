@@ -3,8 +3,6 @@ package com.hivi.launcher.settings.ui;
 import com.hivi.launcher.base.BaseView;
 import com.hivi.launcher.update.SystemUpdateInfo;
 
-import java.io.File;
-
 public interface SettingsView extends BaseView {
     void renderSettingsSection(int section);
 
@@ -19,8 +17,6 @@ public interface SettingsView extends BaseView {
     void showSystemUpdateProgress(int progress, String status);
 
     void dismissSystemUpdateProgress();
-
-    void launchSystemUpdateInstaller(File packageFile);
 
     void showLogUploadConfirmation();
 

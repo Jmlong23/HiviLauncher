@@ -1,7 +1,6 @@
 package com.hivi.launcher.update;
 
 import android.content.BroadcastReceiver;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.text.TextUtils;
@@ -10,7 +9,7 @@ import com.hivi.launcher.main.ui.MainActivity;
 import com.hivi.launcher.utils.log.AppLog;
 
 /**
- * Reopens the launcher from the replacement package after a system-installer update.
+ * Reopens the launcher from the replacement package after an in-place update.
  */
 public final class SystemUpdateInstallReceiver extends BroadcastReceiver {
     private static final String PREFERENCES_NAME = "system_update_result";
@@ -32,10 +31,10 @@ public final class SystemUpdateInstallReceiver extends BroadcastReceiver {
                 .edit()
                 .putBoolean(KEY_UPDATE_SUCCEEDED, true)
                 .commit();
-        Intent launchIntent = new Intent(Intent.ACTION_MAIN)
-                .addCategory(Intent.CATEGORY_HOME)
-                .setComponent(new ComponentName(context, MainActivity.class))
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        Intent launchIntent = new Intent(context, MainActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                        | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         launchIntent.putExtra(EXTRA_UPDATE_SUCCEEDED, true);
         context.startActivity(launchIntent);
     }

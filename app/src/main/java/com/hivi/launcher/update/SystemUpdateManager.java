@@ -6,10 +6,12 @@ import android.text.TextUtils;
 
 import com.hivi.launcher.utils.log.AppLog;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 
 import okhttp3.OkHttpClient;
@@ -18,7 +20,7 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 /**
- * Downloads and validates a launcher APK before the UI hands it to the system installer.
+ * Downloads, validates, and installs a launcher APK without stopping the running launcher.
  */
 public final class SystemUpdateManager {
     private static final String TAG = "SystemUpdateManager";
@@ -29,7 +31,7 @@ public final class SystemUpdateManager {
 
         void onDownloadProgress(int progress);
 
-        void onPackageReady(File packageFile);
+        void onInstallStarted();
 
         void onFailure(Throwable throwable);
     }
@@ -49,8 +51,10 @@ public final class SystemUpdateManager {
                     callback.onDownloadStarted();
                     File packageFile = downloadPackage(updateInfo, callback);
                     verifyPackage(packageFile);
-                    AppLog.i(TAG, "Update package is ready: " + packageFile.getAbsolutePath());
-                    callback.onPackageReady(packageFile);
+                    AppLog.i(TAG, "Update package is ready; installing without stopping launcher: "
+                            + packageFile.getAbsolutePath());
+                    callback.onInstallStarted();
+                    installPackage(packageFile);
                 } catch (Throwable throwable) {
                     callback.onFailure(throwable);
                 }
@@ -145,6 +149,29 @@ public final class SystemUpdateManager {
                 || !TextUtils.equals(mApplicationContext.getPackageName(), packageInfo.packageName)) {
             throw new IOException("Downloaded package does not belong to this launcher.");
         }
+    }
+
+    private void installPackage(File packageFile) throws IOException, InterruptedException {
+        StringBuilder installerOutput = new StringBuilder();
+        Process process = new ProcessBuilder("pm", "install", "-i",
+                mApplicationContext.getPackageName(), "-r", "--dont-kill",
+                packageFile.getAbsolutePath())
+                .redirectErrorStream(true)
+                .start();
+        try (BufferedReader output = new BufferedReader(
+                new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = output.readLine()) != null) {
+                installerOutput.append(line);
+            }
+        }
+        int exitCode = process.waitFor();
+        if (exitCode == 0 && installerOutput.toString().contains("Success")) {
+            AppLog.i(TAG, "Update installation command completed: " + installerOutput);
+            return;
+        }
+        throw new IOException("Update installation command failed, exitCode=" + exitCode
+                + ", output=" + installerOutput);
     }
 
     private static void deleteQuietly(File file) {

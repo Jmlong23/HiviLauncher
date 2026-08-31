@@ -1,6 +1,8 @@
 package com.hivi.launcher.settings.presenter;
 
 import android.content.Context;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.text.TextUtils;
 import com.hivi.launcher.utils.log.AppLog;
 
@@ -19,8 +21,6 @@ import com.hivi.launcher.utils.network.NetworkCallback;
 import com.hivi.launcher.utils.network.NetworkManager;
 
 import org.json.JSONObject;
-
-import java.io.File;
 
 import io.reactivex.disposables.Disposable;
 
@@ -56,7 +56,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
         mApplicationContext = context == null ? null : context.getApplicationContext();
         mModel = new SettingsModel(mApplicationContext);
         mSystemUpdateInfo = SystemUpdateInfo.currentVersion(getCurrentVersionName(),
-                BuildConfig.VERSION_CODE);
+                getCurrentVersionCode());
         if (isValidLanguage(initialLanguage)) {
             mModel.setLanguage(initialLanguage);
         }
@@ -188,25 +188,9 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
             }
 
             @Override
-            public void onPackageReady(final File packageFile) {
-                AppLog.i(TAG, "Update package downloaded; requesting system installer.");
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        SettingsView view = getView();
-                        if (view == null) {
-                            handleSystemUpdateFailure(new IllegalStateException(
-                                    "Settings view is unavailable."));
-                            return;
-                        }
-                        view.dismissSystemUpdateProgress();
-                        try {
-                            view.launchSystemUpdateInstaller(packageFile);
-                        } catch (Throwable throwable) {
-                            handleSystemUpdateFailure(throwable);
-                        }
-                    }
-                });
+            public void onInstallStarted() {
+                AppLog.i(TAG, "Update package downloaded; installing from the command line.");
+                renderSystemUpdateProgress(100, R.string.system_update_installing);
             }
 
             @Override
@@ -230,6 +214,18 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
         AppLog.w(TAG, "System package installer returned without replacing the launcher.");
         handleSystemUpdateFailure(new IllegalStateException(
                 "System package installer was cancelled or rejected the update."));
+    }
+
+    public void onSystemUpdatePackageReplaced() {
+        String currentVersionName = getCurrentVersionName();
+        long currentVersionCode = getCurrentVersionCode();
+        mSystemUpdateInProgress = false;
+        mSystemUpdateInfo = new SystemUpdateInfo(currentVersionName, currentVersionCode,
+                mSystemUpdateInfo.getLatestVersionName(), mSystemUpdateInfo.getLatestVersionCode(),
+                mSystemUpdateInfo.getDownloadUrl());
+        AppLog.i(TAG, "Launcher package replaced: currentVersionName=" + currentVersionName
+                + ", currentVersionCode=" + currentVersionCode);
+        renderSystemUpdate();
     }
 
     public void onLogUploadConfirmed() {
@@ -372,7 +368,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
         AppLog.i(TAG, "Checking system update: productType="
                 + Constants.APP_UPDATE_PRODUCT_TYPE
                 + ", currentVersionName=" + getCurrentVersionName()
-                + ", currentVersionCode=" + BuildConfig.VERSION_CODE);
+                + ", currentVersionCode=" + getCurrentVersionCode());
         mSystemUpdateCheckRequest = NetworkManager.execute(
                 mApiService.getAppVersionDetails(Constants.APP_UPDATE_PRODUCT_TYPE),
                 new NetworkCallback<String>() {
@@ -430,17 +426,39 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
                 + ", versionCode=" + data.optLong("versionCode", 0L)
                 + ", hasUpdateUrl=" + !TextUtils.isEmpty(data.optString("updateUrl"))
                 + ", updateExplain=" + data.optString("updateExplain"));
-        return new SystemUpdateInfo(getCurrentVersionName(), BuildConfig.VERSION_CODE,
+        return new SystemUpdateInfo(getCurrentVersionName(), getCurrentVersionCode(),
                 latestVersionName, data.optLong("versionCode", 0L),
                 data.optString("updateUrl"));
     }
 
     private String getCurrentVersionName() {
+        PackageInfo packageInfo = getInstalledPackageInfo();
+        if (packageInfo != null && !TextUtils.isEmpty(packageInfo.versionName)) {
+            return packageInfo.versionName;
+        }
         final String debugSuffix = "-debug";
         String versionName = BuildConfig.VERSION_NAME;
         return versionName.endsWith(debugSuffix)
                 ? versionName.substring(0, versionName.length() - debugSuffix.length())
                 : versionName;
+    }
+
+    private long getCurrentVersionCode() {
+        PackageInfo packageInfo = getInstalledPackageInfo();
+        return packageInfo == null ? BuildConfig.VERSION_CODE : packageInfo.versionCode;
+    }
+
+    private PackageInfo getInstalledPackageInfo() {
+        if (mApplicationContext == null) {
+            return null;
+        }
+        try {
+            return mApplicationContext.getPackageManager().getPackageInfo(
+                    mApplicationContext.getPackageName(), 0);
+        } catch (PackageManager.NameNotFoundException exception) {
+            AppLog.w(TAG, "Unable to read the installed launcher version.", exception);
+            return null;
+        }
     }
 
     private void renderSystemUpdate() {

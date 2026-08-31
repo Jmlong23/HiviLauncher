@@ -4,15 +4,11 @@ import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.app.Application;
 import android.app.Dialog;
-import android.content.ActivityNotFoundException;
-import android.content.ClipData;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Outline;
 import android.graphics.drawable.ColorDrawable;
-import android.net.Uri;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
@@ -52,14 +48,12 @@ import com.hivi.launcher.settings.model.SettingsModel;
 import com.hivi.launcher.settings.model.ScreenSaverSettings;
 import com.hivi.launcher.settings.presenter.SettingsPresenter;
 import com.hivi.launcher.update.SystemUpdateInfo;
-import com.hivi.launcher.update.UpdatePackageProvider;
 import com.hivi.launcher.utils.LocaleHelper;
 import com.hivi.launcher.wifi.model.WifiNetwork;
 import com.hivi.launcher.wifi.presenter.WifiPresenter;
 import com.hivi.launcher.wifi.ui.WifiNetworkAdapter;
 import com.hivi.launcher.wifi.ui.WifiView;
 
-import java.io.File;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -82,8 +76,6 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private static final long INITIAL_WIFI_SETUP_DELAY_MS = 500L;
     private static final long LOG_UPLOAD_SUCCESS_DISMISS_DELAY_MS = 1_500L;
     private static final long FACTORY_RESET_SUCCESS_TRANSITION_DELAY_MS = 1_200L;
-    private static final int REQUEST_CODE_SYSTEM_UPDATE_INSTALL = 3001;
-    private static final String APK_MIME_TYPE = "application/vnd.android.package-archive";
 
     private LayoutSettingsContentBinding mBinding;
     private View[] mSectionTabs;
@@ -467,37 +459,11 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         mSystemUpdateProgressBinding = null;
     }
 
-    @Override
-    public void launchSystemUpdateInstaller(File packageFile) {
-        if (!isAdded() || packageFile == null || !packageFile.isFile()) {
-            throw new IllegalStateException("Downloaded update package is unavailable.");
+    public void onSystemUpdatePackageReplaced() {
+        SettingsPresenter presenter = getPresenter();
+        if (presenter != null) {
+            presenter.onSystemUpdatePackageReplaced();
         }
-        Context context = getHostActivity();
-        Uri packageUri = UpdatePackageProvider.getPackageUri(context);
-        Intent installIntent = new Intent(Intent.ACTION_VIEW)
-                .setDataAndType(packageUri, APK_MIME_TYPE)
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                .putExtra("EXTRA_CALLING_PACKAGE", context.getPackageName())
-                .putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
-        installIntent.setClipData(ClipData.newRawUri("update-package", packageUri));
-        ComponentName installerComponent = installIntent.resolveActivity(context.getPackageManager());
-        if (installerComponent == null) {
-            throw new ActivityNotFoundException("No system package installer is available.");
-        }
-        context.grantUriPermission(installerComponent.getPackageName(), packageUri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        AppLog.i(TAG, "Launching system package installer for " + packageFile.getName());
-        startActivityForResult(installIntent, REQUEST_CODE_SYSTEM_UPDATE_INSTALL);
-    }
-
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != REQUEST_CODE_SYSTEM_UPDATE_INSTALL) {
-            return;
-        }
-        AppLog.i(TAG, "System package installer returned: resultCode=" + resultCode);
-        AppLog.i(TAG, "Waiting for MY_PACKAGE_REPLACED to confirm the launcher update.");
     }
 
     @Override
