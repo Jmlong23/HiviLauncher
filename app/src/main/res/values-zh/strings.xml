@@ -14,6 +14,13 @@
     <string name="main_weather_desc">晴转多云</string>
     <string name="main_weather_temp">25°C</string>
     <string name="main_city_air_quality">珠海      空气质量良好</string>
+    <string name="weather_default_location">当前位置</string>
+    <string name="weather_sunny">晴</string>
+    <string name="weather_partly_cloudy">多云</string>
+    <string name="weather_foggy">雾</string>
+    <string name="weather_rainy">雨</string>
+    <string name="weather_snowy">雪</string>
+    <string name="weather_stormy">雷暴</string>
     <string name="main_volume">音量</string>
     <string name="main_volume_placeholder">--</string>
     <string name="main_volume_up">+</string>

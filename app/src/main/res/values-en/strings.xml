@@ -13,6 +13,13 @@
     <string name="main_weather_desc">Sunny to cloudy</string>
     <string name="main_weather_temp">25°C</string>
     <string name="main_city_air_quality">Zhuhai      Good air quality</string>
+    <string name="weather_default_location">Current location</string>
+    <string name="weather_sunny">Sunny</string>
+    <string name="weather_partly_cloudy">Cloudy</string>
+    <string name="weather_foggy">Foggy</string>
+    <string name="weather_rainy">Rainy</string>
+    <string name="weather_snowy">Snowy</string>
+    <string name="weather_stormy">Thunderstorm</string>
     <string name="main_volume">Volume</string>
     <string name="main_amplifier_volume">Amplifier volume</string>
     <string name="main_volume_mute">Mute</string>

@@ -18,6 +18,13 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.TransitionDrawable;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -75,16 +82,19 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
+import org.json.JSONObject;
 
 public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresenter>
         implements MainView, AiWakeupController.Navigator {
     private static final String TAG = "MainActivity";
+    private static final String WEATHER_LOCATION_TAG = "WeatherLocation";
     public static final String EXTRA_INITIAL_MODE =
             "com.hivi.launcher.main.ui.MainActivity.initial_mode";
     private static final int AVATAR_CONNECT_TIMEOUT_MS = 8_000;
@@ -95,6 +105,12 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private static final float HOME_PAGE_DIMMED_ALPHA = 0.65f;
     private static final long SYSTEM_MUSIC_VOLUME_CHECK_INTERVAL_MS = 10_000L;
     private static final long SCREEN_SAVER_MINUTE_MS = 60_000L;
+    private static final long WEATHER_LOCATION_TIMEOUT_MS = 10_000L;
+    private static final int REQUEST_WEATHER_LOCATION = 101;
+    private static final boolean USE_TEST_WEATHER_LOCATION = true;
+    private static final double TEST_WEATHER_LATITUDE = 22.2707;
+    private static final double TEST_WEATHER_LONGITUDE = 113.5767;
+    private static final String TEST_WEATHER_LOCATION_NAME = "广东珠海";
     private AuthorizationDialog mAuthorizationDialog;
     private VolumeDialog mVolumeDialog;
     private InputModeDialog mInputModeDialog;
@@ -143,6 +159,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         public void run() {
             updateSimpleScreenSaverClock();
             updateFlipScreenSaverClock();
+            updateWeatherScreenSaverClock();
             mSystemVolumeHandler.postDelayed(this, 1_000L);
         }
     };
@@ -155,6 +172,24 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private TextView mFlipAmPm;
     private TextView mFlipDate;
     private TextView mFlipWeekday;
+    private TextView mWeatherTime;
+    private TextView mWeatherDate;
+    private TextView mWeatherLocation;
+    private TextView mWeatherTemperature;
+    private TextView mWeatherRange;
+    private TextView mWeatherDescription;
+    private final ExecutorService mWeatherExecutor = Executors.newSingleThreadExecutor();
+    private LocationManager mWeatherLocationManager;
+    private LocationListener mWeatherLocationListener;
+    private Location mWeatherLastKnownLocation;
+    private int mWeatherDataGeneration;
+    private final Runnable mWeatherLocationTimeoutRunnable = () -> {
+        Location fallbackLocation = mWeatherLastKnownLocation;
+        AppLog.w(WEATHER_LOCATION_TAG, "Current location timed out; using last known location: "
+                + describeLocation(fallbackLocation));
+        stopWeatherLocationUpdates();
+        fetchWeatherData(fallbackLocation);
+    };
 
     private final BroadcastReceiver mSystemReceiver = new BroadcastReceiver() {
         @Override
@@ -333,6 +368,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (!mActivityResumed || mScreenSaverOverlay != null
                 || (style != SettingsModel.SCREEN_SAVER_STYLE_SIMPLE
                 && style != SettingsModel.SCREEN_SAVER_STYLE_FLIP
+                && style != SettingsModel.SCREEN_SAVER_STYLE_WEATHER
                 && style != SettingsModel.SCREEN_SAVER_STYLE_BLACK)) {
             return;
         }
@@ -358,6 +394,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         if (style == SettingsModel.SCREEN_SAVER_STYLE_FLIP) {
             showFlipScreenSaver();
+            return;
+        }
+        if (style == SettingsModel.SCREEN_SAVER_STYLE_WEATHER) {
+            showWeatherScreenSaver();
             return;
         }
         if (style != SettingsModel.SCREEN_SAVER_STYLE_SIMPLE) {
@@ -396,6 +436,285 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         updateFlipScreenSaverClock();
         mSystemVolumeHandler.removeCallbacks(mScreenSaverClockRunnable);
         mSystemVolumeHandler.post(mScreenSaverClockRunnable);
+    }
+
+    private void showWeatherScreenSaver() {
+        mScreenSaverOverlay = LayoutInflater.from(this)
+                .inflate(R.layout.layout_screen_saver_weather, binding.launcherRoot, false);
+        mWeatherTime = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_time);
+        mWeatherDate = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_date);
+        mWeatherLocation = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_location);
+        mWeatherTemperature = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_temperature);
+        mWeatherRange = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_range);
+        mWeatherDescription = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_description);
+        binding.launcherRoot.addView(mScreenSaverOverlay, new FrameLayout.LayoutParams(-1, -1));
+        updateWeatherScreenSaverClock();
+        AppLog.i(WEATHER_LOCATION_TAG, "Weather screen saver displayed; loading location");
+        loadWeatherData();
+        mSystemVolumeHandler.removeCallbacks(mScreenSaverClockRunnable);
+        mSystemVolumeHandler.post(mScreenSaverClockRunnable);
+    }
+
+    private void updateWeatherScreenSaverClock() {
+        if (mWeatherTime == null || mWeatherDate == null) {
+            return;
+        }
+        Date now = new Date();
+        mWeatherTime.setText(new SimpleDateFormat("HH:mm", Locale.getDefault()).format(now));
+        mWeatherDate.setText(new SimpleDateFormat("M月d日 E", Locale.CHINA).format(now));
+    }
+
+    private void loadWeatherData() {
+        if (USE_TEST_WEATHER_LOCATION) {
+            AppLog.i(WEATHER_LOCATION_TAG, "Using test weather location: "
+                    + TEST_WEATHER_LOCATION_NAME);
+            fetchWeatherData(null);
+            return;
+        }
+        AppLog.i(WEATHER_LOCATION_TAG, "Location permission: fine="
+                + (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) + ", coarse="
+                + (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED));
+        if (!hasLocationPermission()) {
+            AppLog.i(WEATHER_LOCATION_TAG, "Requesting location permission");
+            requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION,
+                            Manifest.permission.ACCESS_FINE_LOCATION},
+                    REQUEST_WEATHER_LOCATION);
+            fetchWeatherData(null);
+            return;
+        }
+
+        LocationManager locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        Location lastKnownLocation = getBestLastKnownLocation(locationManager);
+        AppLog.i(WEATHER_LOCATION_TAG, "Last known location: "
+                + describeLocation(lastKnownLocation));
+        if (locationManager == null || !isLocationEnabled(locationManager)) {
+            AppLog.w(WEATHER_LOCATION_TAG, "No enabled location provider; using last known location");
+            fetchWeatherData(lastKnownLocation);
+            return;
+        }
+
+        requestCurrentWeatherLocation(locationManager, lastKnownLocation);
+    }
+
+    private boolean hasLocationPermission() {
+        return checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED
+                || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private Location getBestLastKnownLocation(LocationManager locationManager) {
+        if (locationManager == null) {
+            return null;
+        }
+        Location bestLocation = null;
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            bestLocation = getLastKnownLocation(locationManager, LocationManager.GPS_PROVIDER);
+        }
+        Location networkLocation = getLastKnownLocation(locationManager, LocationManager.NETWORK_PROVIDER);
+        if (networkLocation != null && (bestLocation == null
+                || networkLocation.getTime() > bestLocation.getTime())) {
+            bestLocation = networkLocation;
+        }
+        return bestLocation;
+    }
+
+    private Location getLastKnownLocation(LocationManager locationManager, String provider) {
+        try {
+            return locationManager.getLastKnownLocation(provider);
+        } catch (SecurityException | IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private boolean isLocationEnabled(LocationManager locationManager) {
+        boolean gpsEnabled = isProviderEnabled(locationManager, LocationManager.GPS_PROVIDER);
+        boolean networkEnabled = isProviderEnabled(locationManager, LocationManager.NETWORK_PROVIDER);
+        AppLog.i(WEATHER_LOCATION_TAG, "Location providers: gps=" + gpsEnabled
+                + ", network=" + networkEnabled);
+        return gpsEnabled || networkEnabled;
+    }
+
+    private boolean isProviderEnabled(LocationManager locationManager, String provider) {
+        try {
+            return locationManager.isProviderEnabled(provider);
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
+
+    private void requestCurrentWeatherLocation(LocationManager locationManager,
+            Location lastKnownLocation) {
+        String provider = null;
+        if (isProviderEnabled(locationManager, LocationManager.NETWORK_PROVIDER)) {
+            provider = LocationManager.NETWORK_PROVIDER;
+        } else if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED
+                && isProviderEnabled(locationManager, LocationManager.GPS_PROVIDER)) {
+            provider = LocationManager.GPS_PROVIDER;
+        }
+        if (provider == null) {
+            AppLog.w(WEATHER_LOCATION_TAG, "No provider available for current location request");
+            fetchWeatherData(lastKnownLocation);
+            return;
+        }
+
+        stopWeatherLocationUpdates();
+        mWeatherLocationManager = locationManager;
+        mWeatherLastKnownLocation = lastKnownLocation;
+        mWeatherLocationListener = new LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+                AppLog.i(WEATHER_LOCATION_TAG, "Current location received: "
+                        + describeLocation(location));
+                stopWeatherLocationUpdates();
+                fetchWeatherData(location);
+            }
+
+            @Override
+            public void onStatusChanged(String provider, int status, Bundle extras) {
+            }
+
+            @Override
+            public void onProviderEnabled(String provider) {
+            }
+
+            @Override
+            public void onProviderDisabled(String provider) {
+            }
+        };
+        try {
+            AppLog.i(WEATHER_LOCATION_TAG, "Requesting single update from " + provider);
+            locationManager.requestSingleUpdate(provider, mWeatherLocationListener,
+                    Looper.getMainLooper());
+            mSystemVolumeHandler.postDelayed(mWeatherLocationTimeoutRunnable,
+                    WEATHER_LOCATION_TIMEOUT_MS);
+        } catch (SecurityException | IllegalArgumentException ignored) {
+            Location fallbackLocation = mWeatherLastKnownLocation;
+            AppLog.w(WEATHER_LOCATION_TAG, "Unable to request current location; using last known",
+                    ignored);
+            stopWeatherLocationUpdates();
+            fetchWeatherData(fallbackLocation);
+        }
+    }
+
+    private void stopWeatherLocationUpdates() {
+        mSystemVolumeHandler.removeCallbacks(mWeatherLocationTimeoutRunnable);
+        if (mWeatherLocationManager != null && mWeatherLocationListener != null) {
+            try {
+                mWeatherLocationManager.removeUpdates(mWeatherLocationListener);
+            } catch (SecurityException ignored) {
+                AppLog.w(WEATHER_LOCATION_TAG, "Unable to remove location listener", ignored);
+            }
+        }
+        mWeatherLocationManager = null;
+        mWeatherLocationListener = null;
+        mWeatherLastKnownLocation = null;
+    }
+
+    private void fetchWeatherData(@Nullable Location currentLocation) {
+        final int requestGeneration = ++mWeatherDataGeneration;
+        AppLog.i(WEATHER_LOCATION_TAG, "Loading weather with location: "
+                + describeLocation(currentLocation));
+        mWeatherExecutor.execute(() -> {
+            double latitude = USE_TEST_WEATHER_LOCATION ? TEST_WEATHER_LATITUDE : 39.9042;
+            double longitude = USE_TEST_WEATHER_LOCATION ? TEST_WEATHER_LONGITUDE : 116.4074;
+            String location = USE_TEST_WEATHER_LOCATION ? TEST_WEATHER_LOCATION_NAME
+                    : getString(R.string.weather_default_location);
+            try {
+                if (!USE_TEST_WEATHER_LOCATION && currentLocation != null) {
+                    latitude = currentLocation.getLatitude();
+                    longitude = currentLocation.getLongitude();
+                    Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+                    List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
+                    AppLog.i(WEATHER_LOCATION_TAG, "Reverse geocode returned "
+                            + (addresses == null ? 0 : addresses.size()) + " address(es)");
+                    if (addresses != null && !addresses.isEmpty()) {
+                        Address address = addresses.get(0);
+                        String city = address.getLocality();
+                        if (TextUtils.isEmpty(city)) city = address.getAdminArea();
+                        if (!TextUtils.isEmpty(city)) {
+                            location = city;
+                            AppLog.i(WEATHER_LOCATION_TAG, "Resolved city: " + city);
+                        } else {
+                            AppLog.w(WEATHER_LOCATION_TAG,
+                                    "Reverse geocode result has no locality or admin area");
+                        }
+                    }
+                }
+                URL url = new URL("https://api.open-meteo.com/v1/forecast?latitude="
+                        + latitude + "&longitude=" + longitude
+                        + "&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=auto");
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setConnectTimeout(5000);
+                connection.setReadTimeout(5000);
+                InputStream input = connection.getInputStream();
+                byte[] data = new byte[8192];
+                StringBuilder body = new StringBuilder();
+                int count;
+                while ((count = input.read(data)) != -1) body.append(new String(data, 0, count));
+                input.close();
+                JSONObject json = new JSONObject(body.toString());
+                JSONObject current = json.getJSONObject("current");
+                double temperature = current.getDouble("temperature_2m");
+                int code = current.getInt("weather_code");
+                JSONObject daily = json.getJSONObject("daily");
+                double max = daily.getJSONArray("temperature_2m_max").getDouble(0);
+                double min = daily.getJSONArray("temperature_2m_min").getDouble(0);
+                String description = weatherDescription(code);
+                final String finalLocation = location;
+                runOnUiThread(() -> {
+                    if (requestGeneration != mWeatherDataGeneration || mWeatherLocation == null) return;
+                    AppLog.i(WEATHER_LOCATION_TAG, "Weather loaded; displaying city: "
+                            + finalLocation);
+                    mWeatherLocation.setText(finalLocation);
+                    mWeatherTemperature.setText(String.format(Locale.getDefault(), "%.0f°C", temperature));
+                    mWeatherRange.setText(String.format(Locale.getDefault(), "%.0f°/%.0f°", min, max));
+                    mWeatherDescription.setText(description);
+                });
+            } catch (Exception exception) {
+                AppLog.w(WEATHER_LOCATION_TAG, "Weather or reverse-geocoding request failed",
+                        exception);
+                final String fallbackLocation = location;
+                runOnUiThread(() -> {
+                    if (requestGeneration == mWeatherDataGeneration && mWeatherLocation != null) {
+                        mWeatherLocation.setText(fallbackLocation);
+                    }
+                });
+            }
+        });
+    }
+
+    private String describeLocation(@Nullable Location location) {
+        if (location == null) {
+            return "none";
+        }
+        return location.getProvider() + "(" + location.getLatitude() + ","
+                + location.getLongitude() + "), accuracy=" + location.getAccuracy()
+                + "m, age=" + (System.currentTimeMillis() - location.getTime()) + "ms";
+    }
+
+    private String weatherDescription(int code) {
+        if (code == 0) return getString(R.string.weather_sunny);
+        if (code <= 3) return getString(R.string.weather_partly_cloudy);
+        if (code <= 48) return getString(R.string.weather_foggy);
+        if (code <= 67 || code >= 80 && code <= 82) return getString(R.string.weather_rainy);
+        if (code >= 71 && code <= 77) return getString(R.string.weather_snowy);
+        return getString(R.string.weather_stormy);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_WEATHER_LOCATION && mScreenSaverOverlay != null) {
+            AppLog.i(WEATHER_LOCATION_TAG, "Location permission result: granted="
+                    + hasLocationPermission());
+            loadWeatherData();
+        }
     }
 
     private void updateFlipScreenSaverClock() {
@@ -444,6 +763,9 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     private void hideScreenSaver() {
         mSystemVolumeHandler.removeCallbacks(mScreenSaverClockRunnable);
+        AppLog.i(WEATHER_LOCATION_TAG, "Weather screen saver hidden; stopping location update");
+        stopWeatherLocationUpdates();
+        mWeatherDataGeneration++;
         if (mScreenSaverOverlay != null && binding != null) {
             binding.launcherRoot.removeView(mScreenSaverOverlay);
         }
@@ -456,6 +778,12 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         mFlipAmPm = null;
         mFlipDate = null;
         mFlipWeekday = null;
+        mWeatherTime = null;
+        mWeatherDate = null;
+        mWeatherLocation = null;
+        mWeatherTemperature = null;
+        mWeatherRange = null;
+        mWeatherDescription = null;
         resetScreenSaverTimer();
     }
 
@@ -808,6 +1136,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             mInputModeDialog = null;
         }
         mAccountAvatarExecutor.shutdownNow();
+        mWeatherExecutor.shutdownNow();
         super.onDestroy();
     }
 
