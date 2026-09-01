@@ -112,9 +112,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private static final long WEATHER_LOCATION_TIMEOUT_MS = 10_000L;
     private static final int REQUEST_WEATHER_LOCATION = 101;
     private static final boolean USE_TEST_WEATHER_LOCATION = true;
-    private static final double TEST_WEATHER_LATITUDE = 22.2707;
-    private static final double TEST_WEATHER_LONGITUDE = 113.5767;
-    private static final String TEST_WEATHER_LOCATION_NAME = "广东珠海";
+    private static final double TEST_WEATHER_LATITUDE = 43.8256;
+    private static final double TEST_WEATHER_LONGITUDE = 87.6168;
     private AuthorizationDialog mAuthorizationDialog;
     private VolumeDialog mVolumeDialog;
     private InputModeDialog mInputModeDialog;
@@ -487,13 +486,17 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         Date now = new Date();
         mWeatherTime.setText(new SimpleDateFormat("HH:mm", Locale.getDefault()).format(now));
-        mWeatherDate.setText(new SimpleDateFormat("M月d日 E", Locale.CHINA).format(now));
+        if (LocaleHelper.LANGUAGE_EN.equals(LocaleHelper.getLanguage(this))) {
+            mWeatherDate.setText(new SimpleDateFormat("EEEE, MMMM d", Locale.US).format(now));
+        } else {
+            mWeatherDate.setText(new SimpleDateFormat("M月d日 E", Locale.CHINA).format(now));
+        }
     }
 
     private void loadWeatherData() {
         if (USE_TEST_WEATHER_LOCATION) {
             AppLog.i(WEATHER_LOCATION_TAG, "Using test weather location: "
-                    + TEST_WEATHER_LOCATION_NAME);
+                    + getString(R.string.weather_test_location));
             fetchWeatherData(null);
             return;
         }
@@ -648,13 +651,13 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         mWeatherExecutor.execute(() -> {
             double latitude = USE_TEST_WEATHER_LOCATION ? TEST_WEATHER_LATITUDE : 39.9042;
             double longitude = USE_TEST_WEATHER_LOCATION ? TEST_WEATHER_LONGITUDE : 116.4074;
-            String location = USE_TEST_WEATHER_LOCATION ? TEST_WEATHER_LOCATION_NAME
+            String location = USE_TEST_WEATHER_LOCATION ? getString(R.string.weather_test_location)
                     : getString(R.string.weather_default_location);
             try {
                 if (!USE_TEST_WEATHER_LOCATION && currentLocation != null) {
                     latitude = currentLocation.getLatitude();
                     longitude = currentLocation.getLongitude();
-                    Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+                    Geocoder geocoder = new Geocoder(this, getWeatherLocale());
                     List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
                     AppLog.i(WEATHER_LOCATION_TAG, "Reverse geocode returned "
                             + (addresses == null ? 0 : addresses.size()) + " address(es)");
@@ -732,6 +735,11 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         return location.getProvider() + "(" + location.getLatitude() + ","
                 + location.getLongitude() + "), accuracy=" + location.getAccuracy()
                 + "m, age=" + (System.currentTimeMillis() - location.getTime()) + "ms";
+    }
+
+    private Locale getWeatherLocale() {
+        return LocaleHelper.LANGUAGE_EN.equals(LocaleHelper.getLanguage(this))
+                ? Locale.US : Locale.SIMPLIFIED_CHINESE;
     }
 
     private String weatherDescription(int code) {

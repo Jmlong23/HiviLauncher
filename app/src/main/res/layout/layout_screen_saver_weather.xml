@@ -68,7 +68,8 @@
                     android:layout_marginStart="3dp"
                     android:text="--"
                     android:textColor="@android:color/white"
-                    android:textSize="20sp" />
+                    android:textSize="20sp"
+                    android:fontFamily="@font/clock_detail_font"/>
             </LinearLayout>
 
             <LinearLayout
@@ -89,7 +90,8 @@
                         android:layout_height="wrap_content"
                         android:text="--°C"
                         android:textColor="@android:color/white"
-                        android:textSize="43sp" />
+                        android:textSize="43sp"
+                        android:fontFamily="@font/clock_detail_font"/>
 
                     <TextView
                         android:id="@+id/weather_screen_saver_range"
@@ -99,7 +101,8 @@
                         android:includeFontPadding="false"
                         android:text="--°/--°"
                         android:textColor="@android:color/white"
-                        android:textSize="24sp" />
+                        android:textSize="24sp"
+                        android:fontFamily="@font/clock_detail_font"/>
 
                     <TextView
                         android:id="@+id/weather_screen_saver_description"
@@ -108,7 +111,8 @@
                         android:layout_marginTop="16dp"
                         android:text="--"
                         android:textColor="@android:color/white"
-                        android:textSize="20sp" />
+                        android:textSize="20sp"
+                        android:fontFamily="@font/clock_detail_font"/>
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>

@@ -14,6 +14,7 @@
     <string name="main_weather_temp">25°C</string>
     <string name="main_city_air_quality">Zhuhai      Good air quality</string>
     <string name="weather_default_location">Current location</string>
+    <string name="weather_test_location">Urumqi, Xinjiang</string>
     <string name="weather_sunny">Sunny</string>
     <string name="weather_partly_cloudy">Cloudy</string>
     <string name="weather_foggy">Foggy</string>
