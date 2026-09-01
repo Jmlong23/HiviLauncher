@@ -186,6 +186,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private View mWeatherScreenSaverRoot;
     private View mWeatherScreenSaverCard;
     private ImageView mWeatherScreenSaverIcon;
+    private boolean mWeatherScreenSaverLoading;
     private final ExecutorService mWeatherExecutor = Executors.newSingleThreadExecutor();
     private LocationManager mWeatherLocationManager;
     private LocationListener mWeatherLocationListener;
@@ -459,10 +460,23 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         mWeatherTemperature = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_temperature);
         mWeatherRange = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_range);
         mWeatherDescription = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_description);
-        showScreenSaverOverlay();
-        updateWeatherScreenSaverClock();
-        AppLog.i(WEATHER_LOCATION_TAG, "Weather screen saver displayed; loading location");
+        mWeatherScreenSaverLoading = true;
+        AppLog.i(WEATHER_LOCATION_TAG, "Weather screen saver waiting for weather data");
         loadWeatherData();
+    }
+
+    private void showWeatherScreenSaverContent() {
+        if (mScreenSaverOverlay == null) {
+            return;
+        }
+        mScreenSaverOverlay.setOnClickListener(view -> hideScreenSaver());
+        if (mScreenSaverDialog == null) {
+            showScreenSaverOverlay();
+        } else {
+            mScreenSaverDialog.setContentView(mScreenSaverOverlay);
+        }
+        mWeatherScreenSaverLoading = false;
+        updateWeatherScreenSaverClock();
         mSystemVolumeHandler.removeCallbacks(mScreenSaverClockRunnable);
         mSystemVolumeHandler.post(mScreenSaverClockRunnable);
     }
@@ -678,23 +692,33 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 double min = daily.getJSONArray("temperature_2m_min").getDouble(0);
                 String description = weatherDescription(code);
                 final String finalLocation = location;
+                final String temperatureText = String.format(Locale.getDefault(), "%.0f°C",
+                        temperature);
+                final String rangeText = String.format(Locale.getDefault(), "%.0f°/%.0f°", min,
+                        max);
                 runOnUiThread(() -> {
                     if (requestGeneration != mWeatherDataGeneration || mWeatherLocation == null) return;
                     AppLog.i(WEATHER_LOCATION_TAG, "Weather loaded; displaying city: "
                             + finalLocation);
                     mWeatherLocation.setText(finalLocation);
-                    mWeatherTemperature.setText(String.format(Locale.getDefault(), "%.0f°C", temperature));
-                    mWeatherRange.setText(String.format(Locale.getDefault(), "%.0f°/%.0f°", min, max));
+                    mWeatherTemperature.setText(temperatureText);
+                    mWeatherRange.setText(rangeText);
                     mWeatherDescription.setText(description);
                     updateWeatherScreenSaverAppearance(code);
+                    if (mWeatherScreenSaverLoading) {
+                        showWeatherScreenSaverContent();
+                    }
                 });
             } catch (Exception exception) {
                 AppLog.w(WEATHER_LOCATION_TAG, "Weather or reverse-geocoding request failed",
                         exception);
-                final String fallbackLocation = location;
                 runOnUiThread(() -> {
                     if (requestGeneration == mWeatherDataGeneration && mWeatherLocation != null) {
-                        mWeatherLocation.setText(fallbackLocation);
+                        if (mWeatherScreenSaverLoading) {
+                            AppLog.i(WEATHER_LOCATION_TAG,
+                                    "Weather unavailable; displaying default sunny screen saver");
+                            showWeatherScreenSaverContent();
+                        }
                     }
                 });
             }
@@ -832,6 +856,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     private void hideScreenSaver() {
         mSystemVolumeHandler.removeCallbacks(mScreenSaverClockRunnable);
+        mWeatherScreenSaverLoading = false;
         AppLog.i(WEATHER_LOCATION_TAG, "Weather screen saver hidden; stopping location update");
         stopWeatherLocationUpdates();
         mWeatherDataGeneration++;
