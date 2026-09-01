@@ -93,6 +93,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
+import java.util.TimeZone;
 import org.json.JSONObject;
 
 public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresenter>
@@ -112,8 +113,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private static final long WEATHER_LOCATION_TIMEOUT_MS = 10_000L;
     private static final int REQUEST_WEATHER_LOCATION = 101;
     private static final boolean USE_TEST_WEATHER_LOCATION = true;
-    private static final double TEST_WEATHER_LATITUDE = -49.2700;
-    private static final double TEST_WEATHER_LONGITUDE = -73.0400;
+    private static final double TEST_WEATHER_LATITUDE = -36.8201;
+    private static final double TEST_WEATHER_LONGITUDE = -73.0444;
     private AuthorizationDialog mAuthorizationDialog;
     private VolumeDialog mVolumeDialog;
     private InputModeDialog mInputModeDialog;
@@ -186,6 +187,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private View mWeatherScreenSaverCard;
     private ImageView mWeatherScreenSaverIcon;
     private boolean mWeatherScreenSaverLoading;
+    private TimeZone mWeatherTimeZone;
     private final ExecutorService mWeatherExecutor = Executors.newSingleThreadExecutor();
     private LocationManager mWeatherLocationManager;
     private LocationListener mWeatherLocationListener;
@@ -485,11 +487,19 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             return;
         }
         Date now = new Date();
-        mWeatherTime.setText(new SimpleDateFormat("HH:mm", Locale.getDefault()).format(now));
+        TimeZone timeZone = mWeatherTimeZone == null ? TimeZone.getDefault() : mWeatherTimeZone;
+        Locale weatherLocale = getWeatherLocale();
+        SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", weatherLocale);
+        timeFormat.setTimeZone(timeZone);
+        mWeatherTime.setText(timeFormat.format(now));
         if (LocaleHelper.LANGUAGE_EN.equals(LocaleHelper.getLanguage(this))) {
-            mWeatherDate.setText(new SimpleDateFormat("EEEE, MMMM d", Locale.US).format(now));
+            SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, MMMM d", Locale.US);
+            dateFormat.setTimeZone(timeZone);
+            mWeatherDate.setText(dateFormat.format(now));
         } else {
-            mWeatherDate.setText(new SimpleDateFormat("M月d日 E", Locale.CHINA).format(now));
+            SimpleDateFormat dateFormat = new SimpleDateFormat("M月d日 E", Locale.CHINA);
+            dateFormat.setTimeZone(timeZone);
+            mWeatherDate.setText(dateFormat.format(now));
         }
     }
 
@@ -687,6 +697,9 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 while ((count = input.read(data)) != -1) body.append(new String(data, 0, count));
                 input.close();
                 JSONObject json = new JSONObject(body.toString());
+                String timezoneId = json.optString("timezone", "");
+                final TimeZone weatherTimeZone = TextUtils.isEmpty(timezoneId)
+                        ? TimeZone.getDefault() : TimeZone.getTimeZone(timezoneId);
                 JSONObject current = json.getJSONObject("current");
                 double temperature = current.getDouble("temperature_2m");
                 int code = current.getInt("weather_code");
@@ -708,6 +721,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                     mWeatherRange.setText(rangeText);
                     mWeatherDescription.setText(description);
                     updateWeatherScreenSaverAppearance(code);
+                    mWeatherTimeZone = weatherTimeZone;
+                    updateWeatherScreenSaverClock();
                     if (mWeatherScreenSaverLoading) {
                         showWeatherScreenSaverContent();
                     }
@@ -901,6 +916,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         mWeatherScreenSaverRoot = null;
         mWeatherScreenSaverCard = null;
         mWeatherScreenSaverIcon = null;
+        mWeatherTimeZone = null;
         resetScreenSaverTimer();
     }
 

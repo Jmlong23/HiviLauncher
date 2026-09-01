@@ -15,7 +15,7 @@
     <string name="main_weather_temp">25°C</string>
     <string name="main_city_air_quality">珠海      空气质量良好</string>
     <string name="weather_default_location">当前位置</string>
-    <string name="weather_test_location">阿根廷菲茨罗伊山</string>
+    <string name="weather_test_location">智利康塞普西翁</string>
     <string name="weather_sunny">晴</string>
     <string name="weather_partly_cloudy">多云</string>
     <string name="weather_foggy">雾</string>
