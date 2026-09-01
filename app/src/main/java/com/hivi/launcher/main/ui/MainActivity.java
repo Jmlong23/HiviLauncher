@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
+import android.app.Dialog;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.content.BroadcastReceiver;
@@ -31,8 +32,11 @@ import android.os.Looper;
 import android.text.TextUtils;
 import com.hivi.launcher.utils.log.AppLog;
 import android.view.MotionEvent;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.TextView;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -164,6 +168,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
     };
     private View mScreenSaverOverlay;
+    private Dialog mScreenSaverDialog;
     private TextView mScreenSaverTime;
     private TextView mScreenSaverDate;
     private FlipLayout mFlipHour;
@@ -415,8 +420,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 ScreenSaverSettings.getSimpleWallpaper(this));
         wallpaper.setImageResource(wallpaperResource);
         screenSaverTime.setBackdropResource(wallpaperResource);
-        binding.launcherRoot.addView(mScreenSaverOverlay,
-                new FrameLayout.LayoutParams(-1, -1));
+        showScreenSaverOverlay();
         updateSimpleScreenSaverClock();
         mSystemVolumeHandler.removeCallbacks(mScreenSaverClockRunnable);
         mSystemVolumeHandler.post(mScreenSaverClockRunnable);
@@ -431,8 +435,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         mFlipAmPm = mScreenSaverOverlay.findViewById(R.id.flip_screen_saver_ampm);
         mFlipDate = mScreenSaverOverlay.findViewById(R.id.flip_screen_saver_date);
         mFlipWeekday = mScreenSaverOverlay.findViewById(R.id.flip_screen_saver_weekday);
-        binding.launcherRoot.addView(mScreenSaverOverlay,
-                new FrameLayout.LayoutParams(-1, -1));
+        showScreenSaverOverlay();
         updateFlipScreenSaverClock();
         mSystemVolumeHandler.removeCallbacks(mScreenSaverClockRunnable);
         mSystemVolumeHandler.post(mScreenSaverClockRunnable);
@@ -447,7 +450,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         mWeatherTemperature = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_temperature);
         mWeatherRange = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_range);
         mWeatherDescription = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_description);
-        binding.launcherRoot.addView(mScreenSaverOverlay, new FrameLayout.LayoutParams(-1, -1));
+        showScreenSaverOverlay();
         updateWeatherScreenSaverClock();
         AppLog.i(WEATHER_LOCATION_TAG, "Weather screen saver displayed; loading location");
         loadWeatherData();
@@ -739,7 +742,45 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         blackOverlay.setClickable(true);
         blackOverlay.setFocusable(true);
         mScreenSaverOverlay = blackOverlay;
-        binding.launcherRoot.addView(blackOverlay, new FrameLayout.LayoutParams(-1, -1));
+        showScreenSaverOverlay();
+    }
+
+    private void showScreenSaverOverlay() {
+        if (mScreenSaverOverlay == null || isFinishing() || isDestroyed()) {
+            return;
+        }
+        mScreenSaverOverlay.setOnClickListener(view -> hideScreenSaver());
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(mScreenSaverOverlay);
+        dialog.setCancelable(false);
+        dialog.setCanceledOnTouchOutside(false);
+        dialog.setOnKeyListener((ignored, keyCode, event) -> {
+            if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
+                hideScreenSaver();
+                return true;
+            }
+            return keyCode == KeyEvent.KEYCODE_BACK;
+        });
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        }
+        dialog.show();
+        mScreenSaverDialog = dialog;
+        window = dialog.getWindow();
+        if (window != null) {
+            window.getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT);
+        }
     }
 
     private void updateSimpleScreenSaverClock() {
@@ -766,8 +807,9 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         AppLog.i(WEATHER_LOCATION_TAG, "Weather screen saver hidden; stopping location update");
         stopWeatherLocationUpdates();
         mWeatherDataGeneration++;
-        if (mScreenSaverOverlay != null && binding != null) {
-            binding.launcherRoot.removeView(mScreenSaverOverlay);
+        if (mScreenSaverDialog != null) {
+            mScreenSaverDialog.dismiss();
+            mScreenSaverDialog = null;
         }
         mScreenSaverOverlay = null;
         mScreenSaverTime = null;
