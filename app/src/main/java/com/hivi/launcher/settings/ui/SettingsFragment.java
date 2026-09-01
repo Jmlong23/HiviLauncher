@@ -110,6 +110,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private boolean mWifiRefreshing;
     private boolean mWifiSettingsInitialized;
     private boolean mInitialSectionRendered;
+    private boolean mScreenSaverThumbnailsInitialized;
     private boolean mLanguageSwitchInProgress;
 
     @Override
@@ -195,6 +196,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         }
         mWifiSettingsInitialized = false;
         mInitialSectionRendered = false;
+        mScreenSaverThumbnailsInitialized = false;
         mWifiNetworkAdapter = null;
         mSectionTabs = null;
         mSectionPanels = null;
@@ -219,6 +221,9 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         if (section == SettingsPresenter.SECTION_NETWORK && mInitialSectionRendered) {
             mBrightnessSettingsHandler.removeCallbacks(mDeferredWifiSettingsInitialization);
             initializeWifiSettingsIfNeeded();
+        }
+        if (section == SettingsPresenter.SECTION_DISPLAY) {
+            initializeScreenSaverThumbnailsIfNeeded();
         }
         mInitialSectionRendered = true;
     }
@@ -640,7 +645,6 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
 
     private void setupDisplaySettings() {
         setupBrightnessSettings();
-        setupRoundedScreenSaverThumbnails();
         mBinding.settingsLanguage.setOnClickListener(view -> {
             SettingsPresenter presenter = getPresenter();
             if (presenter != null) {
@@ -679,6 +683,16 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             thumbnail.setClipToOutline(true);
         }
         updateSimpleScreenSaverThumbnail();
+        mBinding.screensaverThumbnailWeather.setImageResource(R.drawable.clock_weather);
+        mBinding.screensaverThumbnailFlip.setImageResource(R.drawable.clock_flip);
+    }
+
+    private void initializeScreenSaverThumbnailsIfNeeded() {
+        if (mScreenSaverThumbnailsInitialized || mBinding == null || !isAdded()) {
+            return;
+        }
+        mScreenSaverThumbnailsInitialized = true;
+        setupRoundedScreenSaverThumbnails();
     }
 
     private void updateSimpleScreenSaverThumbnail() {

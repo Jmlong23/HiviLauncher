@@ -473,15 +473,13 @@
                                         android:layout_width="match_parent"
                                         android:layout_height="match_parent"
                                         android:background="@drawable/bg_screensaver_thumbnail"
-                                        android:scaleType="centerCrop"
-                                        android:src="@drawable/img_simple_clock_style1" />
+                                        android:scaleType="centerCrop" />
 
                                     <ImageView
                                         android:id="@+id/screensaver_thumbnail_simple_clock"
                                         android:layout_width="97dp"
                                         android:layout_height="54dp"
                                         android:contentDescription="@null"
-                                        android:src="@drawable/clock_simple_cn"
                                         android:layout_gravity="center_horizontal"/>
                                 </FrameLayout>
 
@@ -529,8 +527,7 @@
                                         android:layout_height="0dp"
                                         android:layout_weight="1"
                                         android:background="@drawable/bg_screensaver_thumbnail"
-                                        android:scaleType="centerCrop"
-                                        android:src="@drawable/clock_weather" />
+                                        android:scaleType="centerCrop" />
 
                                     <TextView
                                         android:layout_width="wrap_content"
@@ -584,8 +581,7 @@
                                         android:layout_height="0dp"
                                         android:layout_weight="1"
                                         android:background="@drawable/bg_screensaver_thumbnail"
-                                        android:scaleType="centerCrop"
-                                        android:src="@drawable/clock_flip" />
+                                        android:scaleType="centerCrop" />
 
                                     <TextView
                                         android:layout_width="wrap_content"

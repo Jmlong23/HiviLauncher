@@ -23,6 +23,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Adapter around the platform Wi-Fi service.
@@ -64,6 +66,7 @@ public final class WifiModel {
     private final android.net.wifi.WifiManager mWifiManager;
     private final Callback mCallback;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
+    private final ExecutorService mWifiQueryExecutor = Executors.newSingleThreadExecutor();
     private final BroadcastReceiver mWifiReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -266,6 +269,7 @@ public final class WifiModel {
         }
         mDestroyed = true;
         mHandler.removeCallbacksAndMessages(null);
+        mWifiQueryExecutor.shutdownNow();
         if (mReceiverRegistered) {
             try {
                 mContext.unregisterReceiver(mWifiReceiver);
@@ -376,61 +380,78 @@ public final class WifiModel {
         if (mWifiManager == null || mDestroyed) {
             return;
         }
-        List<ScanResult> scanResults;
-        List<WifiConfiguration> configuredNetworks;
-        try {
-            scanResults = mWifiManager.getScanResults();
-            configuredNetworks = mWifiManager.getConfiguredNetworks();
-        } catch (SecurityException e) {
-            mCallback.onWifiError(Error.LOCATION_PERMISSION_REQUIRED);
-            return;
-        }
+        final String connectingSsid = mConnectingSsid;
+        mWifiQueryExecutor.execute(() -> {
+            List<ScanResult> scanResults;
+            List<WifiConfiguration> configuredNetworks;
+            try {
+                scanResults = mWifiManager.getScanResults();
+                configuredNetworks = mWifiManager.getConfiguredNetworks();
+            } catch (SecurityException e) {
+                postWifiError(Error.LOCATION_PERMISSION_REQUIRED);
+                return;
+            }
 
-        Set<String> savedSsids = new HashSet<>();
-        if (configuredNetworks != null) {
-            for (WifiConfiguration configuration : configuredNetworks) {
-                if (configuration != null) {
-                    String ssid = normalizeSsid(configuration.SSID);
-                    if (!TextUtils.isEmpty(ssid)) {
-                        savedSsids.add(ssid);
+            Set<String> savedSsids = new HashSet<>();
+            if (configuredNetworks != null) {
+                for (WifiConfiguration configuration : configuredNetworks) {
+                    if (configuration != null) {
+                        String ssid = normalizeSsid(configuration.SSID);
+                        if (!TextUtils.isEmpty(ssid)) {
+                            savedSsids.add(ssid);
+                        }
                     }
                 }
             }
-        }
 
-        Map<String, ScanResult> strongestResults = new HashMap<>();
-        if (scanResults != null) {
-            for (ScanResult result : scanResults) {
-                if (result == null || TextUtils.isEmpty(result.SSID)) {
-                    continue;
-                }
-                ScanResult existing = strongestResults.get(result.SSID);
-                if (existing == null || result.level > existing.level) {
-                    strongestResults.put(result.SSID, result);
+            Map<String, ScanResult> strongestResults = new HashMap<>();
+            if (scanResults != null) {
+                for (ScanResult result : scanResults) {
+                    if (result == null || TextUtils.isEmpty(result.SSID)) {
+                        continue;
+                    }
+                    ScanResult existing = strongestResults.get(result.SSID);
+                    if (existing == null || result.level > existing.level) {
+                        strongestResults.put(result.SSID, result);
+                    }
                 }
             }
-        }
 
-        String connectedSsid = getConnectedSsid();
-        List<WifiNetwork> networks = new ArrayList<>(strongestResults.size());
-        for (ScanResult result : strongestResults.values()) {
-            networks.add(WifiNetwork.fromScanResult(result, savedSsids.contains(result.SSID),
-                    connectedSsid, mConnectingSsid));
-        }
-        Collections.sort(networks, new Comparator<WifiNetwork>() {
-            @Override
-            public int compare(WifiNetwork left, WifiNetwork right) {
-                if (left.isConnected() != right.isConnected()) {
-                    return left.isConnected() ? -1 : 1;
+            String connectedSsid = getConnectedSsid();
+            List<WifiNetwork> networks = new ArrayList<>(strongestResults.size());
+            for (ScanResult result : strongestResults.values()) {
+                networks.add(WifiNetwork.fromScanResult(result, savedSsids.contains(result.SSID),
+                        connectedSsid, connectingSsid));
+            }
+            Collections.sort(networks, new Comparator<WifiNetwork>() {
+                @Override
+                public int compare(WifiNetwork left, WifiNetwork right) {
+                    if (left.isConnected() != right.isConnected()) {
+                        return left.isConnected() ? -1 : 1;
+                    }
+                    if (left.isConnecting() != right.isConnecting()) {
+                        return left.isConnecting() ? -1 : 1;
+                    }
+                    return Integer.compare(right.getSignalLevel(), left.getSignalLevel());
                 }
-                if (left.isConnecting() != right.isConnecting()) {
-                    return left.isConnecting() ? -1 : 1;
+            });
+            List<WifiNetwork> networkSnapshot = Collections.unmodifiableList(networks);
+            mHandler.post(() -> {
+                if (mDestroyed) {
+                    return;
                 }
-                return Integer.compare(right.getSignalLevel(), left.getSignalLevel());
+                mNetworks = networkSnapshot;
+                mCallback.onWifiNetworksChanged(mNetworks, connectedSsid);
+            });
+        });
+    }
+
+    private void postWifiError(Error error) {
+        mHandler.post(() -> {
+            if (!mDestroyed) {
+                mCallback.onWifiError(error);
             }
         });
-        mNetworks = Collections.unmodifiableList(networks);
-        mCallback.onWifiNetworksChanged(mNetworks, connectedSsid);
     }
 
     private boolean hasScanPermission() {
