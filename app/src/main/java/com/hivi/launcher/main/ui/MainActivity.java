@@ -755,17 +755,24 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         boolean isRainy = (weatherCode >= 51 && weatherCode <= 67)
                 || (weatherCode >= 80 && weatherCode <= 82);
         boolean isStormy = weatherCode == 95 || weatherCode == 96 || weatherCode == 99;
+        boolean isCloudy = weatherCode >= 1 && weatherCode <= 3;
         mWeatherScreenSaverRoot.setBackgroundResource(isStormy
                 ? R.drawable.img_weather_clock_storm
-                : isRainy ? R.drawable.img_weather_clock_rain : R.drawable.img_weather_clock_sun);
+                : isRainy ? R.drawable.img_weather_clock_rain
+                : isCloudy ? R.drawable.img_weather_clock_cloudy
+                : R.drawable.img_weather_clock_sun);
         mWeatherScreenSaverCard.setBackgroundResource(isStormy
                 ? R.drawable.bg_weather_clock_storm
-                : isRainy ? R.drawable.bg_weather_clock_rain : R.drawable.bg_weather_clock_sun);
+                : isRainy ? R.drawable.bg_weather_clock_rain
+                : isCloudy ? R.drawable.bg_weather_clock_cloudy
+                : R.drawable.bg_weather_clock_sun);
         mWeatherScreenSaverIcon.setBackgroundResource(isStormy
-                ? R.drawable.ic_storm : isRainy ? R.drawable.ic_rain : R.drawable.ic_sun);
-        mWeatherScreenSaverIcon.getLayoutParams().width = dp(isStormy ? 167 : 170);
+                ? R.drawable.ic_storm : isRainy ? R.drawable.ic_rain
+                : isCloudy ? R.drawable.ic_cloudy : R.drawable.ic_sun);
+        mWeatherScreenSaverIcon.getLayoutParams().width = dp(isStormy ? 167
+                : isCloudy ? 196 : 170);
         mWeatherScreenSaverIcon.getLayoutParams().height = dp(isStormy ? 137
-                : isRainy ? 190 : 170);
+                : isRainy ? 190 : isCloudy ? 153 : 170);
         mWeatherScreenSaverIcon.requestLayout();
     }
 
