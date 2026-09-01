@@ -183,6 +183,9 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private TextView mWeatherTemperature;
     private TextView mWeatherRange;
     private TextView mWeatherDescription;
+    private View mWeatherScreenSaverRoot;
+    private View mWeatherScreenSaverCard;
+    private ImageView mWeatherScreenSaverIcon;
     private final ExecutorService mWeatherExecutor = Executors.newSingleThreadExecutor();
     private LocationManager mWeatherLocationManager;
     private LocationListener mWeatherLocationListener;
@@ -444,6 +447,12 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private void showWeatherScreenSaver() {
         mScreenSaverOverlay = LayoutInflater.from(this)
                 .inflate(R.layout.layout_screen_saver_weather, binding.launcherRoot, false);
+        mWeatherScreenSaverRoot = mScreenSaverOverlay.findViewById(
+                R.id.weather_screen_saver_root);
+        mWeatherScreenSaverCard = mScreenSaverOverlay.findViewById(
+                R.id.weather_screen_saver_weather_card);
+        mWeatherScreenSaverIcon = mScreenSaverOverlay.findViewById(
+                R.id.weather_screen_saver_icon);
         mWeatherTime = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_time);
         mWeatherDate = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_date);
         mWeatherLocation = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_location);
@@ -677,6 +686,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                     mWeatherTemperature.setText(String.format(Locale.getDefault(), "%.0f°C", temperature));
                     mWeatherRange.setText(String.format(Locale.getDefault(), "%.0f°/%.0f°", min, max));
                     mWeatherDescription.setText(description);
+                    updateWeatherScreenSaverAppearance(code);
                 });
             } catch (Exception exception) {
                 AppLog.w(WEATHER_LOCATION_TAG, "Weather or reverse-geocoding request failed",
@@ -707,6 +717,20 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (code <= 67 || code >= 80 && code <= 82) return getString(R.string.weather_rainy);
         if (code >= 71 && code <= 77) return getString(R.string.weather_snowy);
         return getString(R.string.weather_stormy);
+    }
+
+    private void updateWeatherScreenSaverAppearance(int weatherCode) {
+        boolean isRainy = (weatherCode >= 51 && weatherCode <= 67)
+                || (weatherCode >= 80 && weatherCode <= 82);
+        mWeatherScreenSaverRoot.setBackgroundResource(isRainy
+                ? R.drawable.img_weather_clock_rain : R.drawable.img_weather_clock_sun);
+        mWeatherScreenSaverCard.setBackgroundResource(isRainy
+                ? R.drawable.bg_weather_clock_rain : R.drawable.bg_weather_clock_sun);
+        mWeatherScreenSaverIcon.setBackgroundResource(isRainy
+                ? R.drawable.ic_rain : R.drawable.ic_sun);
+        mWeatherScreenSaverIcon.getLayoutParams().width = dp(170);
+        mWeatherScreenSaverIcon.getLayoutParams().height = dp(isRainy ? 190 : 170);
+        mWeatherScreenSaverIcon.requestLayout();
     }
 
     @Override
@@ -826,6 +850,9 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         mWeatherTemperature = null;
         mWeatherRange = null;
         mWeatherDescription = null;
+        mWeatherScreenSaverRoot = null;
+        mWeatherScreenSaverCard = null;
+        mWeatherScreenSaverIcon = null;
         resetScreenSaverTimer();
     }
 

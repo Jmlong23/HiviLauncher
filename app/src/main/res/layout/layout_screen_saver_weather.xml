@@ -35,83 +35,89 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/weather_screen_saver_weather_card"
         android:layout_width="423dp"
         android:layout_height="230dp"
         android:layout_marginStart="59dp"
         android:background="@drawable/bg_weather_clock_sun"
-        android:orientation="vertical"
+        android:orientation="horizontal"
         android:paddingStart="33dp"
         android:paddingTop="31dp"
-        android:paddingEnd="21dp"
-        android:paddingBottom="27dp">
-
-
+        android:paddingEnd="25dp">
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:background="@drawable/ic_location" />
-
-            <TextView
-                android:id="@+id/weather_screen_saver_location"
+            android:layout_weight="1"
+            android:orientation="vertical">
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="3dp"
-                android:text="--"
-                android:textColor="@android:color/white"
-                android:textSize="20sp" />
-        </LinearLayout>
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:orientation="horizontal">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:background="@drawable/ic_location" />
 
                 <TextView
-                    android:id="@+id/weather_screen_saver_temperature"
+                    android:id="@+id/weather_screen_saver_location"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="--°C"
-                    android:textColor="@android:color/white"
-                    android:textSize="43sp" />
-
-                <TextView
-                    android:id="@+id/weather_screen_saver_range"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:includeFontPadding="false"
-                    android:text="--°/--°"
-                    android:textColor="@android:color/white"
-                    android:textSize="24sp" />
-
-                <TextView
-                    android:id="@+id/weather_screen_saver_description"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginStart="3dp"
                     android:text="--"
                     android:textColor="@android:color/white"
                     android:textSize="20sp" />
             </LinearLayout>
 
-            <ImageView
-                android:layout_width="130dp"
-                android:layout_height="130dp"
-                android:background="@drawable/ic_sun" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/weather_screen_saver_temperature"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--°C"
+                        android:textColor="@android:color/white"
+                        android:textSize="43sp" />
+
+                    <TextView
+                        android:id="@+id/weather_screen_saver_range"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:includeFontPadding="false"
+                        android:text="--°/--°"
+                        android:textColor="@android:color/white"
+                        android:textSize="24sp" />
+
+                    <TextView
+                        android:id="@+id/weather_screen_saver_description"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="--"
+                        android:textColor="@android:color/white"
+                        android:textSize="20sp" />
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
+
+        <ImageView
+            android:id="@+id/weather_screen_saver_icon"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/ic_sun" />
+
     </LinearLayout>
 </LinearLayout>
