@@ -113,8 +113,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private static final long WEATHER_LOCATION_TIMEOUT_MS = 10_000L;
     private static final int REQUEST_WEATHER_LOCATION = 101;
     private static final boolean USE_TEST_WEATHER_LOCATION = true;
-    private static final double TEST_WEATHER_LATITUDE = 46.3830;
-    private static final double TEST_WEATHER_LONGITUDE = -82.6330;
+    private static final double TEST_WEATHER_LATITUDE = 22.2707;
+    private static final double TEST_WEATHER_LONGITUDE = 113.5767;
     private AuthorizationDialog mAuthorizationDialog;
     private VolumeDialog mVolumeDialog;
     private InputModeDialog mInputModeDialog;
@@ -690,13 +690,19 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setConnectTimeout(5000);
                 connection.setReadTimeout(5000);
-                InputStream input = connection.getInputStream();
-                byte[] data = new byte[8192];
-                StringBuilder body = new StringBuilder();
-                int count;
-                while ((count = input.read(data)) != -1) body.append(new String(data, 0, count));
-                input.close();
-                JSONObject json = new JSONObject(body.toString());
+                String responseBody;
+                try (InputStream input = connection.getInputStream()) {
+                    byte[] data = new byte[8192];
+                    StringBuilder body = new StringBuilder();
+                    int count;
+                    while ((count = input.read(data)) != -1) {
+                        body.append(new String(data, 0, count));
+                    }
+                    responseBody = body.toString();
+                } finally {
+                    connection.disconnect();
+                }
+                JSONObject json = new JSONObject(responseBody);
                 String timezoneId = json.optString("timezone", "");
                 final TimeZone weatherTimeZone = TextUtils.isEmpty(timezoneId)
                         ? TimeZone.getDefault() : TimeZone.getTimeZone(timezoneId);

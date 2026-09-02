@@ -85,6 +85,7 @@ public final class AiWebSocketManager {
     private final Runnable mCloseFallbackRunnable = this::performClose;
 
     private volatile WebSocket mWebSocket;
+    private volatile boolean mConnecting;
     private volatile Listener mListener;
     private volatile String mSessionId = "";
     private volatile boolean mReadyForAudio;
@@ -122,9 +123,10 @@ public final class AiWebSocketManager {
 
     public void connect(Map<String, String> headers) {
         synchronized (mLock) {
-            if (mWebSocket != null || mClosing) {
+            if (mWebSocket != null || mConnecting || mClosing) {
                 return;
             }
+            mConnecting = true;
             mReadyForAudio = false;
             mListenStartSent = false;
             mWaitingForStopAck = false;
@@ -149,6 +151,7 @@ public final class AiWebSocketManager {
             @Override
             public void onOpen(WebSocket webSocket, Response response) {
                 synchronized (mLock) {
+                    mConnecting = false;
                     if (mClosing) {
                         webSocket.close(1000, "closed");
                         return;
@@ -176,14 +179,17 @@ public final class AiWebSocketManager {
             public void onFailure(WebSocket webSocket, Throwable throwable, Response response) {
                 boolean forbidden = response != null && response.code() == 403;
                 synchronized (mLock) {
+                    mConnecting = false;
                     if (mWebSocket == webSocket) {
                         mWebSocket = null;
                     }
                     mReadyForAudio = false;
                 }
+                webSocket.cancel();
                 AppLog.w(TAG, "WebSocket failure, code="
                         + (response == null ? -1 : response.code()), throwable);
                 if (mClosing) {
+                    shutdownClient();
                     return;
                 }
                 if (forbidden) {
@@ -204,6 +210,7 @@ public final class AiWebSocketManager {
             @Override
             public void onClosed(WebSocket webSocket, int code, String reason) {
                 synchronized (mLock) {
+                    mConnecting = false;
                     if (mWebSocket == webSocket) {
                         mWebSocket = null;
                     }
@@ -212,6 +219,8 @@ public final class AiWebSocketManager {
                 AppLog.i(TAG, "WebSocket closed, code=" + code + ", reason=" + reason);
                 if (!mClosing) {
                     notifyClosedOnce();
+                } else {
+                    shutdownClient();
                 }
             }
         });
@@ -400,6 +409,7 @@ public final class AiWebSocketManager {
                 return;
             }
             mClosing = true;
+            mConnecting = false;
             mReadyForAudio = false;
             mListenStartSent = false;
             webSocket = mWebSocket;
@@ -425,6 +435,7 @@ public final class AiWebSocketManager {
     public void releaseImmediately() {
         synchronized (mLock) {
             mClosing = true;
+            mConnecting = false;
             mReadyForAudio = false;
             mListenStartSent = false;
         }
@@ -435,6 +446,7 @@ public final class AiWebSocketManager {
         WebSocket webSocket;
         synchronized (mLock) {
             mWaitingForStopAck = false;
+            mConnecting = false;
             webSocket = mWebSocket;
             mWebSocket = null;
         }
