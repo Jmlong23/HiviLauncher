@@ -683,7 +683,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             thumbnail.setClipToOutline(true);
         }
         updateSimpleScreenSaverThumbnail();
-        mBinding.screensaverThumbnailWeather.setImageResource(R.drawable.clock_weather);
+        updateWeatherScreenSaverThumbnail();
         mBinding.screensaverThumbnailFlip.setImageResource(R.drawable.clock_flip);
     }
 
@@ -706,6 +706,16 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
                 LocaleHelper.getLanguage(getHostActivity()));
         mBinding.screensaverThumbnailSimpleClock.setImageResource(english
                 ? R.drawable.clock_simple_en : R.drawable.clock_simple_cn);
+    }
+
+    private void updateWeatherScreenSaverThumbnail() {
+        if (mBinding == null || !isAdded()) {
+            return;
+        }
+        boolean english = LocaleHelper.LANGUAGE_EN.equals(
+                LocaleHelper.getLanguage(getHostActivity()));
+        mBinding.screensaverThumbnailWeather.setImageResource(english
+                ? R.drawable.clock_weather_en : R.drawable.clock_weather_cn);
     }
 
     private void selectScreenSaverStyle(int style) {
