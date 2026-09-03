@@ -19,13 +19,6 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.TransitionDrawable;
 import android.media.AudioManager;
 import android.net.Uri;
-import android.Manifest;
-import android.content.pm.PackageManager;
-import android.location.Address;
-import android.location.Geocoder;
-import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -93,13 +86,10 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
-import java.util.TimeZone;
-import org.json.JSONObject;
 
 public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresenter>
         implements MainView, AiWakeupController.Navigator {
     private static final String TAG = "MainActivity";
-    private static final String WEATHER_LOCATION_TAG = "WeatherLocation";
     public static final String EXTRA_INITIAL_MODE =
             "com.hivi.launcher.main.ui.MainActivity.initial_mode";
     private static final int AVATAR_CONNECT_TIMEOUT_MS = 8_000;
@@ -110,11 +100,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private static final float HOME_PAGE_DIMMED_ALPHA = 0.65f;
     private static final long SYSTEM_MUSIC_VOLUME_CHECK_INTERVAL_MS = 10_000L;
     private static final long SCREEN_SAVER_MINUTE_MS = 60_000L;
-    private static final long WEATHER_LOCATION_TIMEOUT_MS = 10_000L;
-    private static final int REQUEST_WEATHER_LOCATION = 101;
-    private static final boolean USE_TEST_WEATHER_LOCATION = true;
-    private static final double TEST_WEATHER_LATITUDE = 22.2707;
-    private static final double TEST_WEATHER_LONGITUDE = 113.5767;
     private AuthorizationDialog mAuthorizationDialog;
     private VolumeDialog mVolumeDialog;
     private InputModeDialog mInputModeDialog;
@@ -163,7 +148,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         public void run() {
             updateSimpleScreenSaverClock();
             updateFlipScreenSaverClock();
-            updateWeatherScreenSaverClock();
             mSystemVolumeHandler.postDelayed(this, 1_000L);
         }
     };
@@ -177,29 +161,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private TextView mFlipAmPm;
     private TextView mFlipDate;
     private TextView mFlipWeekday;
-    private TextView mWeatherTime;
-    private TextView mWeatherDate;
-    private TextView mWeatherLocation;
-    private TextView mWeatherTemperature;
-    private TextView mWeatherRange;
-    private TextView mWeatherDescription;
-    private View mWeatherScreenSaverRoot;
-    private View mWeatherScreenSaverCard;
-    private ImageView mWeatherScreenSaverIcon;
-    private boolean mWeatherScreenSaverLoading;
-    private TimeZone mWeatherTimeZone;
-    private final ExecutorService mWeatherExecutor = Executors.newSingleThreadExecutor();
-    private LocationManager mWeatherLocationManager;
-    private LocationListener mWeatherLocationListener;
-    private Location mWeatherLastKnownLocation;
-    private int mWeatherDataGeneration;
-    private final Runnable mWeatherLocationTimeoutRunnable = () -> {
-        Location fallbackLocation = mWeatherLastKnownLocation;
-        AppLog.w(WEATHER_LOCATION_TAG, "Current location timed out; using last known location: "
-                + describeLocation(fallbackLocation));
-        stopWeatherLocationUpdates();
-        fetchWeatherData(fallbackLocation);
-    };
 
     private final BroadcastReceiver mSystemReceiver = new BroadcastReceiver() {
         @Override
@@ -378,7 +339,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (!mActivityResumed || mScreenSaverOverlay != null
                 || (style != SettingsModel.SCREEN_SAVER_STYLE_SIMPLE
                 && style != SettingsModel.SCREEN_SAVER_STYLE_FLIP
-                && style != SettingsModel.SCREEN_SAVER_STYLE_WEATHER
                 && style != SettingsModel.SCREEN_SAVER_STYLE_BLACK)) {
             return;
         }
@@ -404,10 +364,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         if (style == SettingsModel.SCREEN_SAVER_STYLE_FLIP) {
             showFlipScreenSaver();
-            return;
-        }
-        if (style == SettingsModel.SCREEN_SAVER_STYLE_WEATHER) {
-            showWeatherScreenSaver();
             return;
         }
         if (style != SettingsModel.SCREEN_SAVER_STYLE_SIMPLE) {
@@ -446,57 +402,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         mSystemVolumeHandler.post(mScreenSaverClockRunnable);
     }
 
-    private void showWeatherScreenSaver() {
-        mScreenSaverOverlay = LayoutInflater.from(this)
-                .inflate(R.layout.layout_screen_saver_weather, binding.launcherRoot, false);
-        mWeatherScreenSaverRoot = mScreenSaverOverlay.findViewById(
-                R.id.weather_screen_saver_root);
-        mWeatherScreenSaverCard = mScreenSaverOverlay.findViewById(
-                R.id.weather_screen_saver_weather_card);
-        mWeatherScreenSaverIcon = mScreenSaverOverlay.findViewById(
-                R.id.weather_screen_saver_icon);
-        mWeatherTime = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_time);
-        mWeatherDate = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_date);
-        mWeatherLocation = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_location);
-        mWeatherTemperature = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_temperature);
-        mWeatherRange = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_range);
-        mWeatherDescription = mScreenSaverOverlay.findViewById(R.id.weather_screen_saver_description);
-        mWeatherScreenSaverLoading = true;
-        AppLog.i(WEATHER_LOCATION_TAG, "Weather screen saver waiting for weather data");
-        loadWeatherData();
-    }
+/*
 
-    private void showWeatherScreenSaverContent() {
-        if (mScreenSaverOverlay == null) {
-            return;
-        }
-        mScreenSaverOverlay.setOnClickListener(view -> hideScreenSaver());
-        if (mScreenSaverDialog == null) {
-            showScreenSaverOverlay();
-        } else {
-            mScreenSaverDialog.setContentView(mScreenSaverOverlay);
-        }
-        mWeatherScreenSaverLoading = false;
-        updateWeatherScreenSaverClock();
-        mSystemVolumeHandler.removeCallbacks(mScreenSaverClockRunnable);
-        mSystemVolumeHandler.post(mScreenSaverClockRunnable);
-    }
-
-    private void updateWeatherScreenSaverClock() {
-        if (mWeatherTime == null || mWeatherDate == null) {
-            return;
-        }
-        Date now = new Date();
-        TimeZone timeZone = mWeatherTimeZone == null ? TimeZone.getDefault() : mWeatherTimeZone;
-        Locale weatherLocale = getWeatherLocale();
-        SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", weatherLocale);
-        timeFormat.setTimeZone(timeZone);
-        mWeatherTime.setText(timeFormat.format(now));
-        if (LocaleHelper.LANGUAGE_EN.equals(LocaleHelper.getLanguage(this))) {
-            SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, MMMM d", Locale.US);
-            dateFormat.setTimeZone(timeZone);
-            mWeatherDate.setText(dateFormat.format(now));
-        } else {
             SimpleDateFormat dateFormat = new SimpleDateFormat("M月d日 E", Locale.CHINA);
             dateFormat.setTimeZone(timeZone);
             mWeatherDate.setText(dateFormat.format(now));
@@ -816,6 +723,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
     }
 
+*/
     private void updateFlipScreenSaverClock() {
         if (mFlipHour == null || mFlipMinute == null || mFlipSecond == null) {
             return;
@@ -900,10 +808,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     private void hideScreenSaver() {
         mSystemVolumeHandler.removeCallbacks(mScreenSaverClockRunnable);
-        mWeatherScreenSaverLoading = false;
-        AppLog.i(WEATHER_LOCATION_TAG, "Weather screen saver hidden; stopping location update");
-        stopWeatherLocationUpdates();
-        mWeatherDataGeneration++;
         if (mScreenSaverDialog != null) {
             mScreenSaverDialog.dismiss();
             mScreenSaverDialog = null;
@@ -917,16 +821,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         mFlipAmPm = null;
         mFlipDate = null;
         mFlipWeekday = null;
-        mWeatherTime = null;
-        mWeatherDate = null;
-        mWeatherLocation = null;
-        mWeatherTemperature = null;
-        mWeatherRange = null;
-        mWeatherDescription = null;
-        mWeatherScreenSaverRoot = null;
-        mWeatherScreenSaverCard = null;
-        mWeatherScreenSaverIcon = null;
-        mWeatherTimeZone = null;
         resetScreenSaverTimer();
     }
 
@@ -1279,7 +1173,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             mInputModeDialog = null;
         }
         mAccountAvatarExecutor.shutdownNow();
-        mWeatherExecutor.shutdownNow();
         super.onDestroy();
     }
 

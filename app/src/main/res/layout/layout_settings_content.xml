@@ -439,18 +439,22 @@
                         android:layout_marginTop="17dp"
                         android:orientation="vertical">
 
-                        <!-- Row 1 -->
-                        <LinearLayout
+                        <HorizontalScrollView
                             android:layout_width="match_parent"
-                            android:layout_height="138dp"
-                            android:orientation="horizontal">
+                            android:layout_height="170dp"
+                            android:scrollbars="none"
+                            android:overScrollMode="never">
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="match_parent"
+                                android:orientation="horizontal">
 
                             <!-- Item 1: Simple Clock -->
                             <FrameLayout
                                 android:id="@+id/screensaver_item_simple"
-                                android:layout_width="0dp"
+                                android:layout_width="220dp"
                                 android:layout_height="match_parent"
-                                android:layout_weight="1"
                                 android:layout_marginEnd="21dp"
                                 android:background="@drawable/bg_screensaver_item"
                                 android:clickable="true"
@@ -504,65 +508,10 @@
                                     android:visibility="gone" />
                             </FrameLayout>
 
-                            <!-- Item 2: Weather Clock -->
-                            <FrameLayout
-                                android:id="@+id/screensaver_item_weather"
-                                android:layout_width="0dp"
-                                android:layout_height="match_parent"
-                                android:layout_weight="1"
-                                android:background="@drawable/bg_screensaver_item"
-                                android:clickable="true"
-                                android:focusable="true">
-
-                                <LinearLayout
-                                    android:layout_width="match_parent"
-                                    android:layout_height="match_parent"
-                                    android:gravity="center"
-                                    android:orientation="vertical"
-                                    android:padding="8dp">
-
-                                    <ImageView
-                                        android:id="@+id/screensaver_thumbnail_weather"
-                                        android:layout_width="match_parent"
-                                        android:layout_height="0dp"
-                                        android:layout_weight="1"
-                                        android:background="@drawable/bg_screensaver_thumbnail"
-                                        android:scaleType="centerCrop" />
-
-                                    <TextView
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:layout_marginTop="8dp"
-                                        android:text="@string/settings_screensaver_style_weather"
-                                        android:textColor="@color/text_color"
-                                        android:textSize="14sp" />
-                                </LinearLayout>
-
-                                <ImageView
-                                    android:id="@+id/screensaver_check_weather"
-                                    android:layout_width="23dp"
-                                    android:layout_height="23dp"
-                                    android:layout_gravity="top|end"
-                                    android:layout_marginTop="15dp"
-                                    android:layout_marginEnd="15dp"
-                                    android:src="@drawable/ic_screensaver_check"
-                                    android:visibility="gone" />
-                            </FrameLayout>
-                        </LinearLayout>
-
-                        <!-- Row 2 -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="138dp"
-                            android:layout_marginTop="11dp"
-                            android:orientation="horizontal">
-
-                            <!-- Item 3: Flip Clock -->
                             <FrameLayout
                                 android:id="@+id/screensaver_item_flip"
-                                android:layout_width="0dp"
+                                android:layout_width="220dp"
                                 android:layout_height="match_parent"
-                                android:layout_weight="1"
                                 android:layout_marginEnd="21dp"
                                 android:background="@drawable/bg_screensaver_item"
                                 android:clickable="true"
@@ -603,12 +552,10 @@
                                     android:visibility="gone" />
                             </FrameLayout>
 
-                            <!-- Item 4: Black Screen -->
                             <FrameLayout
                                 android:id="@+id/screensaver_item_black"
-                                android:layout_width="0dp"
+                                android:layout_width="220dp"
                                 android:layout_height="match_parent"
-                                android:layout_weight="1"
                                 android:background="@drawable/bg_screensaver_item"
                                 android:clickable="true"
                                 android:focusable="true">
@@ -645,8 +592,8 @@
                                     android:src="@drawable/ic_screensaver_check"
                                     android:visibility="gone" />
                             </FrameLayout>
-                        </LinearLayout>
-                    </LinearLayout>
+                            </LinearLayout>
+                        </HorizontalScrollView>
 
                     <TextView
                         android:layout_width="match_parent"
@@ -682,6 +629,7 @@
                             android:thumbOffset="0dp" />
                     </FrameLayout>
                     </LinearLayout>
+                </LinearLayout>
 
             </ScrollView>
 

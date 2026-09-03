@@ -12,7 +12,6 @@ public final class SettingsModel {
     public static final int SCREEN_SAVER_TIMEOUT_THIRTY_MINUTES = 3;
     public static final int SCREEN_SAVER_TIMEOUT_NEVER = 4;
     public static final int SCREEN_SAVER_STYLE_SIMPLE = 0;
-    public static final int SCREEN_SAVER_STYLE_WEATHER = 1;
     public static final int SCREEN_SAVER_STYLE_FLIP = 2;
     public static final int SCREEN_SAVER_STYLE_BLACK = 3;
 

@@ -11,17 +11,7 @@
     <string name="main_time_period_morning">上午</string>
     <string name="main_time_placeholder">--:--</string>
     <string name="main_date_placeholder">----.--.--   --</string>
-    <string name="main_weather_desc">晴转多云</string>
-    <string name="main_weather_temp">25°C</string>
     <string name="main_city_air_quality">珠海      空气质量良好</string>
-    <string name="weather_default_location">当前位置</string>
-    <string name="weather_test_location">广东珠海</string>
-    <string name="weather_sunny">晴</string>
-    <string name="weather_partly_cloudy">多云</string>
-    <string name="weather_foggy">雾</string>
-    <string name="weather_rainy">雨</string>
-    <string name="weather_snowy">雪</string>
-    <string name="weather_stormy">雷暴</string>
     <string name="main_volume">音量</string>
     <string name="main_volume_placeholder">--</string>
     <string name="main_volume_up">+</string>
@@ -176,7 +166,6 @@
     <string name="settings_screensaver_style">屏保样式</string>
     <string name="settings_select_wallpaper">选择壁纸</string>
     <string name="settings_screensaver_style_simple">简约时钟</string>
-    <string name="settings_screensaver_style_weather">天气时钟</string>
     <string name="settings_screensaver_style_flip">翻页时钟</string>
     <string name="settings_screensaver_style_black">夜间息屏</string>
     <string name="settings_brightness">亮度</string>

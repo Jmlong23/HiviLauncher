@@ -20,8 +20,9 @@ public final class ScreenSaverSettings {
     }
 
     public static int getStyle(Context context) {
-        return preferences(context).getInt(KEY_STYLE,
+        int style = preferences(context).getInt(KEY_STYLE,
                 SettingsModel.SCREEN_SAVER_STYLE_SIMPLE);
+        return style == 1 ? SettingsModel.SCREEN_SAVER_STYLE_SIMPLE : style;
     }
 
     public static void setTimeout(Context context, int timeout) {

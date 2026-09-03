@@ -661,8 +661,6 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             selectScreenSaverStyle(SettingsModel.SCREEN_SAVER_STYLE_SIMPLE);
             showSimpleClockWallpaperDialog();
         });
-        mBinding.screensaverItemWeather.setOnClickListener(view -> selectScreenSaverStyle(
-                SettingsModel.SCREEN_SAVER_STYLE_WEATHER));
         mBinding.screensaverItemFlip.setOnClickListener(view -> selectScreenSaverStyle(
                 SettingsModel.SCREEN_SAVER_STYLE_FLIP));
         mBinding.screensaverItemBlack.setOnClickListener(view -> selectScreenSaverStyle(
@@ -671,8 +669,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
 
     private void setupRoundedScreenSaverThumbnails() {
         ImageView[] thumbnails = {mBinding.screensaverThumbnailSimple,
-                mBinding.screensaverThumbnailSimpleClock,
-                mBinding.screensaverThumbnailWeather, mBinding.screensaverThumbnailFlip};
+                mBinding.screensaverThumbnailSimpleClock, mBinding.screensaverThumbnailFlip};
         for (ImageView thumbnail : thumbnails) {
             thumbnail.setOutlineProvider(new ViewOutlineProvider() {
                 @Override
@@ -683,7 +680,6 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             thumbnail.setClipToOutline(true);
         }
         updateSimpleScreenSaverThumbnail();
-        updateWeatherScreenSaverThumbnail();
         mBinding.screensaverThumbnailFlip.setImageResource(R.drawable.clock_flip);
     }
 
@@ -706,16 +702,6 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
                 LocaleHelper.getLanguage(getHostActivity()));
         mBinding.screensaverThumbnailSimpleClock.setImageResource(english
                 ? R.drawable.clock_simple_en : R.drawable.clock_simple_cn);
-    }
-
-    private void updateWeatherScreenSaverThumbnail() {
-        if (mBinding == null || !isAdded()) {
-            return;
-        }
-        boolean english = LocaleHelper.LANGUAGE_EN.equals(
-                LocaleHelper.getLanguage(getHostActivity()));
-        mBinding.screensaverThumbnailWeather.setImageResource(english
-                ? R.drawable.clock_weather_en : R.drawable.clock_weather_cn);
     }
 
     private void selectScreenSaverStyle(int style) {
@@ -763,15 +749,17 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     }
 
     private void updateScreenSaverStyles(int selectedStyle) {
-        View[] items = {mBinding.screensaverItemSimple, mBinding.screensaverItemWeather,
-                mBinding.screensaverItemFlip, mBinding.screensaverItemBlack};
-        View[] checks = {mBinding.screensaverCheckSimple, mBinding.screensaverCheckWeather,
-                mBinding.screensaverCheckFlip, mBinding.screensaverCheckBlack};
+        View[] items = {mBinding.screensaverItemSimple, mBinding.screensaverItemFlip,
+                mBinding.screensaverItemBlack};
+        View[] checks = {mBinding.screensaverCheckSimple, mBinding.screensaverCheckFlip,
+                mBinding.screensaverCheckBlack};
+        int[] styles = {SettingsModel.SCREEN_SAVER_STYLE_SIMPLE,
+                SettingsModel.SCREEN_SAVER_STYLE_FLIP, SettingsModel.SCREEN_SAVER_STYLE_BLACK};
         for (int index = 0; index < items.length; index++) {
             items[index].setEnabled(true);
             items[index].setAlpha(1f);
-            items[index].setSelected(index == selectedStyle);
-            checks[index].setVisibility(index == selectedStyle
+            items[index].setSelected(styles[index] == selectedStyle);
+            checks[index].setVisibility(styles[index] == selectedStyle
                     ? View.VISIBLE : View.GONE);
         }
     }
