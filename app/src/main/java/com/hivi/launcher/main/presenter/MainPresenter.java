@@ -1,7 +1,6 @@
 package com.hivi.launcher.main.presenter;
 
 import android.content.Context;
-import android.bluetooth.BluetoothDevice;
 import android.os.SystemClock;
 import com.hivi.launcher.utils.log.AppLog;
 import android.view.InputDevice;
@@ -10,10 +9,11 @@ import android.view.KeyEvent;
 
 import com.hivi.launcher.audio.AudioRouteController;
 import com.hivi.launcher.base.BasePresenter;
+import com.hivi.launcher.bluetooth.model.McuBluetoothController;
+import com.hivi.launcher.R;
 import com.hivi.launcher.main.model.MainStatusRepository;
 import com.hivi.launcher.main.model.MainPage;
 import com.hivi.launcher.main.ui.MainView;
-import com.hivi.launcher.music.model.BluetoothMediaController;
 
 import java.text.SimpleDateFormat;
 import java.lang.reflect.Method;
@@ -27,7 +27,7 @@ public class MainPresenter extends BasePresenter<MainView> {
     private final Context mContext;
     private final MainStatusRepository mStatusRepository;
     private final AudioRouteController mAudioRouteController;
-    private final BluetoothMediaController mBluetoothMediaController;
+    private final McuBluetoothController mMcuBluetoothController;
 
     private final Runnable mTicker = new Runnable() {
         @Override
@@ -38,18 +38,46 @@ public class MainPresenter extends BasePresenter<MainView> {
     };
     private final AudioRouteController.AmplifierVolumeListener mAmplifierVolumeListener =
             (volumePercent, muted) -> updateAudioStatus();
+    private boolean mLastNotifiedConnected;
+    private final McuBluetoothController.Listener mMcuBluetoothListener =
+            new McuBluetoothController.Listener() {
+                @Override
+                public void onBluetoothStateChanged() {
+                    boolean connected = mMcuBluetoothController.isConnected();
+                    if (connected != mLastNotifiedConnected) {
+                        mLastNotifiedConnected = connected;
+                        MainView view = getView();
+                        if (view != null) {
+                            view.showToast(mContext.getString(connected
+                                    ? R.string.bluetooth_connected_toast
+                                    : R.string.bluetooth_disconnected_toast));
+                        }
+                    }
+                    updateDeviceStatus();
+                }
+
+                @Override
+                public void onBluetoothPairingsCleared() {
+                    MainView view = getView();
+                    if (view != null) {
+                        view.showToast(mContext.getString(R.string.bluetooth_cleared_toast));
+                    }
+                }
+            };
 
     public MainPresenter(Context context, MainView view) {
         super(view);
         mContext = context.getApplicationContext();
         mStatusRepository = new MainStatusRepository(mContext);
         mAudioRouteController = AudioRouteController.getInstance();
-        mBluetoothMediaController = BluetoothMediaController.getInstance();
+        mMcuBluetoothController = McuBluetoothController.getInstance();
     }
 
     public void init() {
         mAudioRouteController.addAmplifierVolumeListener(mAmplifierVolumeListener);
-        mBluetoothMediaController.start(mContext);
+        mMcuBluetoothController.start(mContext);
+        mLastNotifiedConnected = mMcuBluetoothController.isConnected();
+        mMcuBluetoothController.addListener(mMcuBluetoothListener);
         updateClock();
         updateDeviceStatus();
     }
@@ -64,12 +92,6 @@ public class MainPresenter extends BasePresenter<MainView> {
     }
 
     public void onSystemStateChanged() {
-        updateDeviceStatus();
-    }
-
-    public void onBluetoothStateChanged(BluetoothDevice device, String action, int connectionState) {
-        mBluetoothMediaController.onBluetoothConnectionStateChanged(device, action,
-                connectionState);
         updateDeviceStatus();
     }
 
@@ -207,6 +229,7 @@ public class MainPresenter extends BasePresenter<MainView> {
     @Override
     public void detach() {
         mAudioRouteController.removeAmplifierVolumeListener(mAmplifierVolumeListener);
+        mMcuBluetoothController.removeListener(mMcuBluetoothListener);
         super.detach();
     }
 

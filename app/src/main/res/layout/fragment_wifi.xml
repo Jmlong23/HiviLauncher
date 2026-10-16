@@ -137,6 +137,15 @@
                 </LinearLayout>
 
                 <ImageView
+                    android:id="@+id/btn_previous_song"
+                    android:layout_width="47dp"
+                    android:layout_height="47dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:contentDescription="@string/music_previous"
+                    android:src="@drawable/ic_play_prv"
+                    android:layout_marginRight="21dp"/>
+                <ImageView
                     android:id="@+id/btn_play_or_pause"
                     android:layout_width="47dp"
                     android:layout_height="47dp"

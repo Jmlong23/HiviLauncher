@@ -7,8 +7,7 @@ import android.text.TextUtils;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.audio.AudioRouteController;
-import com.hivi.launcher.music.model.BluetoothMediaController;
-import com.hivi.launcher.music.model.BluetoothPlaybackState;
+import com.hivi.launcher.bluetooth.model.McuBluetoothController;
 import com.hivi.launcher.music.model.UpnpPlaybackManager;
 import com.hivi.launcher.music.model.UpnpPlaybackState;
 import com.hivi.launcher.wifi.model.WifiConnectionStatus;
@@ -25,14 +24,14 @@ import java.util.List;
 public final class MainStatusRepository {
     private final Context mContext;
     private final MediaSessionManager mMediaSessionManager;
-    private final BluetoothMediaController mBluetoothMediaController;
+    private final McuBluetoothController mMcuBluetoothController;
     private final AudioRouteController mAudioRouteController;
 
     public MainStatusRepository(Context context) {
         mContext = context.getApplicationContext();
         mMediaSessionManager = (MediaSessionManager) mContext.getSystemService(
                 Context.MEDIA_SESSION_SERVICE);
-        mBluetoothMediaController = BluetoothMediaController.getInstance();
+        mMcuBluetoothController = McuBluetoothController.getInstance();
         mAudioRouteController = AudioRouteController.getInstance();
     }
 
@@ -47,11 +46,11 @@ public final class MainStatusRepository {
     }
 
     public boolean isBluetoothConnected() {
-        return mBluetoothMediaController.isBluetoothAudioConnected();
+        return mMcuBluetoothController.isConnected();
     }
 
     public String getBluetoothDeviceName() {
-        return mBluetoothMediaController.getConnectedDeviceName();
+        return mMcuBluetoothController.getPhoneName();
     }
 
     public int getVolumePercent() {
@@ -75,11 +74,6 @@ public final class MainStatusRepository {
     }
 
     public MusicInfo getMusicInfo() {
-        BluetoothPlaybackState bluetoothState = mBluetoothMediaController.getCurrentState();
-        if (mBluetoothMediaController.isBluetoothAudioConnected()
-                && bluetoothState.hasMetadata()) {
-            return new MusicInfo(bluetoothState.getTitle(), bluetoothState.getArtist());
-        }
         UpnpPlaybackState upnpState = UpnpPlaybackManager.getInstance().getCurrentState();
         if (upnpState != null && upnpState.hasRealSong()) {
             return new MusicInfo(upnpState.getTitle(), upnpState.getArtist());

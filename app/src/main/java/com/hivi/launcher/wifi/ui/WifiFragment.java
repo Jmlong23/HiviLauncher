@@ -157,6 +157,7 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
         mBinding.btnPlayOrPause.setContentDescription(getString(playing
                 ? R.string.wifi_music_pause : R.string.wifi_music_play));
         setPlaybackActionEnabled(mBinding.btnPlayOrPause, hasTrack);
+        setPlaybackActionEnabled(mBinding.btnPreviousSong, hasTrack);
         setPlaybackActionEnabled(mBinding.btnNextSong, hasTrack);
         mBinding.albumArtwork.setVisibility(hasTrack ? View.VISIBLE : View.GONE);
         setAlbumArtworkRotation(hasTrack && playing);
@@ -184,6 +185,12 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
             WifiMusicPresenter presenter = getPresenter();
             if (presenter != null) {
                 presenter.togglePlayback();
+            }
+        });
+        mBinding.btnPreviousSong.setOnClickListener(view -> {
+            WifiMusicPresenter presenter = getPresenter();
+            if (presenter != null) {
+                presenter.previousTrack();
             }
         });
         mBinding.btnNextSong.setOnClickListener(view -> {

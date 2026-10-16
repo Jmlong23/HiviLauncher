@@ -12,7 +12,6 @@ import android.provider.Settings;
 import com.hivi.launcher.R;
 import com.hivi.launcher.ai.presenter.AiPresenter;
 import com.hivi.launcher.audio.AudioRouteController;
-import com.hivi.launcher.music.model.BluetoothMediaController;
 import com.hivi.launcher.music.model.UpnpPlaybackManager;
 import com.hivi.launcher.onboarding.model.FirstUseGuideStore;
 import com.hivi.launcher.utils.LocaleHelper;
@@ -257,11 +256,6 @@ public final class FactoryResetManager {
                 UpnpPlaybackManager.getInstance().stop();
             } catch (RuntimeException exception) {
                 AppLog.w(TAG, "Unable to stop Wi-Fi music before factory reset.", exception);
-            }
-            try {
-                BluetoothMediaController.getInstance().pause();
-            } catch (RuntimeException exception) {
-                AppLog.w(TAG, "Unable to pause Bluetooth music before factory reset.", exception);
             }
         });
     }

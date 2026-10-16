@@ -1,9 +1,5 @@
 package com.hivi.launcher.main.ui;
 
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothA2dp;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothProfile;
 import android.app.Dialog;
 import android.app.Fragment;
 import android.app.FragmentManager;
@@ -55,7 +51,6 @@ import com.hivi.launcher.customview.FlipLayout;
 import com.hivi.launcher.databinding.ActivityMainBinding;
 import com.hivi.launcher.main.model.MainPage;
 import com.hivi.launcher.main.presenter.MainPresenter;
-import com.hivi.launcher.music.model.BluetoothMediaController;
 import com.hivi.launcher.onboarding.model.FirstUseGuideStore;
 import com.hivi.launcher.onboarding.ui.FirstUseGuideActivity;
 import com.hivi.launcher.bluetooth.ui.BluetoothFragment;
@@ -168,14 +163,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             if (presenter == null || intent == null) {
                 return;
             }
-            if (isBluetoothStateIntent(intent.getAction())) {
-                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                int connectionState = intent.getIntExtra(BluetoothProfile.EXTRA_STATE,
-                        intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1));
-                presenter.onBluetoothStateChanged(device, intent.getAction(), connectionState);
-            } else {
-                presenter.onSystemStateChanged();
-            }
+            presenter.onSystemStateChanged();
         }
     };
 
@@ -1842,11 +1830,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         IntentFilter filter = new IntentFilter();
         filter.addAction(android.net.wifi.WifiManager.NETWORK_STATE_CHANGED_ACTION);
         filter.addAction(android.net.wifi.WifiManager.WIFI_STATE_CHANGED_ACTION);
-        filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
-        filter.addAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED);
-        filter.addAction(BluetoothMediaController.ACTION_A2DP_SINK_CONNECTION_STATE_CHANGED);
-        filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
-        filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
         filter.addAction(MainPresenter.ACTION_VOLUME_CHANGED);
         registerReceiver(mSystemReceiver, filter);
     }
@@ -1856,14 +1839,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             unregisterReceiver(mSystemReceiver);
         } catch (IllegalArgumentException ignored) {
         }
-    }
-
-    private boolean isBluetoothStateIntent(String action) {
-        return BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)
-                || BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED.equals(action)
-                || BluetoothMediaController.ACTION_A2DP_SINK_CONNECTION_STATE_CHANGED.equals(action)
-                || BluetoothDevice.ACTION_ACL_CONNECTED.equals(action)
-                || BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action);
     }
 
 }

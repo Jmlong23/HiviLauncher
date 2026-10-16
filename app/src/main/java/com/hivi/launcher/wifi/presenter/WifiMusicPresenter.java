@@ -83,6 +83,14 @@ public final class WifiMusicPresenter extends BasePresenter<WifiMusicView>
         }
     }
 
+    public void previousTrack() {
+        if (mediaSessionActive()) {
+            mMediaSessionManager.previous();
+        } else {
+            mPlaybackManager.previous();
+        }
+    }
+
     @Override
     public void onPlaybackChanged(UpnpPlaybackState state) {
         mUpnpState = state;

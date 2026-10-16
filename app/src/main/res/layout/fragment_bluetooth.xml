@@ -32,25 +32,11 @@
             android:background="@color/line_color" />
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/bluetooth_status"
-        android:layout_width="wrap_content"
-        android:layout_height="22dp"
-        android:layout_marginTop="4dp"
-        android:background="@drawable/status_background"
-        android:gravity="center"
-        android:minWidth="76dp"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp"
-        android:text="@string/bluetooth_status_disconnected"
-        android:textColor="@color/status_disconnect"
-        android:textSize="12sp" />
-
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="247dp"
         android:layout_marginStart="34dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="20dp"
         android:layout_marginEnd="34dp"
         android:gravity="center_vertical"
         android:orientation="horizontal">
@@ -89,30 +75,6 @@
                     android:text="@string/bluetooth_device_disconnected"
                     android:textColor="@color/text_color"
                     android:textSize="19sp" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="27dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/bluetooth_signal_strength"
-                        android:textColor="@color/text_color"
-                        android:textSize="13sp" />
-
-                    <TextView
-                        android:id="@+id/signal_strength_value"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/bluetooth_signal_unavailable"
-                        android:textColor="@color/text_color"
-                        android:textSize="13sp"
-                        android:layout_marginLeft="19dp"/>
-                </LinearLayout>
             </LinearLayout>
 
             <LinearLayout
@@ -210,6 +172,14 @@
                             android:textSize="19sp" />
                     </LinearLayout>
 
+                    <ImageView
+                        android:id="@+id/btn_previous_song"
+                        android:layout_width="47dp"
+                        android:layout_height="47dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:src="@drawable/ic_play_prv"
+                        android:layout_marginRight="21dp"/>
                     <ImageView
                         android:id="@+id/btn_play_or_pause"
                         android:layout_width="47dp"

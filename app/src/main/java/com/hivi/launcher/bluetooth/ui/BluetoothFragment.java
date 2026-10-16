@@ -1,5 +1,6 @@
 package com.hivi.launcher.bluetooth.ui;
 
+import android.app.AlertDialog;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -13,7 +14,6 @@ import com.hivi.launcher.bluetooth.model.BluetoothPageState;
 import com.hivi.launcher.bluetooth.presenter.BluetoothPresenter;
 import com.hivi.launcher.base.BaseFragment;
 import com.hivi.launcher.databinding.FragmentBluetoothBinding;
-import com.hivi.launcher.music.model.BluetoothPlaybackState;
 
 public final class BluetoothFragment extends BaseFragment<BluetoothPresenter>
         implements BluetoothView {
@@ -22,7 +22,8 @@ public final class BluetoothFragment extends BaseFragment<BluetoothPresenter>
 
     private FragmentBluetoothBinding mBinding;
     private boolean mBindingVolume;
-    private Bitmap mArtwork;
+    private boolean mConnected;
+    private AlertDialog mResetConfirmDialog;
 
     @Override
     protected BluetoothPresenter createPresenter() {
@@ -52,7 +53,10 @@ public final class BluetoothFragment extends BaseFragment<BluetoothPresenter>
 
     @Override
     public void onDestroyView() {
-        mArtwork = null;
+        if (mResetConfirmDialog != null) {
+            mResetConfirmDialog.dismiss();
+            mResetConfirmDialog = null;
+        }
         mBinding = null;
         super.onDestroyView();
     }
@@ -65,46 +69,41 @@ public final class BluetoothFragment extends BaseFragment<BluetoothPresenter>
 
         boolean connected = state.isConnected();
         String deviceName = state.getDeviceName();
-        mBinding.bluetoothStatus.setSelected(connected);
-        mBinding.bluetoothStatus.setText(connected
-                ? R.string.bluetooth_status_connected : R.string.bluetooth_status_disconnected);
-        mBinding.bluetoothStatus.setTextColor(getResources().getColor(connected
-                ? R.color.status_connected : R.color.status_disconnect));
-        mBinding.connectedDeviceName.setText(connected
-                ? (TextUtils.isEmpty(deviceName)
-                        ? getString(R.string.bluetooth_connected_device_default) : deviceName)
-                : getString(R.string.bluetooth_device_disconnected));
-        mBinding.signalStrengthValue.setText(connected
-                ? R.string.bluetooth_signal_excellent : R.string.bluetooth_signal_unavailable);
-        mBinding.signalStrengthValue.setTextColor(getResources().getColor(R.color.text_color));
-        setActionEnabled(mBinding.disconnectButton, connected);
+        // The connected-device field always shows the phone-side name reported by the MCU;
+        // it falls back to a generic label only while connected but not yet named.
+        if (connected && TextUtils.isEmpty(deviceName)) {
+            mBinding.connectedDeviceName.setText(R.string.bluetooth_connected_device_default);
+        } else if (TextUtils.isEmpty(deviceName)) {
+            mBinding.connectedDeviceName.setText(R.string.bluetooth_device_disconnected);
+        } else {
+            mBinding.connectedDeviceName.setText(deviceName);
+        }
+        mConnected = connected;
+        // One dual-purpose action: "disconnect" while connected, "connect" otherwise. The
+        // button stays clickable in both states and only the icon/text follow the state.
+        mBinding.disconnectButton.setText(connected
+                ? R.string.bluetooth_disconnect : R.string.bluetooth_connect);
+        mBinding.disconnectButton.setContentDescription(getString(connected
+                ? R.string.bluetooth_disconnect : R.string.bluetooth_connect));
+        mBinding.disconnectButton.setCompoundDrawablesWithIntrinsicBounds(null,
+                getResources().getDrawable(connected
+                        ? R.drawable.ic_bluetooth_disconnect
+                        : R.drawable.ic_bluetooth_connect), null, null);
+        setActionEnabled(mBinding.disconnectButton, true);
         setActionEnabled(mBinding.resetButton, connected);
 
-        BluetoothPlaybackState playback = state.getPlaybackState();
-        boolean hasTrackMetadata = playback.hasMetadata();
-        mBinding.trackTitle.setText(TextUtils.isEmpty(playback.getTitle())
-                ? getString(R.string.bluetooth_no_playback) : playback.getTitle());
-        CharSequence artist = playback.getArtist();
-        if (TextUtils.isEmpty(artist)) {
-            artist = playback.getAlbum();
-        }
-        mBinding.trackArtist.setText(TextUtils.isEmpty(artist)
-                ? getString(R.string.bluetooth_unknown_artist) : artist);
-        mBinding.albumArtwork.setVisibility(hasTrackMetadata ? View.VISIBLE : View.GONE);
-        if (mArtwork != playback.getArtwork()) {
-            mArtwork = playback.getArtwork();
-            if (mArtwork == null) {
-                mBinding.albumArtwork.setImageBitmap(null);
-            } else {
-                mBinding.albumArtwork.setImageBitmap(mArtwork);
-            }
-        }
+        boolean playing = state.isPlaying();
+        mBinding.trackTitle.setText(playing
+                ? getString(R.string.bluetooth_now_playing) : getString(R.string.bluetooth_no_playback));
+        mBinding.trackArtist.setText(playing ? "" : getString(R.string.bluetooth_unknown_artist));
+        mBinding.albumArtwork.setVisibility(View.GONE);
         boolean playbackControlAvailable = state.isPlaybackControlAvailable();
-        mBinding.btnPlayOrPause.setImageResource(playback.isPlaying()
+        mBinding.btnPlayOrPause.setImageResource(playing
                 ? R.drawable.ic_pause : R.drawable.ic_play);
-        mBinding.btnPlayOrPause.setContentDescription(getString(playback.isPlaying()
+        mBinding.btnPlayOrPause.setContentDescription(getString(playing
                 ? R.string.bluetooth_pause : R.string.bluetooth_play));
         setActionEnabled(mBinding.btnPlayOrPause, playbackControlAvailable);
+        setActionEnabled(mBinding.btnPreviousSong, playbackControlAvailable);
         setActionEnabled(mBinding.btnNextSong, playbackControlAvailable);
 
         int volumePercent = state.getVolumePercent();
@@ -122,20 +121,26 @@ public final class BluetoothFragment extends BaseFragment<BluetoothPresenter>
     private void bindClickListeners() {
         mBinding.disconnectButton.setOnClickListener(view -> {
             BluetoothPresenter presenter = getPresenter();
-            if (presenter != null) {
+            if (presenter == null) {
+                return;
+            }
+            if (mConnected) {
                 presenter.disconnect();
+            } else {
+                presenter.connect();
             }
         });
-        mBinding.resetButton.setOnClickListener(view -> {
-            BluetoothPresenter presenter = getPresenter();
-            if (presenter != null) {
-                presenter.reset();
-            }
-        });
+        mBinding.resetButton.setOnClickListener(view -> showResetConfirmDialog());
         mBinding.btnPlayOrPause.setOnClickListener(view -> {
             BluetoothPresenter presenter = getPresenter();
             if (presenter != null) {
                 presenter.togglePlayback();
+            }
+        });
+        mBinding.btnPreviousSong.setOnClickListener(view -> {
+            BluetoothPresenter presenter = getPresenter();
+            if (presenter != null) {
+                presenter.previousTrack();
             }
         });
         mBinding.btnNextSong.setOnClickListener(view -> {
@@ -189,5 +194,30 @@ public final class BluetoothFragment extends BaseFragment<BluetoothPresenter>
     private void setActionEnabled(View action, boolean enabled) {
         action.setEnabled(enabled);
         action.setAlpha(enabled ? 1f : 0.42f);
+    }
+
+    /**
+     * Clearing pairings drops every bonded phone, so the request needs an explicit
+     * confirmation before the reset command reaches the MCU.
+     */
+    private void showResetConfirmDialog() {
+        if (mResetConfirmDialog != null || getActivity() == null) {
+            return;
+        }
+        mResetConfirmDialog = new AlertDialog.Builder(getActivity())
+                .setTitle(R.string.bluetooth_reset_confirm_title)
+                .setMessage(R.string.bluetooth_reset_confirm_message)
+                .setPositiveButton(R.string.bluetooth_reset_confirm_ok,
+                        (dialog, which) -> {
+                            BluetoothPresenter presenter = getPresenter();
+                            if (presenter != null) {
+                                presenter.reset();
+                            }
+                        })
+                .setNegativeButton(R.string.bluetooth_reset_confirm_cancel, null)
+                .create();
+        mResetConfirmDialog.setOnDismissListener(
+                dialog -> mResetConfirmDialog = null);
+        mResetConfirmDialog.show();
     }
 }

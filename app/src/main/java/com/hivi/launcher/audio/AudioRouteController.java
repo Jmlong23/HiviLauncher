@@ -37,7 +37,23 @@ public final class AudioRouteController {
     public static final String SERIAL_PORT_CMD_SFX = "AXX+SFX+@param\n";
     public static final String SERIAL_PORT_CMD_BLUETOOTH_DISCONNECT = "AXX+BTC+DIS\n";
     public static final String SERIAL_PORT_CMD_BLUETOOTH_CLEAR = "AXX+BTC+CLR\n";
+    public static final String SERIAL_PORT_CMD_BLUETOOTH_CONNECT = "AXX+BTC+CON\n";
+    public static final String SERIAL_PORT_CMD_BLUETOOTH_STATE_QUERY = "AXX+BCS+GET\n";
+    public static final String SERIAL_PORT_CMD_BLUETOOTH_NAME_QUERY = "AXX+BNM+GET\n";
+    public static final String SERIAL_PORT_CMD_BLUETOOTH_PHONE_NAME_QUERY = "AXX+PNM+GET\n";
+    public static final String SERIAL_PORT_CMD_BLUETOOTH_PLAY = "AXX+PLY-PLA\n";
+    public static final String SERIAL_PORT_CMD_BLUETOOTH_PAUSE = "AXX+PLY-PUS\n";
+    public static final String SERIAL_PORT_CMD_BLUETOOTH_NEXT = "AXX+PLY+NXT\n";
+    public static final String SERIAL_PORT_CMD_BLUETOOTH_PREVIOUS = "AXX+PLY+PRV\n";
     public static final String SERIAL_PORT_CMD_FACTORY_RESET = "AXX+FACTORY+1\n";
+
+    private static final String MCU_EVENT_BLUETOOTH_CONNECTED = "MCU+BTC+001";
+    private static final String MCU_EVENT_BLUETOOTH_DISCONNECTED = "MCU+BTC+000";
+    private static final String MCU_EVENT_BLUETOOTH_CLEARED = "MCU+BTC+CLR";
+    private static final String MCU_EVENT_BLUETOOTH_PLAYING = "MCU+PST+001";
+    private static final String MCU_EVENT_BLUETOOTH_PAUSED = "MCU+PST+002";
+    private static final String MCU_EVENT_BLUETOOTH_PHONE_NAME = "MCU+PNM+";
+    private static final String MCU_EVENT_BLUETOOTH_NAME = "MCU+BNM+";
 
     private static final String TAG = "AudioRouteController";
     private static final String PREFERENCES_NAME = "audio_route";
@@ -53,6 +69,8 @@ public final class AudioRouteController {
     private final Handler mMainHandler = new Handler(Looper.getMainLooper());
     private final CopyOnWriteArrayList<AmplifierVolumeListener> mAmplifierVolumeListeners =
             new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<McuBluetoothListener> mMcuBluetoothListeners =
+            new CopyOnWriteArrayList<>();
 
     private Context mContext;
     private boolean mSerialPortOpened;
@@ -62,6 +80,22 @@ public final class AudioRouteController {
 
     public interface AmplifierVolumeListener {
         void onAmplifierVolumeChanged(int volumePercent, boolean muted);
+    }
+
+    /**
+     * Reports the Bluetooth events the MCU pushes over the serial port. The MCU owns the
+     * Bluetooth module, so these callbacks are the authoritative connection state source.
+     */
+    public interface McuBluetoothListener {
+        void onBluetoothConnectionChanged(boolean connected);
+
+        void onBluetoothPairingsCleared();
+
+        void onBluetoothPhoneNameChanged(String phoneName);
+
+        void onBluetoothNameChanged(String btName);
+
+        void onBluetoothPlayStateChanged(boolean playing);
     }
 
     public interface FactoryResetCallback {
@@ -197,6 +231,59 @@ public final class AudioRouteController {
         if (listener != null) {
             mAmplifierVolumeListeners.remove(listener);
         }
+    }
+
+    public void addMcuBluetoothListener(McuBluetoothListener listener) {
+        if (listener != null) {
+            mMcuBluetoothListeners.addIfAbsent(listener);
+        }
+    }
+
+    public void removeMcuBluetoothListener(McuBluetoothListener listener) {
+        if (listener != null) {
+            mMcuBluetoothListeners.remove(listener);
+        }
+    }
+
+    public void sendBluetoothConnect() {
+        sendTransientCommandOnSerialThread(SERIAL_PORT_CMD_BLUETOOTH_CONNECT);
+    }
+
+    public void sendBluetoothDisconnect() {
+        sendTransientCommandOnSerialThread(SERIAL_PORT_CMD_BLUETOOTH_DISCONNECT);
+    }
+
+    public void sendBluetoothClearPairings() {
+        sendTransientCommandOnSerialThread(SERIAL_PORT_CMD_BLUETOOTH_CLEAR);
+    }
+
+    public void queryBluetoothConnectionState() {
+        sendTransientCommandOnSerialThread(SERIAL_PORT_CMD_BLUETOOTH_STATE_QUERY);
+    }
+
+    public void queryBluetoothName() {
+        sendTransientCommandOnSerialThread(SERIAL_PORT_CMD_BLUETOOTH_NAME_QUERY);
+    }
+
+    public void queryBluetoothPhoneName() {
+        sendTransientCommandOnSerialThread(SERIAL_PORT_CMD_BLUETOOTH_PHONE_NAME_QUERY);
+    }
+
+    public void sendBluetoothPlayback(boolean play) {
+        sendTransientCommandOnSerialThread(play
+                ? SERIAL_PORT_CMD_BLUETOOTH_PLAY : SERIAL_PORT_CMD_BLUETOOTH_PAUSE);
+    }
+
+    public void sendBluetoothNext() {
+        sendTransientCommandOnSerialThread(SERIAL_PORT_CMD_BLUETOOTH_NEXT);
+    }
+
+    public void sendBluetoothPrevious() {
+        sendTransientCommandOnSerialThread(SERIAL_PORT_CMD_BLUETOOTH_PREVIOUS);
+    }
+
+    private void sendTransientCommandOnSerialThread(String command) {
+        mSerialExecutor.execute(() -> sendTransientCommand(command));
     }
 
     public void setMicrophoneVolume(int volumePercent) {
@@ -398,6 +485,7 @@ public final class AudioRouteController {
                 @Override
                 public void onDataReceived(String data) {
                     AppLog.d(TAG, "Serial data received: " + data);
+                    handleMcuEvent(data);
                 }
 
                 @Override
@@ -478,6 +566,82 @@ public final class AudioRouteController {
 
     private String formatCommand(String command) {
         return command.replace("\r", "\\r").replace("\n", "\\n");
+    }
+
+    /**
+     * Parses the asynchronous reports the MCU pushes over the serial port and notifies the
+     * registered Bluetooth listeners on the main thread.
+     */
+    private void handleMcuEvent(String data) {
+        if (data == null) {
+            return;
+        }
+        String event = data.trim();
+        if (event.isEmpty()) {
+            return;
+        }
+        if (MCU_EVENT_BLUETOOTH_CONNECTED.equals(event)) {
+            dispatchBluetoothConnectionChanged(true);
+        } else if (MCU_EVENT_BLUETOOTH_DISCONNECTED.equals(event)) {
+            dispatchBluetoothConnectionChanged(false);
+        } else if (MCU_EVENT_BLUETOOTH_CLEARED.equals(event)) {
+            dispatchBluetoothPairingsCleared();
+        } else if (MCU_EVENT_BLUETOOTH_PLAYING.equals(event)) {
+            dispatchBluetoothPlayStateChanged(true);
+        } else if (MCU_EVENT_BLUETOOTH_PAUSED.equals(event)) {
+            dispatchBluetoothPlayStateChanged(false);
+        } else if (event.startsWith(MCU_EVENT_BLUETOOTH_PHONE_NAME)) {
+            dispatchBluetoothPhoneNameChanged(
+                    event.substring(MCU_EVENT_BLUETOOTH_PHONE_NAME.length()).trim());
+        } else if (event.startsWith(MCU_EVENT_BLUETOOTH_NAME)) {
+            dispatchBluetoothNameChanged(
+                    event.substring(MCU_EVENT_BLUETOOTH_NAME.length()).trim());
+        }
+    }
+
+    private void dispatchBluetoothConnectionChanged(boolean connected) {
+        AppLog.i(TAG, "MCU bluetooth connection changed: connected=" + connected);
+        mMainHandler.post(() -> {
+            for (McuBluetoothListener listener : mMcuBluetoothListeners) {
+                listener.onBluetoothConnectionChanged(connected);
+            }
+        });
+    }
+
+    private void dispatchBluetoothPairingsCleared() {
+        AppLog.i(TAG, "MCU bluetooth pairings cleared");
+        mMainHandler.post(() -> {
+            for (McuBluetoothListener listener : mMcuBluetoothListeners) {
+                listener.onBluetoothPairingsCleared();
+            }
+        });
+    }
+
+    private void dispatchBluetoothPhoneNameChanged(String phoneName) {
+        AppLog.i(TAG, "MCU bluetooth phone name received: " + phoneName);
+        mMainHandler.post(() -> {
+            for (McuBluetoothListener listener : mMcuBluetoothListeners) {
+                listener.onBluetoothPhoneNameChanged(phoneName);
+            }
+        });
+    }
+
+    private void dispatchBluetoothNameChanged(String btName) {
+        AppLog.i(TAG, "MCU bluetooth name received: " + btName);
+        mMainHandler.post(() -> {
+            for (McuBluetoothListener listener : mMcuBluetoothListeners) {
+                listener.onBluetoothNameChanged(btName);
+            }
+        });
+    }
+
+    private void dispatchBluetoothPlayStateChanged(boolean playing) {
+        AppLog.i(TAG, "MCU bluetooth play state changed: playing=" + playing);
+        mMainHandler.post(() -> {
+            for (McuBluetoothListener listener : mMcuBluetoothListeners) {
+                listener.onBluetoothPlayStateChanged(playing);
+            }
+        });
     }
 
     private String getCommand(MainPage page) {

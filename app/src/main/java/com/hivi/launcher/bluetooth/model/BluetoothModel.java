@@ -3,64 +3,62 @@ package com.hivi.launcher.bluetooth.model;
 import android.content.Context;
 
 import com.hivi.launcher.audio.AudioRouteController;
-import com.hivi.launcher.music.model.BluetoothMediaController;
-import com.hivi.launcher.music.model.BluetoothPlaybackState;
 
 /**
- * Owns Bluetooth media and amplifier-volume integrations used by the input page.
+ * Owns the MCU Bluetooth state and amplifier-volume integrations used by the input page.
  */
-public final class BluetoothModel implements BluetoothMediaController.Listener {
+public final class BluetoothModel implements McuBluetoothController.Listener {
     public interface Listener {
         void onBluetoothPageStateChanged(BluetoothPageState state);
     }
 
-    private final BluetoothMediaController mBluetoothMediaController =
-            BluetoothMediaController.getInstance();
+    private final McuBluetoothController mMcuBluetoothController =
+            McuBluetoothController.getInstance();
     private final AudioRouteController mAudioRouteController = AudioRouteController.getInstance();
     private final AudioRouteController.AmplifierVolumeListener mAmplifierVolumeListener =
             (volumePercent, muted) -> dispatchState();
 
     private Listener mListener;
-    private boolean mStarted;
 
     public void start(Context context, Listener listener) {
         if (context == null) {
             return;
         }
         mListener = listener;
+        mMcuBluetoothController.start(context);
+        mMcuBluetoothController.addListener(this);
         mAudioRouteController.addAmplifierVolumeListener(mAmplifierVolumeListener);
-        if (!mStarted) {
-            mStarted = true;
-            mBluetoothMediaController.start(context);
-            mBluetoothMediaController.addListener(this);
-        }
-        mBluetoothMediaController.refresh();
         dispatchState();
     }
 
     public void stop() {
-        if (mStarted) {
-            mBluetoothMediaController.removeListener(this);
-        }
+        mMcuBluetoothController.removeListener(this);
         mAudioRouteController.removeAmplifierVolumeListener(mAmplifierVolumeListener);
-        mStarted = false;
         mListener = null;
     }
 
     public void togglePlayback() {
-        mBluetoothMediaController.playOrPause();
+        mMcuBluetoothController.togglePlayback();
     }
 
     public void nextTrack() {
-        mBluetoothMediaController.next();
+        mMcuBluetoothController.next();
     }
 
-    public boolean disconnectConnectedDevice() {
-        return mBluetoothMediaController.disconnectConnectedDevice();
+    public void previousTrack() {
+        mMcuBluetoothController.previous();
     }
 
-    public boolean resetConnectedDevice() {
-        return mBluetoothMediaController.resetConnectedDevice();
+    public void disconnect() {
+        mMcuBluetoothController.disconnect();
+    }
+
+    public void connect() {
+        mMcuBluetoothController.connect();
+    }
+
+    public void reset() {
+        mMcuBluetoothController.clearPairings();
     }
 
     public void adjustVolume(int direction) {
@@ -76,24 +74,27 @@ public final class BluetoothModel implements BluetoothMediaController.Listener {
     }
 
     @Override
-    public void onBluetoothPlaybackChanged(BluetoothPlaybackState state) {
-        dispatchState(state);
+    public void onBluetoothStateChanged() {
+        dispatchState();
+    }
+
+    @Override
+    public void onBluetoothPairingsCleared() {
+        // Confirmation toasts are shown globally by the main presenter; the page simply
+        // re-renders from the updated state.
+        dispatchState();
     }
 
     private void dispatchState() {
-        dispatchState(mBluetoothMediaController.getCurrentState());
-    }
-
-    private void dispatchState(BluetoothPlaybackState playbackState) {
         Listener listener = mListener;
         if (listener == null) {
             return;
         }
         listener.onBluetoothPageStateChanged(new BluetoothPageState(
-                mBluetoothMediaController.isBluetoothAudioConnected(),
-                mBluetoothMediaController.getConnectedDeviceName(),
-                mBluetoothMediaController.isPlaybackControlAvailable(),
-                playbackState,
+                mMcuBluetoothController.isConnected(),
+                mMcuBluetoothController.getPhoneName(),
+                mMcuBluetoothController.isConnected(),
+                mMcuBluetoothController.isPlaying(),
                 mAudioRouteController.getAmplifierVolumePercent(),
                 mAudioRouteController.isAmplifierMuted()));
     }

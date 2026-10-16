@@ -3,9 +3,6 @@ package com.hivi.launcher.onboarding.ui;
 import android.animation.ObjectAnimator;
 import android.app.Application;
 import android.app.Dialog;
-import android.bluetooth.BluetoothA2dp;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -25,11 +22,11 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.base.BaseActivity;
+import com.hivi.launcher.bluetooth.model.McuBluetoothController;
 import com.hivi.launcher.databinding.ActivityFirstUseGuideBinding;
 import com.hivi.launcher.databinding.DialogWifiPasswordBinding;
 import com.hivi.launcher.main.model.MainPage;
 import com.hivi.launcher.main.ui.MainActivity;
-import com.hivi.launcher.music.model.BluetoothMediaController;
 import com.hivi.launcher.onboarding.model.FirstUseGuideStore;
 import com.hivi.launcher.onboarding.presenter.OnboardingPresenter;
 import com.hivi.launcher.utils.LocaleHelper;
@@ -72,6 +69,23 @@ public final class FirstUseGuideActivity
             }
         }
     };
+
+    private final McuBluetoothController.Listener mMcuBluetoothStateListener =
+            new McuBluetoothController.Listener() {
+                @Override
+                public void onBluetoothStateChanged() {
+                    runOnUiThread(() -> {
+                        if (mCurrentPage == Page.INPUT_MODE) {
+                            refreshInputModeConnectionStatus();
+                        }
+                    });
+                }
+
+                @Override
+                public void onBluetoothPairingsCleared() {
+                    // No pairing actions exist on the guide page; state refresh is enough.
+                }
+            };
 
     private WifiNetworkAdapter mWifiNetworkAdapter;
     private ObjectAnimator mWifiRefreshAnimator;
@@ -574,8 +588,7 @@ public final class FirstUseGuideActivity
         if (binding == null) {
             return;
         }
-        boolean bluetoothConnected = BluetoothMediaController.getInstance()
-                .isBluetoothAudioConnected();
+        boolean bluetoothConnected = McuBluetoothController.getInstance().isConnected();
         boolean wifiConnected = !TextUtils.isEmpty(WifiConnectionStatus.getConnectedSsid(this));
         binding.firstUseInputModeBluetoothStatus.setText(bluetoothConnected
                 ? R.string.input_mode_status_connected : R.string.input_mode_status_disconnected);
@@ -594,12 +607,9 @@ public final class FirstUseGuideActivity
         IntentFilter filter = new IntentFilter();
         filter.addAction(android.net.wifi.WifiManager.NETWORK_STATE_CHANGED_ACTION);
         filter.addAction(android.net.wifi.WifiManager.WIFI_STATE_CHANGED_ACTION);
-        filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
-        filter.addAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED);
-        filter.addAction(BluetoothMediaController.ACTION_A2DP_SINK_CONNECTION_STATE_CHANGED);
-        filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
-        filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
         registerReceiver(mConnectivityReceiver, filter);
+        McuBluetoothController.getInstance().start(this);
+        McuBluetoothController.getInstance().addListener(mMcuBluetoothStateListener);
         mConnectivityReceiverRegistered = true;
     }
 
@@ -607,6 +617,7 @@ public final class FirstUseGuideActivity
         if (!mConnectivityReceiverRegistered) {
             return;
         }
+        McuBluetoothController.getInstance().removeListener(mMcuBluetoothStateListener);
         try {
             unregisterReceiver(mConnectivityReceiver);
         } catch (IllegalArgumentException ignored) {

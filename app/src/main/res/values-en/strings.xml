@@ -146,15 +146,11 @@
     <string name="hdmi_latency_normal">Normal</string>
 
     <!-- Bluetooth input page -->
-    <string name="bluetooth_status_connected">Device connected</string>
-    <string name="bluetooth_status_disconnected">Device disconnected</string>
     <string name="bluetooth_connected_device">Connected device</string>
     <string name="bluetooth_connected_device_default">Bluetooth device</string>
     <string name="bluetooth_device_disconnected">No device connected</string>
-    <string name="bluetooth_signal_strength">Signal</string>
-    <string name="bluetooth_signal_excellent">Strong</string>
-    <string name="bluetooth_signal_unavailable">--</string>
     <string name="bluetooth_disconnect">Disconnect</string>
+    <string name="bluetooth_connect">Connect</string>
     <string name="bluetooth_reset">Reset Bluetooth</string>
     <string name="bluetooth_amplifier_volume">Amplifier volume</string>
     <string name="bluetooth_now_playing">Now playing</string>
@@ -163,10 +159,13 @@
     <string name="bluetooth_album_art">Album art</string>
     <string name="bluetooth_pause">Pause</string>
     <string name="bluetooth_play">Play</string>
-    <string name="bluetooth_disconnect_requested">Bluetooth device disconnect requested</string>
-    <string name="bluetooth_disconnect_failed">Unable to disconnect the Bluetooth device</string>
-    <string name="bluetooth_reset_requested">Bluetooth device reset requested</string>
-    <string name="bluetooth_reset_failed">Unable to reset the Bluetooth device</string>
+    <string name="bluetooth_reset_confirm_title">Reset Bluetooth</string>
+    <string name="bluetooth_reset_confirm_message">Reset Bluetooth now? This disconnects the current device and clears all pairings.</string>
+    <string name="bluetooth_reset_confirm_ok">OK</string>
+    <string name="bluetooth_reset_confirm_cancel">Cancel</string>
+    <string name="bluetooth_connected_toast">Bluetooth connected</string>
+    <string name="bluetooth_disconnected_toast">Bluetooth disconnected</string>
+    <string name="bluetooth_cleared_toast">Bluetooth has been reset</string>
 
     <!-- Settings screen -->
     <string name="settings_title">System Settings</string>
