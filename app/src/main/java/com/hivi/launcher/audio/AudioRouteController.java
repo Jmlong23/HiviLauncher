@@ -27,7 +27,7 @@ public final class AudioRouteController {
     public static final String SERIAL_PORT_CMD_MUSIC_SELECT_BT = "AXX+IPT+BT\n";
     public static final String SERIAL_PORT_CMD_MUSIC_SELECT_WIFI = "AXX+IPT+WIFI\n";
     public static final String SERIAL_PORT_CMD_MUSIC_SELECT_COAX = "AXX+IPT+COAX\n";
-    public static final String SERIAL_PORT_CMD_MUSIC_SELECT_LINE = "AXX+IPT+LINE\n";
+    public static final String SERIAL_PORT_CMD_MUSIC_SELECT_OPT = "AXX+IPT+OPT\n";
     public static final String SERIAL_PORT_CMD_MUSIC_SELECT_KARAOK_MICON = "AXX+IPT+MICON\n";
     public static final String SERIAL_PORT_CMD_VOLUME_KEY = "AXX_VOL_KEY";
     public static final String SERIAL_PORT_CMD_VOLUME = "AXX+VOL+@param\n";
@@ -488,7 +488,7 @@ public final class AudioRouteController {
             case HDMI:
                 return SERIAL_PORT_CMD_MUSIC_SELECT_HDMI;
             case OPTICAL:
-                return SERIAL_PORT_CMD_MUSIC_SELECT_AUX;
+                return SERIAL_PORT_CMD_MUSIC_SELECT_OPT;
             case BLUETOOTH:
                 return SERIAL_PORT_CMD_MUSIC_SELECT_BT;
             case WIFI:
@@ -496,7 +496,7 @@ public final class AudioRouteController {
             case COAX:
                 return SERIAL_PORT_CMD_MUSIC_SELECT_COAX;
             case LINE:
-                return SERIAL_PORT_CMD_MUSIC_SELECT_LINE;
+                return SERIAL_PORT_CMD_MUSIC_SELECT_AUX;
             case MICROPHONE:
                 return SERIAL_PORT_CMD_MUSIC_SELECT_KARAOK_MICON;
             default:
