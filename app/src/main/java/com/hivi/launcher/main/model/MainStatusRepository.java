@@ -3,6 +3,7 @@ package com.hivi.launcher.main.model;
 import android.content.Context;
 import android.media.session.MediaController;
 import android.media.session.MediaSessionManager;
+import android.media.session.PlaybackState;
 import android.text.TextUtils;
 
 import com.hivi.launcher.R;
@@ -12,6 +13,7 @@ import com.hivi.launcher.music.model.UpnpPlaybackManager;
 import com.hivi.launcher.music.model.UpnpPlaybackState;
 import com.hivi.launcher.wifi.model.WifiConnectionStatus;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -73,32 +75,57 @@ public final class MainStatusRepository {
         mAudioRouteController.toggleAmplifierMute();
     }
 
+    /**
+     * 信息条跟随实际在播音源：投歌/AI歌曲在播优先，其次在播的本机音乐App；
+     * 都暂停时沿用原偏好（投歌有曲目显示投歌，否则显示音乐App会话）。
+     */
     public MusicInfo getMusicInfo() {
         UpnpPlaybackState upnpState = UpnpPlaybackManager.getInstance().getCurrentState();
+        if (upnpState != null && upnpState.hasRealSong()
+                && (upnpState.isPlaying() || upnpState.isPreparing())) {
+            return new MusicInfo(upnpState.getTitle(), upnpState.getArtist());
+        }
+        MusicInfo anySessionInfo = null;
+        for (MediaController controller : getActiveControllers()) {
+            if (controller.getMetadata() == null) {
+                continue;
+            }
+            CharSequence title = controller.getMetadata().getText(
+                    android.media.MediaMetadata.METADATA_KEY_TITLE);
+            if (TextUtils.isEmpty(title)) {
+                continue;
+            }
+            CharSequence artist = controller.getMetadata().getText(
+                    android.media.MediaMetadata.METADATA_KEY_ARTIST);
+            MusicInfo info = new MusicInfo(title,
+                    TextUtils.isEmpty(artist) ? controller.getPackageName() : artist);
+            if (isControllerPlaying(controller)) {
+                return info;
+            }
+            if (anySessionInfo == null) {
+                anySessionInfo = info;
+            }
+        }
         if (upnpState != null && upnpState.hasRealSong()) {
             return new MusicInfo(upnpState.getTitle(), upnpState.getArtist());
         }
+        return anySessionInfo;
+    }
+
+    private List<MediaController> getActiveControllers() {
         if (mMediaSessionManager == null) {
-            return null;
+            return Collections.emptyList();
         }
         try {
-            List<MediaController> controllers = mMediaSessionManager.getActiveSessions(null);
-            for (MediaController controller : controllers) {
-                if (controller.getMetadata() == null) {
-                    continue;
-                }
-                CharSequence title = controller.getMetadata().getText(
-                        android.media.MediaMetadata.METADATA_KEY_TITLE);
-                CharSequence artist = controller.getMetadata().getText(
-                        android.media.MediaMetadata.METADATA_KEY_ARTIST);
-                if (!TextUtils.isEmpty(title)) {
-                    return new MusicInfo(title,
-                            TextUtils.isEmpty(artist) ? controller.getPackageName() : artist);
-                }
-            }
-        } catch (SecurityException ignored) {
+            return mMediaSessionManager.getActiveSessions(null);
+        } catch (SecurityException e) {
             // Media-session access is only available on some system builds.
+            return Collections.emptyList();
         }
-        return null;
+    }
+
+    private static boolean isControllerPlaying(MediaController controller) {
+        PlaybackState playback = controller.getPlaybackState();
+        return playback != null && playback.getState() == PlaybackState.STATE_PLAYING;
     }
 }

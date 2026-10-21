@@ -69,30 +69,39 @@ public final class WifiMusicPresenter extends BasePresenter<WifiMusicView>
     }
 
     /**
-     * Player-card tap: UPnP-cast playback opens the full-screen player page; playback owned by a
-     * local music app returns to that app; with nothing playing the selected app is opened.
+     * Player-card tap: the actually-playing source decides the destination — UPnP-cast/AI
+     * playback opens the full-screen player page, a playing or paused local music app returns
+     * to that app, and with nothing at all the selected app is opened.
      */
     public void openPlayingDetailsOrSourceApp() {
         BootAutoPlaySuppressor.getInstance().markUserInteraction();
+        if (upnpPlaying()) {
+            openMusicPlayerPage();
+            return;
+        }
         if (mediaSessionActive()) {
             openCurrentlyPlayingApp();
             return;
         }
         if (mUpnpState != null && mUpnpState.hasRealSong()) {
-            Intent intent = new Intent(mContext, MusicActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
-            try {
-                mContext.startActivity(intent);
-            } catch (RuntimeException e) {
-                WifiMusicView view = getView();
-                if (view != null) {
-                    view.showToast(mContext.getString(R.string.wifi_music_app_launch_failed,
-                            mContext.getString(R.string.input_mode_wifi_music)));
-                }
-            }
+            openMusicPlayerPage();
             return;
         }
         openCurrentlyPlayingApp();
+    }
+
+    private void openMusicPlayerPage() {
+        Intent intent = new Intent(mContext, MusicActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+        try {
+            mContext.startActivity(intent);
+        } catch (RuntimeException e) {
+            WifiMusicView view = getView();
+            if (view != null) {
+                view.showToast(mContext.getString(R.string.wifi_music_app_launch_failed,
+                        mContext.getString(R.string.input_mode_wifi_music)));
+            }
+        }
     }
 
     private void openCurrentlyPlayingApp() {
@@ -105,7 +114,7 @@ public final class WifiMusicPresenter extends BasePresenter<WifiMusicView>
 
     public void togglePlayback() {
         BootAutoPlaySuppressor.getInstance().markUserInteraction();
-        if (mediaSessionActive()) {
+        if (shouldControlMediaSession()) {
             mMediaSessionManager.playOrPause();
         } else {
             mPlaybackManager.playOrPause();
@@ -114,7 +123,7 @@ public final class WifiMusicPresenter extends BasePresenter<WifiMusicView>
 
     public void nextTrack() {
         BootAutoPlaySuppressor.getInstance().markUserInteraction();
-        if (mediaSessionActive()) {
+        if (shouldControlMediaSession()) {
             mMediaSessionManager.next();
         } else {
             mPlaybackManager.next();
@@ -123,7 +132,7 @@ public final class WifiMusicPresenter extends BasePresenter<WifiMusicView>
 
     public void previousTrack() {
         BootAutoPlaySuppressor.getInstance().markUserInteraction();
-        if (mediaSessionActive()) {
+        if (shouldControlMediaSession()) {
             mMediaSessionManager.previous();
         } else {
             mPlaybackManager.previous();
@@ -165,6 +174,30 @@ public final class WifiMusicPresenter extends BasePresenter<WifiMusicView>
 
     private boolean mediaSessionActive() {
         return mMediaState != null && mMediaState.hasSession();
+    }
+
+    /** 本机音乐App实际在播（暂停的会话不算在播）。 */
+    private boolean mediaSessionPlaying() {
+        return mediaSessionActive() && mMediaState.isPlaying();
+    }
+
+    /** 投歌/AI 歌曲实际在播或缓冲中。 */
+    private boolean upnpPlaying() {
+        return mUpnpState != null && (mUpnpState.isPlaying() || mUpnpState.isPreparing());
+    }
+
+    /**
+     * 传输控制（播放/暂停、上下曲）应作用于哪个音源：在实际播放的音源上操作
+     * （本机App在播优先于投歌在播），都没在播时沿用原偏好（有QQ会话控制QQ，否则控制投歌）。
+     */
+    private boolean shouldControlMediaSession() {
+        if (mediaSessionPlaying()) {
+            return true;
+        }
+        if (upnpPlaying()) {
+            return false;
+        }
+        return mediaSessionActive();
     }
 
     private void launchMusicApp(WifiMusicApp app) {

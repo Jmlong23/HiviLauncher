@@ -2,6 +2,7 @@ package com.hivi.launcher.ai.presenter;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.wifi.WifiInfo;
@@ -24,11 +25,16 @@ import com.hivi.launcher.ai.ui.AiView;
 import com.hivi.launcher.ai.wakeup.AiWakeupController;
 import com.hivi.launcher.base.BasePresenter;
 import com.hivi.launcher.customview.ParticleVisualizerView;
+import com.hivi.launcher.music.model.UpnpPlaybackManager;
+import com.hivi.launcher.music.ui.MusicActivity;
 import com.hivi.launcher.utils.Constants;
 import com.hivi.launcher.utils.network.AuthorizationStore;
+import com.hivi.launcher.wifi.model.MediaSessionPlaybackManager;
 import com.hivi.launcher.wifi.model.QQMusicLauncher;
 import com.ljm.audiotoollib.upnpserver.entity.SWDeviceStatus;
+import com.ljm.audiotoollib.upnpserver.entity.TrackINFO_Type;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.HashMap;
@@ -169,6 +175,8 @@ public final class AiPresenter extends BasePresenter<AiView>
             mIotPromptPending = false;
             mIotPromptArrived = false;
             mWakePromptPlaying = true;
+            // 唤醒即暂停正在播放的音乐（本机音乐App与投歌两个音源），避免压过AI提示音与对话
+            pauseMusicForAi();
             scheduleSessionWatchdog(LISTENING_NO_INPUT_TIMEOUT_MS, "wakePrompt");
             if (mAudioPlayer != null) {
                 mAudioPlayer.stop();
@@ -255,9 +263,11 @@ public final class AiPresenter extends BasePresenter<AiView>
         }
 
         if (mWebSocketManager == null) {
+            pauseMusicForAi();
             openConversation();
         } else if (mParticleState == ParticleVisualizerView.State.THINKING
                 || mParticleState == ParticleVisualizerView.State.SPEAKING) {
+            pauseMusicForAi();
             interruptAndResumeListening();
         }
     }
@@ -534,13 +544,22 @@ public final class AiPresenter extends BasePresenter<AiView>
 
     // ────────────────── IoT 指令（不进入 AI 页面） ──────────────────
 
-    // ────────────────── 音乐点播（跳 WiFi 音乐页 + QQ 音乐播放） ──────────────────
+    // ────────────────── 音乐点播（AI 播歌走本机渲染器队列，同 HiviAudio） ──────────────────
+
+    /**
+     * 唤起 AI 时暂停正在播放的音乐：本机音乐App经媒体会话暂停，
+     * 投歌经渲染器暂停（手机控制端会同步显示已暂停）。两个调用均只在对应音源
+     * 确实在播时才生效，空闲时是无操作。
+     */
+    private void pauseMusicForAi() {
+        MediaSessionPlaybackManager.getInstance().pauseActivePlayback();
+        UpnpPlaybackManager.getInstance().pause();
+    }
 
     private void handleMusicRequest(AiMusicRequest request) {
-        String keyword = request.buildSearchKeyword();
-        AppLog.i(TAG, "AI music request received, keyword=" + keyword
-                + ", success=" + request.success);
-        // 同 HiviAudio handleAiMusicLink：点播即结束 AI 会话（停麦断连），播放交给音乐应用。
+        AppLog.i(TAG, "AI music request received, song=" + request.songName
+                + ", singer=" + request.singerName + ", success=" + request.success);
+        // 同 HiviAudio handleAiMusicLink：点播即结束 AI 会话（停麦断连），避免播放被收音打断。
         endConversation();
         AiView view = getView();
         if (!request.success) {
@@ -549,10 +568,174 @@ public final class AiPresenter extends BasePresenter<AiView>
             }
             return;
         }
-        if (view != null) {
-            view.requestMusicPageNavigation();
+        if (!request.hasPlayUrlInfo()) {
+            // 服务端未返回播放链接（旧协议/未授权平台）：维持原行为，交给 QQ 音乐搜索播放。
+            if (view != null) {
+                view.requestMusicPageNavigation();
+            }
+            QQMusicLauncher.openForSearch(mContext, request.buildSearchKeyword());
+            return;
         }
-        QQMusicLauncher.openForSearch(mContext, keyword);
+        String playUrl = request.resolvePreferredPlayUrl();
+        if (TextUtils.isEmpty(playUrl)) {
+            AppLog.w(TAG, "AI music request has no playable url");
+            if (view != null) {
+                view.showToast(TextUtils.isEmpty(request.message) ? "暂不支持播放" : request.message);
+            }
+            return;
+        }
+        AppLog.i(TAG, "AI music will play via local renderer, url=" + playUrl);
+        TrackINFO_Type track = buildAiTrack(request, playUrl);
+        boolean queued = UpnpPlaybackManager.getInstance().playAiMusic(mContext, track,
+                displaySongName(request), displayArtist(request), request.albumName);
+        if (!queued) {
+            if (view != null) {
+                view.showToast("暂不支持播放");
+            }
+            return;
+        }
+        // 播放页复用 UPnP 投歌详情页，直接展示 AI 歌曲信息与歌词
+        openMusicPlayerPage();
+    }
+
+    /** AI 播歌复用 UPnP 投歌播放详情页（MusicActivity）展示。 */
+    private void openMusicPlayerPage() {
+        Intent intent = new Intent(mContext, MusicActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+        try {
+            mContext.startActivity(intent);
+        } catch (RuntimeException e) {
+            AppLog.w(TAG, "open music player page failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 构建 AI 曲目（对齐 HiviAudio buildWifiTrackFromAiInfo/buildWifiTrackMetaData）：
+     * 歌曲 bean JSON 放入 upnp:albumArtURI，渲染器解析后得到歌名/歌手/封面/歌词等。
+     */
+    private TrackINFO_Type buildAiTrack(AiMusicRequest request, String playUrl) {
+        String songId = request.songId == null ? "" : request.songId;
+        String songName = displaySongName(request);
+        String artist = displayArtist(request);
+        String album = request.albumName == null ? "" : request.albumName;
+        String terraceType = TextUtils.isEmpty(request.terraceType) ? "1" : request.terraceType;
+        String platformName = platformName(terraceType);
+
+        JSONObject bean = new JSONObject();
+        try {
+            bean.put("id", songId);
+            bean.put("name", songName);
+            bean.put("playUrl", playUrl);
+            bean.put("artist", artist);
+            bean.put("coverUrl", request.albumPic == null ? "" : request.albumPic);
+            bean.put("dataType", "music");
+            bean.put("musicType", platformName);
+            bean.put("fmTypeCode", platformName);
+            bean.put("UploadType", "0");
+            bean.put("bitrate", "320");
+            bean.put("mvId", TextUtils.isEmpty(request.mvId) ? "0" : request.mvId);
+            bean.put("createTime", request.publicTime == null ? "" : request.publicTime);
+            bean.put("upload_terrace_type", terraceType);
+            bean.put("terraceType", terraceType);
+            bean.put("isVip", request.vip);
+            bean.put("alg", TextUtils.isEmpty(request.alg) ? album : request.alg);
+            bean.put("matchLyric", normalizeMatchLyric(request.matchLyric));
+        } catch (JSONException e) {
+            AppLog.w(TAG, "build AI track bean failed: " + e.getMessage());
+        }
+
+        String metaData = "<DIDL-Lite "
+                + "xmlns:dc=\"http://purl.org/dc/elements/1.1/\" "
+                + "xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" "
+                + "xmlns:song=\"www.wiimu.com/song/\" "
+                + "xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\"> "
+                + "<upnp:class>object.item.audioItem.musicTrack</upnp:class> "
+                + "<item> "
+                + "<song:bitrate>0</song:bitrate> "
+                + "<song:id>" + escapeXml(songId) + "</song:id>"
+                + "<song:singerid>0</song:singerid>"
+                + "<song:albumid>0</song:albumid>"
+                + "<res protocolInfo=\"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;\" duration=\"0\">"
+                + escapeXml(playUrl) + "</res>"
+                + "<dc:title>" + escapeXml(songName) + "</dc:title> "
+                + "<upnp:artist>" + escapeXml(artist) + "</upnp:artist> "
+                + "<upnp:creator>AI</upnp:creator> "
+                + "<upnp:album>" + escapeXml(album) + "</upnp:album> "
+                + "<upnp:albumArtURI>" + escapeXml(bean.toString()) + "</upnp:albumArtURI> "
+                + "</item> "
+                + "</DIDL-Lite>";
+
+        TrackINFO_Type track = new TrackINFO_Type();
+        track.setURL(playUrl);
+        track.setId(songId);
+        track.setKey(request.songMid == null ? "" : request.songMid);
+        track.setMetaData(metaData);
+        return track;
+    }
+
+    private static String displaySongName(AiMusicRequest request) {
+        return TextUtils.isEmpty(request.songName) ? "AI推荐" : request.songName;
+    }
+
+    private static String displayArtist(AiMusicRequest request) {
+        return request.singerName == null ? "" : request.singerName;
+    }
+
+    private static String platformName(String terraceType) {
+        if ("1".equals(terraceType)) {
+            return "QQ音乐";
+        }
+        if ("2".equals(terraceType)) {
+            return "Spotify";
+        }
+        if ("3".equals(terraceType)) {
+            return "网易云音乐";
+        }
+        if ("4".equals(terraceType)) {
+            return "酷狗音乐";
+        }
+        return "";
+    }
+
+    private static String normalizeMatchLyric(String lyric) {
+        if (TextUtils.isEmpty(lyric)) {
+            return "";
+        }
+        String normalized = lyric.replace("\\n", "\n").replace("\\r", "");
+        if (!normalized.contains("\n") && normalized.contains("n[")) {
+            normalized = normalized.replace("n[", "\n[");
+        }
+        return normalized;
+    }
+
+    private static String escapeXml(String value) {
+        if (value == null) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            switch (c) {
+                case '<':
+                    builder.append("&lt;");
+                    break;
+                case '>':
+                    builder.append("&gt;");
+                    break;
+                case '"':
+                    builder.append("&quot;");
+                    break;
+                case '\'':
+                    builder.append("&apos;");
+                    break;
+                case '&':
+                    builder.append("&amp;");
+                    break;
+                default:
+                    builder.append(c);
+            }
+        }
+        return builder.toString();
     }
 
     private void handleIotCommand(String text) {

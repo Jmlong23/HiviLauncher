@@ -30,6 +30,12 @@ public interface ApiService {
     @GET("version/details")
     Observable<String> getAppVersionDetails(@Query("type") String type);
 
+    /** 按平台歌曲 ID 拉取歌词，同 HiviAudio music/getLyric。 */
+    @Headers("Cache-Control: no-cache")
+    @GET("music/getLyric")
+    Observable<String> getSongLrc(@Query("song_id") String songId,
+            @Query("terraceType") String terraceType);
+
     /**
      * Upload a device diagnostic log archive. This matches the logger endpoint used by HiviAudio.
      */

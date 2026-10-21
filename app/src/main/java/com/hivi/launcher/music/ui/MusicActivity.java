@@ -56,6 +56,11 @@ public class MusicActivity extends BaseActivity<ActivityMusicPlayerBinding, Musi
     @Override
     protected void initView(@Nullable Bundle savedInstanceState) {
         applyScaledLayout();
+        // 右上角播放列表/碟片模式入口暂不开放
+        binding.topActions.setVisibility(View.GONE);
+        // 音量由整机按键/旋钮调节，播放页内的音量入口暂不开放
+        binding.volumeButton.setVisibility(View.GONE);
+        binding.nextVolumeGap.setVisibility(View.GONE);
         bindClickListeners();
     }
 
@@ -218,10 +223,6 @@ public class MusicActivity extends BaseActivity<ActivityMusicPlayerBinding, Musi
 
         setSize(binding.musicTopBar, ViewGroup.LayoutParams.MATCH_PARENT, ui(70));
         setSize(binding.backButton, ui(70), ui(70));
-        setSize(binding.topActions, ViewGroup.LayoutParams.WRAP_CONTENT, ui(70));
-        setSize(binding.playlistButton, ui(70), ui(70));
-        setSize(binding.topActionGap, ui(72), ui(1));
-        setSize(binding.discModeButton, ui(70), ui(70));
 
         setWeightedSize(binding.musicContent, ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f,
                 0, 0, 0, 0);
@@ -250,8 +251,6 @@ public class MusicActivity extends BaseActivity<ActivityMusicPlayerBinding, Musi
         setSize(binding.playStateIcon, ui(70), ui(70));
         setSize(binding.playNextGap, ui(113), ui(1));
         setSize(binding.nextButton, ui(70), ui(70));
-        setSize(binding.nextVolumeGap, ui(81), ui(1));
-        setSize(binding.volumeButton, ui(70), ui(70));
 
         setLinearSize(binding.progressSeekBar, ui(1200), ui(34), 0f,
                 -ui(24), 0, -ui(24), 0);

@@ -17,6 +17,10 @@ import com.hivi.launcher.R;
 import com.hivi.launcher.utils.log.AppLog;
 
 import com.hivi.launcher.audio.AudioRouteController;
+import com.hivi.launcher.utils.network.ApiService;
+import com.hivi.launcher.utils.network.AuthorizationStore;
+import com.hivi.launcher.utils.network.NetworkCallback;
+import com.hivi.launcher.utils.network.NetworkManager;
 import com.hivi.launcher.wifi.model.MediaSessionPlaybackManager;
 import com.hivi.launcher.wifi.model.MediaSessionPlaybackState;
 import com.ljm.audiotoollib.AudioToolManager;
@@ -40,12 +44,16 @@ import com.ljm.audiotoollib.upnpserver.cling.model.ModelUtil;
 import com.ljm.audiotoollib.upnpserver.cling.support.model.TransportState;
 import com.ljm.audiotoollib.upnpserver.cling.support.model.TransportStatus;
 
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import io.reactivex.disposables.Disposable;
 
 public final class UpnpPlaybackManager implements MediaSessionPlaybackManager.Listener {
     private static final String TAG = "UpnpPlaybackManager";
@@ -90,6 +98,12 @@ public final class UpnpPlaybackManager implements MediaSessionPlaybackManager.Li
     private int loopMode;
     /** 最近一次本地 MediaPlayer 异步准备/播放是否失败，用于向订阅方上报 TransportStatus */
     private volatile boolean playbackFailed;
+    /** 当前曲目的平台歌曲 ID，歌词兜底请求的时效性判断依据 */
+    private String currentSongId = "";
+    private Disposable lyricFetchDisposable;
+    private int lyricFetchGeneration;
+    /** 服务未绑定完成时暂存的 AI 点歌请求，onServiceConnected 配好队列监听后自动播放 */
+    private Runnable pendingAiPlay;
     /** 最近一次通知本机音乐App暂停（让位给投歌）的时刻，仅主线程访问 */
     private long lastLocalAppPauseRequestMs;
     /** 宽限期后复查音乐App是否仍未暂停，未暂停则按互斥规则暂停投歌 */
@@ -282,6 +296,11 @@ public final class UpnpPlaybackManager implements MediaSessionPlaybackManager.Li
         public void onServiceConnected(ComponentName name, IBinder service) {
             bound = true;
             configureUpnpControllers();
+            if (pendingAiPlay != null) {
+                Runnable pending = pendingAiPlay;
+                pendingAiPlay = null;
+                mainHandler.post(pending);
+            }
         }
 
         @Override
@@ -612,6 +631,147 @@ public final class UpnpPlaybackManager implements MediaSessionPlaybackManager.Li
         MediaSessionPlaybackManager.getInstance().pauseActivePlayback();
     }
 
+    /**
+     * AI 点歌入队并立即播放（对齐 HiviAudio enqueueAiMusicToWifiPlayer）：
+     * 同一首歌只保留一条队列记录并替换为最新播放链接，随后经渲染器队列回调进入本地播放。
+     *
+     * @return 是否已受理（已开始播放或已挂起等待服务绑定）
+     */
+    public boolean playAiMusic(Context context, TrackINFO_Type track, String songName,
+            String artist, String album) {
+        if (track == null || TextUtils.isEmpty(track.getURL())) {
+            return false;
+        }
+        start(context);
+        if (!bound) {
+            pendingAiPlay = () -> playAiMusicInternal(track, songName, artist, album);
+            AppLog.i(TAG, "AI music deferred until renderer service bound");
+            return true;
+        }
+        return playAiMusicInternal(track, songName, artist, album);
+    }
+
+    private boolean playAiMusicInternal(TrackINFO_Type track, String songName,
+            String artist, String album) {
+        try {
+            PlayMusicListType playList = PlayQueueController.getInstance().getPlayMusicList();
+            List<TrackINFO_Type> queue = playList.getPQMusicList();
+            int targetIndex = findSameAiTrackIndex(queue, track);
+            boolean reusedExisting = targetIndex >= 0;
+            if (reusedExisting) {
+                // 同一首 AI 点播歌曲只保留一条记录，替换为最新链接避免旧地址过期
+                queue.set(targetIndex, track);
+            } else {
+                queue.add(track);
+                targetIndex = queue.size() - 1;
+            }
+            playList.setCurPlayIndex(targetIndex);
+            playList.setCurPlayListName("AI");
+            playList.setCurCurPlayTitle(TextUtils.isEmpty(songName) ? "AI推荐" : songName);
+            playList.setCurPlayArtist(artist == null ? "" : artist);
+            playList.setCurPlayAlbum(album == null ? "" : album);
+            AppLog.i(TAG, "AI music " + (reusedExisting ? "reused queue item" : "appended")
+                    + ", index=" + targetIndex + ", size=" + queue.size());
+            PlayQueueController.getInstance().PlayQueueWithIndex("AI", targetIndex);
+            return true;
+        } catch (Throwable e) {
+            AppLog.e(TAG, "AI music enqueue failed", e);
+            return false;
+        }
+    }
+
+    /** AI 点歌去重：songId、songMid 或 歌名+歌手 一致视为同一首（对齐 HiviAudio）。 */
+    private static int findSameAiTrackIndex(List<TrackINFO_Type> queue, TrackINFO_Type track) {
+        if (queue == null || queue.isEmpty()) {
+            return -1;
+        }
+        MusicDataBean bean = track.getMusicDataBean();
+        String songId = firstNonEmpty(track.getId(), bean == null ? "" : bean.getId());
+        String songMid = track.getKey();
+        String name = bean == null ? "" : bean.getName();
+        String artist = bean == null ? "" : bean.getArtist();
+        for (int i = 0; i < queue.size(); i++) {
+            TrackINFO_Type existing = queue.get(i);
+            MusicDataBean existingBean = existing.getMusicDataBean();
+            String existingId = firstNonEmpty(existing.getId(),
+                    existingBean == null ? "" : existingBean.getId());
+            if (!TextUtils.isEmpty(songId) && songId.equals(existingId)) {
+                return i;
+            }
+            if (!TextUtils.isEmpty(songMid) && songMid.equals(existing.getKey())) {
+                return i;
+            }
+            String existingName = existingBean == null ? "" : existingBean.getName();
+            String existingArtist = existingBean == null ? "" : existingBean.getArtist();
+            if (!TextUtils.isEmpty(name) && !TextUtils.isEmpty(artist)
+                    && name.equals(existingName) && artist.equals(existingArtist)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * 队列/投歌元数据未携带歌词时的兜底（对齐 HiviAudio UpnpMusicFragment#setLyrics）：
+     * 用曲目 bean 的 songId + terraceType 请求 music/getLyric，需已登录授权。
+     */
+    private void fetchLyricFromServer(MusicDataBean bean) {
+        String songId = bean == null ? "" : bean.getId();
+        String terraceType = bean == null ? "" : bean.getUnload_terrace_type();
+        if (TextUtils.isEmpty(songId) || TextUtils.isEmpty(terraceType)) {
+            return;
+        }
+        if (TextUtils.isEmpty(AuthorizationStore.getToken(appContext))) {
+            AppLog.i(TAG, "lyric fetch skipped: no authorization token, songId=" + songId);
+            return;
+        }
+        final int generation = ++lyricFetchGeneration;
+        if (lyricFetchDisposable != null) {
+            lyricFetchDisposable.dispose();
+        }
+        AppLog.i(TAG, "fetch lyric from server: songId=" + songId
+                + ", terraceType=" + terraceType);
+        lyricFetchDisposable = NetworkManager.execute(
+                NetworkManager.getApiService().getSongLrc(songId, terraceType),
+                new NetworkCallback<String>() {
+                    @Override
+                    public void onSuccess(String result) {
+                        if (generation != lyricFetchGeneration
+                                || !songId.equals(currentSongId)) {
+                            return;
+                        }
+                        String lyricText = parseLyricResponse(result);
+                        if (TextUtils.isEmpty(lyricText)) {
+                            AppLog.i(TAG, "lyric fetch returned empty, songId=" + songId);
+                            return;
+                        }
+                        lyric = normalizeLyric(lyricText);
+                        AppLog.i(TAG, "lyric fetched from server, songId=" + songId + ", "
+                                + describeLyric(lyric));
+                        notifyStateChanged();
+                    }
+
+                    @Override
+                    public void onFailure(Throwable throwable) {
+                        AppLog.w(TAG, "lyric fetch failed: " + throwable.getMessage());
+                    }
+                });
+    }
+
+    /** music/getLyric 响应解析：{"success":true,"code":200,"message":..,"data":"[00:00.00].."} */
+    private static String parseLyricResponse(String result) {
+        if (TextUtils.isEmpty(result)) {
+            return "";
+        }
+        try {
+            JSONObject object = new JSONObject(result);
+            boolean success = object.optBoolean("success", object.optInt("code", -1) == 200);
+            return success ? object.optString("data", "") : "";
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
     private void playCurrentTrack() {
         TrackINFO_Type track = getCurrentTrack();
         if (track == null) {
@@ -687,8 +847,12 @@ public final class UpnpPlaybackManager implements MediaSessionPlaybackManager.Li
         }
         AppLog.i(TAG, "track lyric metadata source=" + lyricSource + ", "
                 + describeLyric(trackLyric));
+        currentSongId = bean == null ? "" : bean.getId();
         if (!TextUtils.isEmpty(trackLyric)) {
             lyric = normalizeLyric(trackLyric);
+        } else {
+            // 元数据未带歌词时按 songId+平台类型向服务端兜底拉取（对齐 HiviAudio）
+            fetchLyricFromServer(bean);
         }
         durationFallbackMs = parseDurationMs(firstNonEmpty(
                 extractXmlTagValue(currentMetaData, "res@duration"),
@@ -886,7 +1050,12 @@ public final class UpnpPlaybackManager implements MediaSessionPlaybackManager.Li
         if (value == null) {
             return "";
         }
-        return htmlDecode(value.replace("\\n", "\n").replace("\\r", ""));
+        String normalized = htmlDecode(value.replace("\\n", "\n").replace("\\r", ""));
+        if (!normalized.contains("\n") && normalized.contains("n[")) {
+            // 服务端偶发丢失换行转义，在时间轴标记前补回换行（同 HiviAudio normalizeMatchLyric）
+            normalized = normalized.replace("n[", "\n[");
+        }
+        return normalized;
     }
 
     private static int getTrackCount(PlayMusicListType list) {

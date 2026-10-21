@@ -110,8 +110,8 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
     }
 
     /**
-     * Media-session playback from the music apps wins over the UPnP renderer; when neither has a
-     * track the placeholder copy is shown.
+     * 跟随当前实际在播的音源：本机音乐App在播优先，其次投歌/AI歌曲在播；都没有在播时
+     * 沿用原偏好（QQ会话优先于投歌暂停曲目），两者都没有则显示占位文案。
      */
     private void renderCurrentPlayback() {
         if (mBinding == null) {
@@ -124,12 +124,32 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
         boolean playing;
         Bitmap artwork;
         String coverUrl;
-        if (mMediaState != null && mMediaState.hasSession()) {
+        boolean mediaPlaying = mMediaState != null && mMediaState.hasSession()
+                && mMediaState.isPlaying();
+        boolean upnpPlaying = mUpnpState != null && mUpnpState.hasRealSong()
+                && (mUpnpState.isPlaying() || mUpnpState.isPreparing());
+        if (mediaPlaying) {
             hasTrack = true;
             title = mMediaState.getTitle();
             artist = TextUtils.isEmpty(mMediaState.getArtist())
                     ? mMediaState.getAlbum() : mMediaState.getArtist();
-            playing = mMediaState.isPlaying();
+            playing = true;
+            artwork = mMediaState.getArtwork();
+            coverUrl = "";
+        } else if (upnpPlaying) {
+            hasTrack = true;
+            title = mUpnpState.getTitle();
+            artist = TextUtils.isEmpty(mUpnpState.getArtist())
+                    ? mUpnpState.getAlbum() : mUpnpState.getArtist();
+            playing = true;
+            artwork = null;
+            coverUrl = mUpnpState.getCoverUrl();
+        } else if (mMediaState != null && mMediaState.hasSession()) {
+            hasTrack = true;
+            title = mMediaState.getTitle();
+            artist = TextUtils.isEmpty(mMediaState.getArtist())
+                    ? mMediaState.getAlbum() : mMediaState.getArtist();
+            playing = false;
             artwork = mMediaState.getArtwork();
             coverUrl = "";
         } else if (mUpnpState != null && mUpnpState.hasRealSong()) {
@@ -137,7 +157,7 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
             title = mUpnpState.getTitle();
             artist = TextUtils.isEmpty(mUpnpState.getArtist())
                     ? mUpnpState.getAlbum() : mUpnpState.getArtist();
-            playing = mUpnpState.isPlaying();
+            playing = false;
             artwork = null;
             coverUrl = mUpnpState.getCoverUrl();
         } else {
