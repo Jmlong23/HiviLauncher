@@ -32,9 +32,6 @@ import android.widget.ImageView;
 import android.view.animation.DecelerateInterpolator;
 
 import androidx.annotation.Nullable;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.LinearSnapHelper;
-import androidx.recyclerview.widget.RecyclerView;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.audio.AudioRouteController;
@@ -51,8 +48,6 @@ import com.hivi.launcher.customview.FlipLayout;
 import com.hivi.launcher.databinding.ActivityMainBinding;
 import com.hivi.launcher.main.model.MainPage;
 import com.hivi.launcher.main.presenter.MainPresenter;
-import com.hivi.launcher.onboarding.model.FirstUseGuideStore;
-import com.hivi.launcher.onboarding.ui.FirstUseGuideActivity;
 import com.hivi.launcher.bluetooth.ui.BluetoothFragment;
 import com.hivi.launcher.coax.ui.CoaxFragment;
 import com.hivi.launcher.hdmi.ui.HdmiFragment;
@@ -85,20 +80,15 @@ import java.util.Locale;
 public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresenter>
         implements MainView, AiWakeupController.Navigator {
     private static final String TAG = "MainActivity";
-    public static final String EXTRA_INITIAL_MODE =
-            "com.hivi.launcher.main.ui.MainActivity.initial_mode";
     private static final int AVATAR_CONNECT_TIMEOUT_MS = 8_000;
     private static final int AVATAR_READ_TIMEOUT_MS = 10_000;
     private static final int AVATAR_MAX_SIZE_PX = 512;
     private static final long PAGE_TRANSITION_DURATION_MS = 240L;
     private static final float PAGE_TRANSITION_OFFSET_DP = 28f;
-    private static final float HOME_PAGE_DIMMED_ALPHA = 0.65f;
     private static final long SYSTEM_MUSIC_VOLUME_CHECK_INTERVAL_MS = 10_000L;
     private static final long SCREEN_SAVER_MINUTE_MS = 60_000L;
     private AuthorizationDialog mAuthorizationDialog;
     private VolumeDialog mVolumeDialog;
-    private InputModeDialog mInputModeDialog;
-    private InputModeAdapter mInputModeAdapter;
     private final ExecutorService mAccountAvatarExecutor = Executors.newSingleThreadExecutor();
     private final Handler mSystemVolumeHandler = new Handler(Looper.getMainLooper());
     private final DecelerateInterpolator mPageTransitionInterpolator =
@@ -107,17 +97,13 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private int mAmplifierVolumePercent;
     private int mPageTransitionGeneration;
     private int mAiChatEntryTransitionGeneration;
-    private boolean mBluetoothConnected;
-    private boolean mWifiConnected;
     private boolean mAmplifierMuted;
     private boolean mAiConversationBackgroundVisible;
     private AiWakeupController mAiWakeupController;
     private AiHeadlessConversationView mAiHeadlessView;
-    private boolean mHomeNavigationPending;
     private boolean mSuppressBackStackUiSync;
     private boolean mActivityResumed;
     private boolean mPendingSystemUpdateSuccess;
-    private MainPage mPendingInitialMode;
     /** 后台时请求打开的页面（如 QQ 音乐前台期间收到 AI 应答），onResume 时消费。 */
     private MainPage mPendingPageToShow;
     private final FragmentManager.OnBackStackChangedListener mBackStackChangedListener =
@@ -173,17 +159,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     @Override
-    protected void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        if (!FirstUseGuideStore.isCompleted(this)) {
-            startActivity(new Intent(this, FirstUseGuideActivity.class));
-            finish();
-        } else {
-            mPendingInitialMode = consumeInitialModeIntent(getIntent());
-        }
-    }
-
-    @Override
     protected MainPresenter createPresenter() {
         return new MainPresenter(this, this);
     }
@@ -191,10 +166,9 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     @Override
     protected void initView(@Nullable Bundle savedInstanceState) {
         binding.accountImg.setClipToOutline(true);
-        setupInputModeCarousel();
-        restoreSelectedInputMode();
         bindMainClickListeners();
         getFragmentManager().addOnBackStackChangedListener(mBackStackChangedListener);
+        // 首页即 WiFi 音乐页：容器里还没有页面时由 sync 直接装入，引导页已移除。
         syncPageUiWithCurrentFragment();
         handleSystemUpdateInstallResult(getIntent());
     }
@@ -204,15 +178,15 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         startSystemMusicVolumeCheck();
         AudioRouteController.getInstance().initialize(this);
         presenter.init();
-        startVoiceWakeupIfGuideCompleted();
+        startVoiceWakeup();
     }
 
     /**
      * 启动语音唤醒（ALSA 多麦采集 + VTN 前端处理），Launcher 常驻，唤醒引擎随之常驻。
      * 同时创建共享 AI 会话 presenter（headless 视图驱动左上角悬浮条）。
      */
-    private void startVoiceWakeupIfGuideCompleted() {
-        if (!FirstUseGuideStore.isCompleted(this) || mAiWakeupController != null) {
+    private void startVoiceWakeup() {
+        if (mAiWakeupController != null) {
             return;
         }
         mAiWakeupController = AiWakeupController.getInstance(this);
@@ -262,7 +236,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         presenter.onSystemStateChanged();
         presenter.startTicker();
         syncPageUiWithCurrentFragment();
-        applyPendingInitialMode();
         applyPendingPageToShow();
         handleSystemUpdateInstallResult(getIntent());
     }
@@ -305,15 +278,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        startVoiceWakeupIfGuideCompleted();
+        startVoiceWakeup();
         handleSystemUpdateInstallResult(intent);
-        MainPage initialMode = consumeInitialModeIntent(intent);
-        if (initialMode != null) {
-            mPendingInitialMode = initialMode;
-            if (mActivityResumed) {
-                applyPendingInitialMode();
-            }
-        }
     }
 
     @Override
@@ -818,23 +784,11 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
-        mBluetoothConnected = bluetoothConnected;
-        mWifiConnected = !TextUtils.isEmpty(wifiLabel)
-                && !TextUtils.equals(wifiLabel, getString(R.string.main_disconnected));
         binding.wifiText.setText(formatWifiStatus(wifiLabel));
         binding.bluetoothText.setText(bluetoothConnected
                 ? (android.text.TextUtils.isEmpty(bluetoothDeviceName)
                         ? getString(R.string.main_bluetooth_default) : bluetoothDeviceName)
                 : getString(R.string.main_disconnected));
-        if (mInputModeAdapter != null
-                && mInputModeAdapter.updateConnectivityState(bluetoothConnected, wifiLabel)) {
-            scrollToSelectedMode();
-        }
-        if (mInputModeDialog != null) {
-            mInputModeDialog.updateState(mInputModeAdapter == null
-                            ? null : mInputModeAdapter.getSelectedPage(),
-                    mBluetoothConnected, mWifiConnected);
-        }
     }
 
     public void updateWifiConnectionStatus(String ssid) {
@@ -932,17 +886,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
-        if (mInputModeAdapter != null && mInputModeAdapter.selectMode(page)) {
-            scrollToSelectedMode();
-        }
         Fragment currentFragment = getFragmentManager()
                 .findFragmentById(R.id.fragment_container);
         if (currentFragment instanceof AiFragment && page != MainPage.AI) {
             removeAiPageBeforeNavigating();
-        }
-        if (isInputModePage(page)) {
-            showInputModePage(page);
-            return;
         }
         showStackedPage(page);
     }
@@ -980,23 +927,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         showPage(page);
     }
 
-    private void showInputModePage(MainPage page) {
-        FragmentManager fragmentManager = getFragmentManager();
-        Fragment currentFragment = fragmentManager.findFragmentById(R.id.fragment_container);
-        if (isFragmentForPage(currentFragment, page)
-                && fragmentManager.getBackStackEntryCount() == 1) {
-            syncPageUiWithCurrentFragment();
-            return;
-        }
-        mHomeNavigationPending = false;
-        ++mPageTransitionGeneration;
-        cancelPageAnimations();
-        if (fragmentManager.getBackStackEntryCount() > 0) {
-            popBackStackImmediately(true);
-        }
-        showStackedPage(page);
-    }
-
     private void showStackedPage(MainPage page) {
         Fragment currentFragment = getFragmentManager()
                 .findFragmentById(R.id.fragment_container);
@@ -1004,53 +934,17 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             syncPageUiWithCurrentFragment();
             return;
         }
-        mHomeNavigationPending = false;
         resetBottomNavigationBackground();
         updateLauncherBackground(page == MainPage.AI);
-        View fragmentContainer = binding.fragmentContainer;
-        boolean homePageVisible = fragmentContainer.getVisibility() != View.VISIBLE;
-        int transitionGeneration = ++mPageTransitionGeneration;
-        cancelPageAnimations();
-        hideAiChatEntry();
-
-        if (homePageVisible) {
-            int transitionOffset = dp(PAGE_TRANSITION_OFFSET_DP);
-            binding.pageBody.setTranslationX(0f);
-            binding.pageBody.setAlpha(1f);
-            binding.pageBody.animate()
-                    .translationX(-transitionOffset)
-                    .alpha(HOME_PAGE_DIMMED_ALPHA)
-                    .setDuration(PAGE_TRANSITION_DURATION_MS)
-                    .setInterpolator(mPageTransitionInterpolator)
-                    .start();
-
-            fragmentContainer.setVisibility(View.VISIBLE);
-            fragmentContainer.setTranslationX(transitionOffset);
-            fragmentContainer.setAlpha(0f);
+        if (page == MainPage.WIFI) {
+            showAiChatEntry();
+        } else {
+            hideAiChatEntry();
         }
         getFragmentManager().beginTransaction()
                 .replace(R.id.fragment_container, createPageFragment(page))
                 .addToBackStack(page.name())
                 .commitAllowingStateLoss();
-
-        if (homePageVisible) {
-            fragmentContainer.animate()
-                    .translationX(0f)
-                    .alpha(1f)
-                    .setDuration(PAGE_TRANSITION_DURATION_MS)
-                    .setInterpolator(mPageTransitionInterpolator)
-                    .withEndAction(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (transitionGeneration != mPageTransitionGeneration) {
-                                return;
-                            }
-                            fragmentContainer.setTranslationX(0f);
-                            fragmentContainer.setAlpha(1f);
-                        }
-                    })
-                    .start();
-        }
     }
 
     @Override
@@ -1060,18 +954,16 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         FragmentManager fragmentManager = getFragmentManager();
         int backStackEntryCount = fragmentManager.getBackStackEntryCount();
-        if (backStackEntryCount == 0 || mHomeNavigationPending) {
+        if (backStackEntryCount <= 1) {
+            // 已到返回栈底：底部即 WiFi 音乐首页，停留即可。
+            Fragment currentFragment = fragmentManager.findFragmentById(R.id.fragment_container);
+            if (!(currentFragment instanceof WifiFragment)) {
+                navigateToHome();
+            }
             return;
         }
         releaseAiConversationIfVisible();
         resetBottomNavigationBackground();
-        if (backStackEntryCount == 1) {
-            navigateToHome(false);
-            return;
-        }
-        ++mPageTransitionGeneration;
-        cancelPageAnimations();
-        mHomeNavigationPending = false;
         fragmentManager.popBackStack();
     }
 
@@ -1080,56 +972,31 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
-        if (getFragmentManager().getBackStackEntryCount() == 0) {
+        FragmentManager fragmentManager = getFragmentManager();
+        Fragment currentFragment = fragmentManager.findFragmentById(R.id.fragment_container);
+        if (currentFragment instanceof WifiFragment
+                && fragmentManager.getBackStackEntryCount() == 1) {
             syncPageUiWithCurrentFragment();
             return;
         }
-        navigateToHome(true);
+        navigateToHome();
     }
 
-    private void navigateToHome(final boolean clearBackStack) {
+    /**
+     * 首页即 WiFi 音乐页：清空返回栈后重新装入首页 Fragment，
+     * 保证 WiFi 页始终位于返回栈底。
+     */
+    private void navigateToHome() {
         if (binding == null) {
             return;
         }
-        final int transitionGeneration = ++mPageTransitionGeneration;
-        final View fragmentContainer = binding.fragmentContainer;
-        Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
         releaseAiConversationIfVisible();
+        ++mPageTransitionGeneration;
         cancelPageAnimations();
         updateLauncherBackground(false);
-        showAiChatEntry();
-        if (fragment == null || fragmentContainer.getVisibility() != View.VISIBLE) {
-            applyHomePageUi(true);
-            popBackStack(clearBackStack);
-            return;
-        }
-
-        mHomeNavigationPending = true;
-        int transitionOffset = dp(PAGE_TRANSITION_OFFSET_DP);
-        binding.pageBody.setTranslationX(-transitionOffset);
-        binding.pageBody.setAlpha(HOME_PAGE_DIMMED_ALPHA);
-        binding.pageBody.animate()
-                .translationX(0f)
-                .alpha(1f)
-                .setDuration(PAGE_TRANSITION_DURATION_MS)
-                .setInterpolator(mPageTransitionInterpolator)
-                .start();
-
-        fragmentContainer.animate()
-                .translationX(transitionOffset)
-                .alpha(0f)
-                .setDuration(PAGE_TRANSITION_DURATION_MS)
-                .setInterpolator(mPageTransitionInterpolator)
-                .withEndAction(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (transitionGeneration != mPageTransitionGeneration || binding == null) {
-                            return;
-                        }
-                        popBackStack(clearBackStack);
-                    }
-                })
-                .start();
+        popBackStackImmediately(true);
+        showStackedPage(MainPage.WIFI);
+        getFragmentManager().executePendingTransactions();
     }
 
     public void onAiChatBackRequested() {
@@ -1155,10 +1022,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (mAuthorizationDialog != null) {
             mAuthorizationDialog.release();
             mAuthorizationDialog = null;
-        }
-        if (mInputModeDialog != null) {
-            mInputModeDialog.dismiss();
-            mInputModeDialog = null;
         }
         mAccountAvatarExecutor.shutdownNow();
         super.onDestroy();
@@ -1206,7 +1069,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private void applyLocalizedTexts() {
         binding.wifiText.setText(R.string.main_disconnected);
         binding.bluetoothText.setText(R.string.main_disconnected);
-        updateModeTextFromSelectedInputMode();
         updateAccountText();
     }
 
@@ -1217,7 +1079,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 presenter.showAuthorizationDialog();
             }
         });
-        binding.modeText.setOnClickListener(view -> showInputModeDialog());
         binding.aiChatEntry.setOnClickListener(view -> presenter.onAiChatEntryClicked());
         bindBottomNavigationTouchFeedback(binding.bottomNavigationBack, BottomNavigationItem.BACK);
         bindBottomNavigationTouchFeedback(binding.bottomNavigationHome, BottomNavigationItem.HOME);
@@ -1389,73 +1250,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         return sampleSize;
     }
 
-    private void setupInputModeCarousel() {
-        LinearLayoutManager layoutManager = new LinearLayoutManager(this,
-                RecyclerView.HORIZONTAL, false);
-        binding.cardsRow.setLayoutManager(layoutManager);
-        binding.cardsRow.setHasFixedSize(true);
-        binding.cardsRow.setItemAnimator(null);
-        mInputModeAdapter = new InputModeAdapter(this,
-                new InputModeAdapter.OnModeSelectedListener() {
-                    @Override
-                    public void onModeSelected(int topLabelResId) {
-                        updateModeText(topLabelResId);
-                    }
-                }, new InputModeAdapter.OnModeClickListener() {
-                    @Override
-                    public void onModeClicked(MainPage page) {
-                        presenter.onInputModeClicked(page);
-                    }
-                });
-        binding.cardsRow.setAdapter(mInputModeAdapter);
-        new LinearSnapHelper().attachToRecyclerView(binding.cardsRow);
-    }
-
-    private void restoreSelectedInputMode() {
-        if (mInputModeAdapter != null
-                && mInputModeAdapter.selectMode(
-                AudioRouteController.getInstance().getSelectedMode(this))) {
-            scrollToSelectedMode();
-        }
-    }
-
-    private void applyPendingInitialMode() {
-        if (binding == null || mInputModeAdapter == null || mPendingInitialMode == null) {
-            return;
-        }
-        MainPage initialMode = mPendingInitialMode;
-        mPendingInitialMode = null;
-        mInputModeAdapter.selectMode(initialMode);
-        updateModeTextFromSelectedInputMode();
-        scrollToSelectedMode();
-        if (mInputModeDialog != null) {
-            mInputModeDialog.updateState(mInputModeAdapter.getSelectedPage(),
-                    mBluetoothConnected, mWifiConnected);
-        }
-    }
-
-    @Nullable
-    private MainPage consumeInitialModeIntent(Intent intent) {
-        if (intent == null) {
-            return null;
-        }
-        String modeName = intent.getStringExtra(EXTRA_INITIAL_MODE);
-        intent.removeExtra(EXTRA_INITIAL_MODE);
-        if (TextUtils.isEmpty(modeName)) {
-            return null;
-        }
-        try {
-            MainPage mode = MainPage.valueOf(modeName);
-            return isInputModePage(mode) ? mode : null;
-        } catch (IllegalArgumentException ignored) {
-            return null;
-        }
-    }
-
-    private void updateModeText(int topLabelResId) {
-        binding.modeText.setText(topLabelResId == 0 ? R.string.select_mode : topLabelResId);
-    }
-
     private void updateLauncherBackground(boolean aiConversationVisible) {
         if (binding == null || mAiConversationBackgroundVisible == aiConversationVisible) {
             return;
@@ -1499,44 +1293,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         return true;
     }
 
-    private void updateModeTextFromSelectedInputMode() {
-        updateModeText(mInputModeAdapter == null
-                ? 0 : mInputModeAdapter.getSelectedModeTopLabelResId());
-    }
-
-    private void showInputModeDialog() {
-        if (isFinishing() || isDestroyed()) {
-            return;
-        }
-        if (mInputModeDialog == null) {
-            mInputModeDialog = new InputModeDialog(this, new InputModeDialog.Listener() {
-                @Override
-                public void onModeSelected(MainPage page) {
-                    if (presenter != null) {
-                        presenter.onInputModeClicked(page);
-                    }
-                }
-            });
-        }
-        mInputModeDialog.show(mInputModeAdapter == null
-                        ? null : mInputModeAdapter.getSelectedPage(),
-                mBluetoothConnected, mWifiConnected);
-    }
-
     private void cancelPageAnimations() {
-        binding.pageBody.animate().cancel();
         binding.fragmentContainer.animate().cancel();
         ++mAiChatEntryTransitionGeneration;
         binding.aiChatEntry.animate().cancel();
-    }
-
-    private void popBackStack(boolean clearBackStack) {
-        FragmentManager fragmentManager = getFragmentManager();
-        if (clearBackStack) {
-            fragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
-        } else {
-            fragmentManager.popBackStack();
-        }
     }
 
     private void removeAiPageBeforeNavigating() {
@@ -1544,7 +1304,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             return;
         }
         releaseAiConversationIfVisible();
-        mHomeNavigationPending = false;
         ++mPageTransitionGeneration;
         cancelPageAnimations();
         popBackStackImmediately(false);
@@ -1582,30 +1341,19 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
         if (fragment == null) {
-            boolean keepHomeTransition = mHomeNavigationPending;
-            applyHomePageUi(!keepHomeTransition);
-            mHomeNavigationPending = false;
+            // 容器必须始终有页面：首页即 WiFi 音乐页，缺失时立即装入。
+            showPage(MainPage.WIFI);
+            getFragmentManager().executePendingTransactions();
             return;
         }
-        mHomeNavigationPending = false;
         binding.fragmentContainer.setVisibility(View.VISIBLE);
         boolean aiConversationVisible = fragment instanceof AiFragment;
         updateLauncherBackground(aiConversationVisible);
-        hideAiChatEntry();
-    }
-
-    private void applyHomePageUi(boolean resetPageBody) {
-        updateModeTextFromSelectedInputMode();
-        updateLauncherBackground(false);
-        binding.fragmentContainer.setVisibility(View.GONE);
-        binding.fragmentContainer.setTranslationX(0f);
-        binding.fragmentContainer.setAlpha(1f);
-        if (resetPageBody) {
-            binding.pageBody.setTranslationX(0f);
-            binding.pageBody.setAlpha(1f);
+        if (fragment instanceof WifiFragment) {
+            showAiChatEntry();
+        } else {
+            hideAiChatEntry();
         }
-        showAiChatEntry();
-        resetBottomNavigationBackground();
     }
 
     private void hideAiChatEntry() {
@@ -1718,27 +1466,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         SETTINGS
     }
 
-    private boolean isInputModePage(MainPage page) {
-        if (page == null) {
-            return false;
-        }
-        switch (page) {
-            case LINE:
-            case MICROPHONE:
-            case OPTICAL:
-            case COAX:
-            case HDMI:
-            case BLUETOOTH:
-            case WIFI:
-                return true;
-            case SETTINGS:
-            case AI:
-            case SYSTEM_APPS:
-            default:
-                return false;
-        }
-    }
-
     private boolean isFragmentForPage(Fragment fragment, MainPage page) {
         if (fragment == null || page == null) {
             return false;
@@ -1771,23 +1498,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     private int dp(float value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
-    }
-
-    private void scrollToSelectedMode() {
-        final int selectedPosition = mInputModeAdapter.getSelectedPosition();
-        if (selectedPosition == RecyclerView.NO_POSITION) {
-            return;
-        }
-        binding.cardsRow.post(new Runnable() {
-            @Override
-            public void run() {
-                RecyclerView.LayoutManager layoutManager = binding.cardsRow.getLayoutManager();
-                if (layoutManager instanceof LinearLayoutManager) {
-                    ((LinearLayoutManager) layoutManager).scrollToPositionWithOffset(
-                            selectedPosition, binding.cardsRow.getPaddingLeft());
-                }
-            }
-        });
     }
 
     private String formatWifiStatus(String wifiLabel) {

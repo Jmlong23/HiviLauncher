@@ -43,7 +43,7 @@ import com.hivi.launcher.databinding.LayoutSettingsContentBinding;
 import com.hivi.launcher.databinding.PopupSettingsLanguageBinding;
 import com.hivi.launcher.databinding.PopupSettingsScreenSaverBinding;
 import com.hivi.launcher.main.ui.MainActivity;
-import com.hivi.launcher.onboarding.ui.FirstUseGuideActivity;
+import com.hivi.launcher.main.ui.MainActivity;
 import com.hivi.launcher.settings.model.SettingsModel;
 import com.hivi.launcher.settings.model.ScreenSaverSettings;
 import com.hivi.launcher.settings.presenter.SettingsPresenter;
@@ -103,7 +103,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             this::initializeWifiSettingsIfNeeded;
     private final Runnable mLogUploadSuccessDismissRunnable = this::dismissLogUploadDialog;
     private final Runnable mFactoryResetSuccessTransitionRunnable =
-            this::openFirstUseGuideAfterFactoryReset;
+            this::restartLauncherAfterFactoryReset;
     private int mDisplayPopupType = DISPLAY_POPUP_NONE;
     private int mPendingScreenBrightness = NO_PENDING_SCREEN_BRIGHTNESS;
     private int mSelectedSettingsSection = SettingsPresenter.SECTION_NETWORK;
@@ -1242,7 +1242,11 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         mFactoryResetBinding = null;
     }
 
-    private void openFirstUseGuideAfterFactoryReset() {
+    /**
+     * 引导页已移除：恢复出厂设置完成后直接重启 Launcher，
+     * 以全新状态进入 WiFi 音乐首页。
+     */
+    private void restartLauncherAfterFactoryReset() {
         if (!isAdded()) {
             return;
         }
@@ -1251,7 +1255,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             return;
         }
         dismissFactoryResetDialog();
-        Intent intent = new Intent(activity, FirstUseGuideActivity.class)
+        Intent intent = new Intent(activity, MainActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                         | Intent.FLAG_ACTIVITY_CLEAR_TASK
                         | Intent.FLAG_ACTIVITY_CLEAR_TOP);

@@ -75,6 +75,8 @@ public class MainPresenter extends BasePresenter<MainView> {
 
     public void init() {
         mAudioRouteController.addAmplifierVolumeListener(mAmplifierVolumeListener);
+        // 仅剩 WiFi 一个输入模式：启动即把功放切到 WiFi 音乐通道，保证流媒体播放出声。
+        mAudioRouteController.selectMode(MainPage.WIFI);
         mMcuBluetoothController.start(mContext);
         mLastNotifiedConnected = mMcuBluetoothController.isConnected();
         mMcuBluetoothController.addListener(mMcuBluetoothListener);
@@ -221,11 +223,6 @@ public class MainPresenter extends BasePresenter<MainView> {
         navigateToPage(MainPage.AI);
     }
 
-    public void onInputModeClicked(MainPage page) {
-        AppLog.d(TAG, "Input mode clicked: " + page);
-        navigateToPage(page);
-    }
-
     @Override
     public void detach() {
         mAudioRouteController.removeAmplifierVolumeListener(mAmplifierVolumeListener);
@@ -255,7 +252,6 @@ public class MainPresenter extends BasePresenter<MainView> {
         if (page == null) {
             return;
         }
-        mAudioRouteController.selectMode(page);
         MainView view = getView();
         if (view != null) {
             view.showPage(page);

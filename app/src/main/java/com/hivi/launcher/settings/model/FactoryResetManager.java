@@ -13,7 +13,6 @@ import com.hivi.launcher.R;
 import com.hivi.launcher.ai.presenter.AiPresenter;
 import com.hivi.launcher.audio.AudioRouteController;
 import com.hivi.launcher.music.model.UpnpPlaybackManager;
-import com.hivi.launcher.onboarding.model.FirstUseGuideStore;
 import com.hivi.launcher.utils.LocaleHelper;
 import com.hivi.launcher.utils.log.AppLog;
 import com.hivi.launcher.utils.network.AuthorizationStore;
@@ -203,9 +202,6 @@ public final class FactoryResetManager {
         }
         if (!LocaleHelper.resetLanguage(mApplicationContext)) {
             throw new IOException("Unable to clear persisted language state.");
-        }
-        if (!FirstUseGuideStore.clear(mApplicationContext)) {
-            throw new IOException("Unable to clear first-use guide state.");
         }
         if (!UpnpPlaybackManager.clearPersistedDeviceName(mApplicationContext)) {
             throw new IOException("Unable to clear persisted device name.");

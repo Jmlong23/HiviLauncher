@@ -7,7 +7,7 @@ public final class Constants {
     public static final String TEST_BASE_URL = "http://8.129.106.82/api/";//测试服
     public static final String AI_WEBSOCKET_URL = "ws://network.hivi.com/ws/swan-audio-ai/v1/";//正式服
     public static final String TEST_WS_URL = "ws://8.129.106.82/ws/swan-audio-ai/v1/";//测试服
-    public static final String APP_UPDATE_PRODUCT_TYPE = "HIVI-LAUNCHER";
+    public static final String APP_UPDATE_PRODUCT_TYPE = "HIVI-LAUNCHER-STREAM";
 
     /**
      * Launcher 当前的账号授权接口使用测试环境；AI WebSocket 必须使用同一环境，
