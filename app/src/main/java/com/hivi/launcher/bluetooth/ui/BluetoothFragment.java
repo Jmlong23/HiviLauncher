@@ -93,9 +93,15 @@ public final class BluetoothFragment extends BaseFragment<BluetoothPresenter>
         setActionEnabled(mBinding.resetButton, connected);
 
         boolean playing = state.isPlaying();
-        mBinding.trackTitle.setText(playing
-                ? getString(R.string.bluetooth_now_playing) : getString(R.string.bluetooth_no_playback));
-        mBinding.trackArtist.setText(playing ? "" : getString(R.string.bluetooth_unknown_artist));
+        // Line 1 shows the song title, line 2 the lyrics line pushed by the MCU; each
+        // falls back to the previous placeholder strings while data has not arrived.
+        String trackTitle = state.getTrackTitle();
+        String trackLyric = state.getTrackLyric();
+        mBinding.trackTitle.setText(!playing ? getString(R.string.bluetooth_no_playback)
+                : TextUtils.isEmpty(trackTitle)
+                        ? getString(R.string.bluetooth_now_playing) : trackTitle);
+        mBinding.trackArtist.setText(!playing ? getString(R.string.bluetooth_unknown_artist)
+                : trackLyric);
         mBinding.albumArtwork.setVisibility(View.GONE);
         boolean playbackControlAvailable = state.isPlaybackControlAvailable();
         mBinding.btnPlayOrPause.setImageResource(playing

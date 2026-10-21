@@ -42,6 +42,8 @@ public final class McuBluetoothController implements AudioRouteController.McuBlu
     private boolean mPlaying;
     private String mBtName = "";
     private String mPhoneName = "";
+    private String mTrackTitle = "";
+    private String mTrackLyric = "";
 
     private McuBluetoothController() {
     }
@@ -87,6 +89,16 @@ public final class McuBluetoothController implements AudioRouteController.McuBlu
         return mConnected ? mPhoneName : "";
     }
 
+    /** Current track's song title as parsed from the MCU now-playing reports, or empty. */
+    public synchronized String getTrackTitle() {
+        return mTrackTitle;
+    }
+
+    /** Latest lyrics line the MCU pushed for the current track, or empty. */
+    public synchronized String getTrackLyric() {
+        return mTrackLyric;
+    }
+
     public void disconnect() {
         mAudioRouteController.sendBluetoothDisconnect();
     }
@@ -125,6 +137,7 @@ public final class McuBluetoothController implements AudioRouteController.McuBlu
             if (!connected) {
                 mPlaying = false;
                 mPhoneName = "";
+                clearTrackInfoLocked();
             }
         }
         persistConnected(connected);
@@ -137,6 +150,7 @@ public final class McuBluetoothController implements AudioRouteController.McuBlu
             mConnected = false;
             mPlaying = false;
             mPhoneName = "";
+            clearTrackInfoLocked();
         }
         persistConnected(false);
         for (Listener listener : copyListeners()) {
@@ -167,6 +181,119 @@ public final class McuBluetoothController implements AudioRouteController.McuBlu
             mPlaying = playing;
         }
         notifyStateChanged();
+    }
+
+    @Override
+    public void onBluetoothTrackInfoChanged(
+            AudioRouteController.McuBluetoothListener.BluetoothTrackField field, String value) {
+        boolean changed;
+        boolean stateFixed = false;
+        synchronized (this) {
+            if (!mConnected) {
+                // Metadata only arrives while a phone streams; self-heal a missed
+                // connection report, same as the HiviAudio project does.
+                mConnected = true;
+                stateFixed = true;
+            }
+            if (!mPlaying) {
+                // A metadata push implies audible playback.
+                mPlaying = true;
+                stateFixed = true;
+            }
+            switch (field) {
+                case ARTIST:
+                    // ARTIST arrives as "song title-artists"; some updates carry only the
+                    // artist name, in which case the current song title is preserved.
+                    int separator = findArtistSplitIndex(value);
+                    if (separator > 0 && separator < value.length() - 1) {
+                        String title = value.substring(0, separator).trim();
+                        changed = !title.equals(mTrackTitle);
+                        mTrackTitle = title;
+                        // A new track started; stale lyrics from the previous one must go.
+                        mTrackLyric = "";
+                    } else {
+                        changed = false;
+                    }
+                    break;
+                case ALBUM:
+                    // Parsed for completeness; the album name is not displayed.
+                    changed = false;
+                    break;
+                case LYRICS:
+                    // The first line of a track's lyrics can be the "title-singer" pair.
+                    if (isLikelyTitleLyric(value)) {
+                        int splitIndex = findArtistSplitIndex(value);
+                        String title = value.substring(0, splitIndex).trim();
+                        if (!title.isEmpty() && !title.equals(mTrackTitle)) {
+                            mTrackTitle = title;
+                            changed = true;
+                        } else {
+                            changed = false;
+                        }
+                    } else {
+                        changed = false;
+                    }
+                    if (!value.equals(mTrackLyric)) {
+                        mTrackLyric = value;
+                        changed = true;
+                    }
+                    break;
+                default:
+                    changed = false;
+                    break;
+            }
+        }
+        if (stateFixed) {
+            persistConnected(true);
+        }
+        if (changed || stateFixed) {
+            notifyStateChanged();
+        }
+    }
+
+    private void clearTrackInfoLocked() {
+        mTrackTitle = "";
+        mTrackLyric = "";
+    }
+
+    /** Song/singer separator: '-' plus the full-width and en/em dash variants. */
+    private static int findArtistSplitIndex(String payload) {
+        int splitIndex = payload.lastIndexOf('-');
+        if (splitIndex < 0) {
+            splitIndex = payload.lastIndexOf('－');
+        }
+        if (splitIndex < 0) {
+            splitIndex = payload.lastIndexOf('–');
+        }
+        if (splitIndex < 0) {
+            splitIndex = payload.lastIndexOf('—');
+        }
+        return splitIndex;
+    }
+
+    /** A lyrics line counts as the "title-singer" pair when both sides look like names. */
+    private static boolean isLikelyTitleLyric(String lyricPayload) {
+        int splitIndex = findArtistSplitIndex(lyricPayload);
+        if (splitIndex <= 0 || splitIndex >= lyricPayload.length() - 1) {
+            return false;
+        }
+        String leftPart = lyricPayload.substring(0, splitIndex).trim();
+        String rightPart = lyricPayload.substring(splitIndex + 1).trim();
+        if (leftPart.isEmpty() || rightPart.isEmpty()) {
+            return false;
+        }
+        return !looksLikeLyricCredit(leftPart) && !looksLikeLyricCredit(rightPart);
+    }
+
+    private static boolean looksLikeLyricCredit(String value) {
+        String normalized = value.trim();
+        return normalized.startsWith("作词")
+                || normalized.startsWith("作曲")
+                || normalized.startsWith("编曲")
+                || normalized.startsWith("词曲")
+                || normalized.startsWith("歌词")
+                || normalized.contains("：")
+                || normalized.contains(":");
     }
 
     private final CopyOnWriteArrayList<Listener> mListeners = new CopyOnWriteArrayList<>();

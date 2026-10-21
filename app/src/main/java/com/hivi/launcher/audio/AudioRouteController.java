@@ -14,6 +14,7 @@ import com.hivi.audionativelib.manager.serialport.listener.OnSerialPortDataListe
 import com.hivi.launcher.main.model.MainPage;
 
 import java.io.File;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -61,6 +62,11 @@ public final class AudioRouteController {
     private static final String MCU_EVENT_MICROPHONE_CONNECTED = "MCU+MIC+CONNECTED";
     private static final String MCU_EVENT_MICROPHONE_DISCONNECTED = "MCU+MIC+DICONNECT";
 
+    // Now-playing metadata pushed while Bluetooth audio plays; each payload ends with '&'.
+    private static final String MCU_EVENT_BLUETOOTH_TRACK_ARTIST = "MCU+PLY+ARTIST";
+    private static final String MCU_EVENT_BLUETOOTH_TRACK_ALBUM = "MCU+PLY+ALBUM";
+    private static final String MCU_EVENT_BLUETOOTH_TRACK_LYRIC = "MCU+PLY+LYRICS";
+
     private static final String TAG = "AudioRouteController";
     private static final String PREFERENCES_NAME = "audio_route";
     private static final String PREFERENCE_SELECTED_MODE = "selected_mode";
@@ -105,6 +111,16 @@ public final class AudioRouteController {
         void onBluetoothNameChanged(String btName);
 
         void onBluetoothPlayStateChanged(boolean playing);
+
+        /** Which now-playing metadata field the MCU's MCU+PLY+ report carried. */
+        enum BluetoothTrackField {
+            ARTIST,
+            ALBUM,
+            LYRICS
+        }
+
+        default void onBluetoothTrackInfoChanged(BluetoothTrackField field, String value) {
+        }
     }
 
     public interface FactoryResetCallback {
@@ -517,8 +533,9 @@ public final class AudioRouteController {
             serialPortManager.setOnSerialPortDataListener(new OnSerialPortDataListener() {
                 @Override
                 public void onDataReceived(String data) {
-                    AppLog.d(TAG, "Serial data received: " + data);
-                    handleMcuEvent(data);
+                    String decoded = repairUtf8Mojibake(data);
+                    AppLog.d(TAG, "Serial data received: " + decoded);
+                    handleMcuEvent(decoded);
                 }
 
                 @Override
@@ -633,7 +650,57 @@ public final class AudioRouteController {
             dispatchMicrophoneConnectionChanged(true);
         } else if (MCU_EVENT_MICROPHONE_DISCONNECTED.equals(event)) {
             dispatchMicrophoneConnectionChanged(false);
+        } else if (event.startsWith(MCU_EVENT_BLUETOOTH_TRACK_ARTIST)) {
+            dispatchBluetoothTrackInfoChanged(McuBluetoothListener.BluetoothTrackField.ARTIST,
+                    extractTrackPayload(event, MCU_EVENT_BLUETOOTH_TRACK_ARTIST.length()));
+        } else if (event.startsWith(MCU_EVENT_BLUETOOTH_TRACK_ALBUM)) {
+            dispatchBluetoothTrackInfoChanged(McuBluetoothListener.BluetoothTrackField.ALBUM,
+                    extractTrackPayload(event, MCU_EVENT_BLUETOOTH_TRACK_ALBUM.length()));
+        } else if (event.startsWith(MCU_EVENT_BLUETOOTH_TRACK_LYRIC)) {
+            dispatchBluetoothTrackInfoChanged(McuBluetoothListener.BluetoothTrackField.LYRICS,
+                    extractTrackPayload(event, MCU_EVENT_BLUETOOTH_TRACK_LYRIC.length()));
         }
+    }
+
+    /** Strips the trailing '&' terminator (plus any line noise) from a now-playing payload. */
+    private static String extractTrackPayload(String event, int prefixLength) {
+        return event.substring(prefixLength).replaceAll("[&\\r\\n]+$", "").trim();
+    }
+
+    /**
+     * Repairs text whose UTF-8 bytes were decoded as GBK/GB2312 somewhere on the path
+     * (same approach as the HiviAudio project). Pure ASCII passes through untouched.
+     */
+    private static String repairUtf8Mojibake(String source) {
+        if (source == null || source.isEmpty()) {
+            return source;
+        }
+        // A U+FFFD means the original bytes were already lost; re-decoding only
+        // turns "�" into "?".
+        if (source.contains("�") || !looksLikeUtf8Mojibake(source)) {
+            return source;
+        }
+        try {
+            String repaired = new String(source.getBytes(Charset.forName("GBK")),
+                    StandardCharsets.UTF_8);
+            return repaired.isEmpty() ? source : repaired;
+        } catch (Exception e) {
+            AppLog.w(TAG, "repairUtf8Mojibake failed, fallback raw data", e);
+            return source;
+        }
+    }
+
+    private static boolean looksLikeUtf8Mojibake(String source) {
+        // High-frequency fragments produced when UTF-8 bytes are mis-decoded as GBK/GB2312.
+        return source.contains("�")
+                || source.contains("锟")
+                || source.contains("涓")
+                || source.contains("鏄")
+                || source.contains("鐨")
+                || source.contains("鍙")
+                || source.contains("浠")
+                || source.contains("鍥")
+                || source.contains("鎴");
     }
 
     private void dispatchBluetoothConnectionChanged(boolean connected) {
@@ -693,6 +760,19 @@ public final class AudioRouteController {
         mMainHandler.post(() -> {
             for (McuMicrophoneListener listener : mMcuMicrophoneListeners) {
                 listener.onMicrophoneConnectionChanged(connected);
+            }
+        });
+    }
+
+    private void dispatchBluetoothTrackInfoChanged(McuBluetoothListener.BluetoothTrackField field,
+            String value) {
+        if (value.isEmpty()) {
+            return;
+        }
+        AppLog.i(TAG, "MCU bluetooth track info: " + field + "=" + value);
+        mMainHandler.post(() -> {
+            for (McuBluetoothListener listener : mMcuBluetoothListeners) {
+                listener.onBluetoothTrackInfoChanged(field, value);
             }
         });
     }

@@ -96,6 +96,8 @@ public final class BluetoothModel implements McuBluetoothController.Listener {
                 mMcuBluetoothController.isConnected(),
                 mMcuBluetoothController.isPlaying(),
                 mAudioRouteController.getAmplifierVolumePercent(),
-                mAudioRouteController.isAmplifierMuted()));
+                mAudioRouteController.isAmplifierMuted(),
+                mMcuBluetoothController.getTrackTitle(),
+                mMcuBluetoothController.getTrackLyric()));
     }
 }
