@@ -18,7 +18,6 @@ package com.ljm.audiotoollib.upnpserver.entity;
 import com.ljm.audiotoollib.upnpserver.cling.model.ModelUtil;
 import com.ljm.audiotoollib.upnpserver.cling.support.lastchange.EventedValue;
 import com.ljm.audiotoollib.upnpserver.cling.support.lastchange.LastChangeParser;
-import com.ljm.audiotoollib.upnpserver.cling.support.renderingcontrol.lastchange.RenderingControlVariable;
 
 import java.util.Set;
 
@@ -30,8 +29,13 @@ import javax.xml.transform.stream.StreamSource;
  */
 public class PlayQueueLastChangeParser extends LastChangeParser {
 
-    public static final String NAMESPACE_URI = "urn:schemas-upnp-org:metadata-1-0/RCS/";
-    public static final String SCHEMA_RESOURCE = "org/fourthline/cling/support/renderingcontrol/metadata-1.0-rcs.xsd";
+    public static final String NAMESPACE_URI = "urn:schemas-wiimu-com:metadata-1-0/PlayQueue/";
+    public static final String SCHEMA_RESOURCE = "com/ljm/audiotoollib/upnpserver/hivi-playqueue.xsd";
+
+    @Override
+    protected String getInstanceIdElementName() {
+        return "QueueID";
+    }
 
     @Override
     protected String getNamespace() {
@@ -52,6 +56,6 @@ public class PlayQueueLastChangeParser extends LastChangeParser {
 
     @Override
     protected Set<Class<? extends EventedValue>> getEventedVariables() {
-        return RenderingControlVariable.ALL;
+        return PlayQueueVariable.ALL;
     }
 }

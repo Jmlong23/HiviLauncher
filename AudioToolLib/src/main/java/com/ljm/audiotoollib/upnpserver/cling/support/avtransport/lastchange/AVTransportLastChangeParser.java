@@ -42,9 +42,13 @@ public class AVTransportLastChangeParser extends LastChangeParser {
         // TODO: Android 2.2 has a broken SchemaFactory, we can't validate
         // http://code.google.com/p/android/issues/detail?id=9491&q=schemafactory&colspec=ID%20Type%20Status%20Owner%20Summary%20Stars
         if (!ModelUtil.ANDROID_RUNTIME) {
-            return new Source[]{new StreamSource(
-                    Thread.currentThread().getContextClassLoader().getResourceAsStream(SCHEMA_RESOURCE)
-            )};
+            ClassLoader loader = Thread.currentThread().getContextClassLoader();
+            StreamSource source = new StreamSource(loader.getResourceAsStream(
+                    "com/ljm/audiotoollib/upnpserver/hivi-avt.xsd"));
+            // Resolve the standard schema relative to its bundled classpath URL.
+            source.setSystemId(loader.getResource(SCHEMA_RESOURCE).toExternalForm()
+                    .replace("metadata-1.01-avt.xsd", "hivi-avt.xsd"));
+            return new Source[]{source};
         }
         return null;
     }

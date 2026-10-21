@@ -81,7 +81,6 @@ public final class AudioRenderController implements IRendererInterface.IAudioCon
 
     @Override
     public UnsignedIntegerTwoBytes getVolume(String channelName) {
-        Log.i(TAG,"getVolume: " + mCurrentVolume);
         if(listener != null) {
             return new UnsignedIntegerTwoBytes(listener.onGetVolume());
         }
@@ -129,7 +128,11 @@ public final class AudioRenderController implements IRendererInterface.IAudioCon
 
     @Override
     public void setRemoteControlMode(UnsignedIntegerTwoBytes mode) {
-        Log.i(TAG, "mode: " + mode);
+        Log.i(TAG, "收到UPnP SetRemoteControlMode: ControlMode="
+                + (mode == null ? "null" : mode.getValue()));
+        if (mode == null) {
+            return;
+        }
         if(listener != null) {
             listener.onSetRemoteControlMode(mode.getValue().intValue());
         }

@@ -251,7 +251,7 @@ import java.net.URI;
 })
 public abstract class AbstractAVTransportService implements LastChangeDelegator {
 
-    @UpnpStateVariable(eventMaximumRateMilliseconds = 200)
+    @UpnpStateVariable
     final private LastChange lastChange;
     final protected PropertyChangeSupport propertyChangeSupport;
 
@@ -298,6 +298,8 @@ public abstract class AbstractAVTransportService implements LastChangeDelegator 
                 new AVTransportVariable.CurrentRecordQualityMode(transportSettings.getRecQualityMode()),
                 new AVTransportVariable.CurrentTrack(positionInfo.getTrack()),
                 new AVTransportVariable.CurrentTrackDuration(positionInfo.getTrackDuration()),
+                new AVTransportVariable.RelativeTimePosition(positionInfo.getRelTime()),
+                new AVTransportVariable.PlaybackStorageMedium(mediaInfo.getPlayMedium()),
                 new AVTransportVariable.CurrentTrackMetaData(positionInfo.getTrackMetaData()),
                 new AVTransportVariable.CurrentTrackURI(URI.create(positionInfo.getTrackURI())),
                 new AVTransportVariable.CurrentTransportActions(getCurrentTransportActions(instanceId)),

@@ -15,6 +15,7 @@ public class MusicDataBean implements MultiItemEntity {
     String coverUrl = "";
     String name = "";
     String playUrl = "";
+    String playQuality = "";
     String artist = "";
     String dataType = "music";
     String id = "";
@@ -309,6 +310,14 @@ public class MusicDataBean implements MultiItemEntity {
 
     public void setPlayUrl(String playUrl) {
         this.playUrl = playUrl;
+    }
+
+    public String getPlayQuality() {
+        return playQuality;
+    }
+
+    public void setPlayQuality(String playQuality) {
+        this.playQuality = playQuality;
     }
 
     public String getDataType() {

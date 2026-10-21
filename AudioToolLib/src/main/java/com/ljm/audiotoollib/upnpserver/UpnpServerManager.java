@@ -17,7 +17,8 @@ import com.ljm.audiotoollib.upnpserver.service.PlayQueueController;
 
 public class UpnpServerManager {
     private static final String TAG = UpnpServerManager.class.getSimpleName();
-    private static final long RESTART_BIND_DELAY_MS = 1500L;
+    private static final long RESTART_SHUTDOWN_TIMEOUT_MS = 10000L;
+    private static volatile UpnpServerManager activeManager;
 
     private PlayQueueController playQueueManager;
     private AVTransportController avTransportController;
@@ -25,8 +26,16 @@ public class UpnpServerManager {
     private AudioRenderController audioRenderController;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private Runnable pendingRestartAndBindRunnable;
+    private Runnable pendingShutdownTimeoutRunnable;
+    private boolean restartAndBindInProgress;
+    private boolean waitingForRendererShutdown;
+    private Context pendingRestartContext;
+    private ServiceConnection pendingRestartConnection;
+    private int pendingRestartFlags;
+    private String pendingRestartDeviceName;
 
     public UpnpServerManager() {
+        activeManager = this;
         avTransportController = AVTransportController.getInstance();
     }
 
@@ -40,6 +49,20 @@ public class UpnpServerManager {
             mainHandler.removeCallbacks(pendingRestartAndBindRunnable);
             pendingRestartAndBindRunnable = null;
         }
+        if (pendingShutdownTimeoutRunnable != null) {
+            mainHandler.removeCallbacks(pendingShutdownTimeoutRunnable);
+            pendingShutdownTimeoutRunnable = null;
+        }
+    }
+
+    private void clearRestartAndBindState() {
+        cancelPendingRestartAndBind();
+        restartAndBindInProgress = false;
+        waitingForRendererShutdown = false;
+        pendingRestartContext = null;
+        pendingRestartConnection = null;
+        pendingRestartFlags = 0;
+        pendingRestartDeviceName = null;
     }
 
     private void bindService(Context context, ServiceConnection conn, int flags) {
@@ -51,7 +74,7 @@ public class UpnpServerManager {
     }
 
     public void stopService(Context context) {
-        cancelPendingRestartAndBind();
+        clearRestartAndBindState();
         context.getApplicationContext().stopService(createServiceIntent(context));
     }
 
@@ -100,23 +123,103 @@ public class UpnpServerManager {
     public void restartAndBindUpnpServer(Context context, ServiceConnection conn, int flags, String deviceName) {
         Log.i(TAG, "restartAndBindUpnpServer name: " + deviceName
                 + ", conn=" + conn + ", flags=" + flags);
-        cancelPendingRestartAndBind();
+        if (restartAndBindInProgress) {
+            Log.i(TAG, "restartAndBindUpnpServer already in progress, ignore duplicate request");
+            return;
+        }
         SWDeviceStatus.updateDeviceName(deviceName);
         Context appContext = context.getApplicationContext();
-        stopService(appContext);
+        restartAndBindInProgress = true;
+        waitingForRendererShutdown = true;
+        pendingRestartContext = appContext;
+        pendingRestartConnection = conn;
+        pendingRestartFlags = flags;
+        pendingRestartDeviceName = deviceName;
+
+        boolean stopRequested = appContext.stopService(createServiceIntent(appContext));
+        if (!stopRequested) {
+            Log.i(TAG, "restartAndBindUpnpServer no running renderer service, start immediately");
+            waitingForRendererShutdown = false;
+            schedulePendingRestartAndBind("NO_RUNNING_SERVICE");
+            return;
+        }
+
+        Log.i(TAG, "restartAndBindUpnpServer waiting for previous renderer UPnP shutdown");
+        pendingShutdownTimeoutRunnable = () -> {
+            if (!restartAndBindInProgress || !waitingForRendererShutdown) {
+                return;
+            }
+            Log.w(TAG, "renderer UPnP shutdown callback timed out, starting replacement after "
+                    + RESTART_SHUTDOWN_TIMEOUT_MS + "ms");
+            waitingForRendererShutdown = false;
+            schedulePendingRestartAndBind("SHUTDOWN_TIMEOUT");
+        };
+        mainHandler.postDelayed(pendingShutdownTimeoutRunnable, RESTART_SHUTDOWN_TIMEOUT_MS);
+    }
+
+    private void schedulePendingRestartAndBind(String reason) {
+        if (!restartAndBindInProgress || pendingRestartContext == null) {
+            return;
+        }
+        if (pendingRestartAndBindRunnable != null) {
+            mainHandler.removeCallbacks(pendingRestartAndBindRunnable);
+        }
         pendingRestartAndBindRunnable = () -> {
             try {
-                Log.i(TAG, "restartAndBindUpnpServer delayed start name=" + deviceName
-                        + ", delayMs=" + RESTART_BIND_DELAY_MS);
-                prepareUpnpInfrastructure(appContext, true);
-                bindService(appContext, conn, flags);
-                initControllers(appContext);
-                Log.i(TAG, "restartAndBindUpnpServer finish name=" + deviceName + ", conn=" + conn + ", flags=" + flags);
+                if (!restartAndBindInProgress || waitingForRendererShutdown) {
+                    return;
+                }
+                Log.i(TAG, "restartAndBindUpnpServer starting replacement, reason=" + reason
+                        + ", name=" + pendingRestartDeviceName);
+                prepareUpnpInfrastructure(pendingRestartContext, true);
+                bindService(pendingRestartContext, pendingRestartConnection, pendingRestartFlags);
+                initControllers(pendingRestartContext);
+                Log.i(TAG, "restartAndBindUpnpServer replacement start requested, name="
+                        + pendingRestartDeviceName + ", conn=" + pendingRestartConnection
+                        + ", flags=" + pendingRestartFlags);
+            } catch (RuntimeException e) {
+                Log.e(TAG, "restartAndBindUpnpServer failed to start replacement", e);
+                clearRestartAndBindState();
             } finally {
                 pendingRestartAndBindRunnable = null;
             }
         };
-        mainHandler.postDelayed(pendingRestartAndBindRunnable, RESTART_BIND_DELAY_MS);
+        mainHandler.post(pendingRestartAndBindRunnable);
+    }
+
+    static void onRendererServiceShutdownCompleted() {
+        UpnpServerManager manager = activeManager;
+        if (manager != null) {
+            manager.handleRendererServiceShutdownCompleted();
+        }
+    }
+
+    private void handleRendererServiceShutdownCompleted() {
+        mainHandler.post(() -> {
+            if (!restartAndBindInProgress || !waitingForRendererShutdown) {
+                Log.i(TAG, "renderer UPnP shutdown completed with no pending restart");
+                return;
+            }
+            Log.i(TAG, "renderer UPnP shutdown completed, starting replacement");
+            waitingForRendererShutdown = false;
+            if (pendingShutdownTimeoutRunnable != null) {
+                mainHandler.removeCallbacks(pendingShutdownTimeoutRunnable);
+                pendingShutdownTimeoutRunnable = null;
+            }
+            schedulePendingRestartAndBind("SHUTDOWN_COMPLETED");
+        });
+    }
+
+    public boolean isRestartAndBindInProgress() {
+        return restartAndBindInProgress;
+    }
+
+    public void onRendererServiceBound() {
+        if (!restartAndBindInProgress) {
+            return;
+        }
+        Log.i(TAG, "restartAndBindUpnpServer renderer service bound");
+        clearRestartAndBindState();
     }
 
     public void initUpnpServer(Context context, ServiceConnection conn, int flags, String deviceName){

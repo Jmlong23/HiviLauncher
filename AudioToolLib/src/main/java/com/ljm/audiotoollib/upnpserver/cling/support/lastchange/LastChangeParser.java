@@ -72,6 +72,10 @@ public abstract class LastChangeParser extends SAXParser {
 
     abstract protected String getNamespace();
 
+    protected String getInstanceIdElementName() {
+        return CONSTANTS.InstanceID.name();
+    }
+
     protected Set<Class<? extends EventedValue>> getEventedVariables() {
         return Collections.EMPTY_SET;
     }
@@ -146,7 +150,7 @@ public abstract class LastChangeParser extends SAXParser {
         @Override
         public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
             super.startElement(uri, localName, qName, attributes);
-            if (CONSTANTS.InstanceID.equals(localName)) {
+            if (getInstanceIdElementName().equals(localName)) {
                 String valAttr = attributes.getValue(CONSTANTS.val.name());
                 if (valAttr != null) {
                     InstanceID instanceID = new InstanceID(new UnsignedIntegerFourBytes(valAttr));
@@ -186,7 +190,7 @@ public abstract class LastChangeParser extends SAXParser {
 
         @Override
         protected boolean isLastElement(String uri, String localName, String qName) {
-            return CONSTANTS.InstanceID.equals(localName);
+            return getInstanceIdElementName().equals(localName);
         }
     }
 
@@ -214,7 +218,7 @@ public abstract class LastChangeParser extends SAXParser {
     protected void generateInstanceIDs(Event event, Document descriptor, Element rootElement) {
         for (InstanceID instanceID : event.getInstanceIDs()) {
             if (instanceID.getId() == null) continue;
-            Element instanceIDElement = XMLUtil.appendNewElement(descriptor, rootElement, CONSTANTS.InstanceID.name());
+            Element instanceIDElement = XMLUtil.appendNewElement(descriptor, rootElement, getInstanceIdElementName());
             instanceIDElement.setAttribute(CONSTANTS.val.name(), instanceID.getId().toString());
 
             for (EventedValue eventedValue : instanceID.getValues()) {

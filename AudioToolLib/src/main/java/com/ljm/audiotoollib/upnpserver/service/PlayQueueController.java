@@ -1,29 +1,22 @@
 package com.ljm.audiotoollib.upnpserver.service;
 
 import android.content.Context;
-import android.media.AudioManager;
 import android.util.Log;
+import android.util.Xml;
 
 import com.ljm.audiotoollib.upnpserver.cling.model.types.UnsignedIntegerFourBytes;
-import com.ljm.audiotoollib.upnpserver.cling.model.types.UnsignedIntegerTwoBytes;
 import com.ljm.audiotoollib.upnpserver.entity.PlayMusicListType;
 import com.ljm.audiotoollib.upnpserver.entity.TrackINFO_Type;
 import com.ljm.audiotoollib.upnpserver.listener.OnPlayMusicByIndexListener;
 import com.ljm.audiotoollib.upnpserver.utils.XmlUtil;
 
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
+import org.xmlpull.v1.XmlPullParser;
 
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 
 /**
  *
@@ -33,11 +26,7 @@ public final class PlayQueueController implements IRendererInterface.IPlayQueueC
     private static final String TAG = "PlayQueueController";
     private static final boolean ENABLE_APP_PUSH_FORMAT_LOG = false;
     private static final int LOG_CHUNK_SIZE = 3000;
-    private static final UnsignedIntegerTwoBytes VOLUME_MUTE = new UnsignedIntegerTwoBytes(0);
     private final UnsignedIntegerFourBytes mInstanceId;
-    private final AudioManager mAudioManager;
-    private UnsignedIntegerTwoBytes mLastVolume;
-    private UnsignedIntegerTwoBytes mCurrentVolume;
     private PlayMusicListType playMusicList;
     private OnPlayMusicByIndexListener playMusicByIndexListener;
     private static PlayQueueController instance;
@@ -45,7 +34,10 @@ public final class PlayQueueController implements IRendererInterface.IPlayQueueC
     private UnsignedIntegerFourBytes[] pqControlUnsignedIntegerFourBytes = null;
     private final static Map<UnsignedIntegerFourBytes, IRendererInterface.IPlayQueueControl> avControlMap = new LinkedHashMap<>();
 
-    private String queueContext;
+    private final Object queueLock = new Object();
+    private int lastAppendQueueHash;
+    private int lastAppendQueueLength;
+    private long lastAppendQueueAtMs;
 
     public static PlayQueueController getInstance(Context context) {
         if (instance == null) {
@@ -69,59 +61,88 @@ public final class PlayQueueController implements IRendererInterface.IPlayQueueC
         return playMusicList;
     }
 
+    /**
+     * Gets the queue item and index from the same queue snapshot. Queue payloads are received on
+     * Cling worker threads while AVTransport status is queried concurrently, so callers must not
+     * compose these values through separate list/index reads.
+     */
+    public CurrentTrackSnapshot getCurrentTrackSnapshot() {
+        synchronized (queueLock) {
+            List<TrackINFO_Type> tracks = playMusicList.getPQMusicList();
+            int index = playMusicList.getCurPlayIndex();
+            if (index < 0 || index >= tracks.size()) {
+                return CurrentTrackSnapshot.empty();
+            }
+            return new CurrentTrackSnapshot(index, tracks.get(index));
+        }
+    }
+
     public PlayQueueController(Context context) {
         this(context, new UnsignedIntegerFourBytes(0));
     }
 
     public PlayQueueController(Context context, UnsignedIntegerFourBytes instanceId) {
         mInstanceId = instanceId;
-        mAudioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-        final int MAX_MUSIC = mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
-        final int volume = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-        mCurrentVolume = new UnsignedIntegerTwoBytes(volume * 100 / MAX_MUSIC);
-        mLastVolume = new UnsignedIntegerTwoBytes(volume * 100 / MAX_MUSIC);
         playMusicList = new PlayMusicListType();
     }
 
 
     @Override
-    public synchronized void createQueue(String queueContext) {
-        Log.i(TAG, "createQueue queueContextLen=" + (queueContext == null ? 0 : queueContext.length()));
+    public void createQueue(String queueContext) {
+        Log.i(TAG, "createQueue " + summarizeQueueContext(queueContext));
         logLongString("APP_PUSH_FORMAT createQueue queueContext", queueContext);
         QueueParseResult parseResult = parseQueueContext(queueContext);
-        String listName = parseResult.listName;
-        playMusicList.clearPQMusicList();
-        playMusicList.setCurPlayIndex(0);
-        playMusicList.setCurPlayListName(listName);
-        int trackNum = parseResult.tracks.size();
-        Log.i(TAG, "list len: " + trackNum);
-        playMusicList.getPQMusicList().addAll(parseResult.tracks);
+        synchronized (queueLock) {
+            playMusicList.setCurPlayListName(parseResult.listName);
+            playMusicList.replacePQMusicList(parseResult.tracks);
+            normalizeCurrentIndexLocked();
+            Log.i(TAG, "createQueue committed listName=" + parseResult.listName
+                    + ", tracks=" + parseResult.tracks.size()
+                    + ", currentIndex=" + playMusicList.getCurPlayIndex());
+        }
     }
 
     @Override
-    public synchronized void AppendTracksInQueue(String queueContext) {
-        this.queueContext = queueContext;
-        Log.i(TAG, "AppendTracksInQueue queueContextLen=" + (this.queueContext == null ? 0 : this.queueContext.length()));
-        logLongString("APP_PUSH_FORMAT AppendTracksInQueue queueContext", this.queueContext);
-        QueueParseResult parseResult = parseQueueContext(queueContext);
-        String listName = parseResult.listName;
-        playMusicList.setCurPlayListName(listName);
-        int trackNum = parseResult.tracks.size();
-        Log.i(TAG, "list len: " + trackNum);
-        playMusicList.getPQMusicList().addAll(parseResult.tracks);
-    }
-
-    @Override
-    public synchronized void PlayQueueWithIndex(String queueName, int i) {
-        Log.e(TAG, "PlayQueueWithIndex queueName: " + queueName + " index: " + i);
-
-        int trackCount = playMusicList.getPQMusicList().size();
-        if (trackCount == 0) {
-            Log.w(TAG, "ignore PlayQueueWithIndex for an empty queue");
+    public void AppendTracksInQueue(String queueContext) {
+        String queueSummary = summarizeQueueContext(queueContext);
+        Log.i(TAG, "AppendTracksInQueue " + queueSummary);
+        if (isDuplicateAppend(queueContext)) {
+            Log.i(TAG, "AppendTracksInQueue ignored duplicate payload");
             return;
         }
-        int index = Math.max(0, Math.min(i - 1, trackCount - 1));
-        playMusicList.setCurPlayIndex(index);
+        logLongString("APP_PUSH_FORMAT AppendTracksInQueue queueContext", queueContext);
+        QueueParseResult parseResult = parseQueueContext(queueContext);
+        synchronized (queueLock) {
+            List<TrackINFO_Type> updatedTracks = new ArrayList<>(playMusicList.getPQMusicList());
+            updatedTracks.addAll(parseResult.tracks);
+            if (!parseResult.listName.isEmpty()) {
+                playMusicList.setCurPlayListName(parseResult.listName);
+            }
+            playMusicList.replacePQMusicList(updatedTracks);
+            normalizeCurrentIndexLocked();
+            Log.i(TAG, "AppendTracksInQueue committed appended=" + parseResult.tracks.size()
+                    + ", total=" + updatedTracks.size()
+                    + ", currentIndex=" + playMusicList.getCurPlayIndex());
+        }
+    }
+
+    @Override
+    public void PlayQueueWithIndex(String queueName, int i) {
+        Log.e(TAG, "PlayQueueWithIndex queueName: " + queueName + " index: " + i);
+
+        synchronized (queueLock) {
+            int size = playMusicList.getPQMusicList().size();
+            if (size == 0) {
+                Log.w(TAG, "PlayQueueWithIndex ignored empty queueName=" + queueName);
+                return;
+            }
+            int normalizedIndex = Math.max(0, Math.min(i, size - 1));
+            if (normalizedIndex != i) {
+                Log.w(TAG, "PlayQueueWithIndex normalized index=" + i + " to "
+                        + normalizedIndex + ", size=" + size);
+            }
+            playMusicList.setCurPlayIndex(normalizedIndex);
+        }
         if (playMusicByIndexListener != null) {
             playMusicByIndexListener.onPlay(playMusicList);
         }
@@ -149,13 +170,8 @@ public final class PlayQueueController implements IRendererInterface.IPlayQueueC
     }
 
     @Override
-    public synchronized void removeTracksInQueue(String queueName, int start, int end) {
+    public void removeTracksInQueue(String queueName, int start, int end) {
         int index = start - 1;
-        int trackCount = playMusicList.getPQMusicList().size();
-        if (index < 0 || index >= trackCount) {
-            Log.w(TAG, "ignore RemoveTracksInQueue with invalid start: " + start);
-            return;
-        }
         playMusicList.removeListByIndex(index);
         if(playMusicList.getCurPlayIndex() == index && playMusicByIndexListener != null) {
             playMusicByIndexListener.onPlay(playMusicList);
@@ -166,23 +182,6 @@ public final class PlayQueueController implements IRendererInterface.IPlayQueueC
 
     public void setOnPlayMusicByIndexListener(OnPlayMusicByIndexListener listener) {
         playMusicByIndexListener = listener;
-    }
-
-    public synchronized TrackINFO_Type getCurrentTrack() {
-        List<TrackINFO_Type> tracks = playMusicList.getPQMusicList();
-        if (tracks.isEmpty()) {
-            return null;
-        }
-        int index = Math.max(0, Math.min(playMusicList.getCurPlayIndex(), tracks.size() - 1));
-        if (index != playMusicList.getCurPlayIndex()) {
-            playMusicList.setCurPlayIndex(index);
-        }
-        return tracks.get(index);
-    }
-
-    public synchronized int getCurrentTrackIndex() {
-        TrackINFO_Type track = getCurrentTrack();
-        return track == null ? -1 : playMusicList.getCurPlayIndex();
     }
 
 
@@ -204,51 +203,51 @@ public final class PlayQueueController implements IRendererInterface.IPlayQueueC
             return result;
         }
         try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            factory.setNamespaceAware(true);
-            DocumentBuilder builder = factory.newDocumentBuilder();
-            Document doc = builder.parse(new InputSource(new StringReader(queueContext.trim())));
+            XmlPullParser parser = Xml.newPullParser();
+            parser.setInput(new StringReader(queueContext));
+            TrackINFO_Type currentTrack = null;
+            int declaredTrackNumber = 0;
 
-            result.listName = getNodeValue(doc.getElementsByTagName("listName"), 0);
-            int trackNum = safeParseInt(getNodeValue(doc.getElementsByTagName("TrackNumber"), 0));
-
-            NodeList urlNodes = doc.getElementsByTagName("URL");
-            NodeList metadataNodes = doc.getElementsByTagName("Metadata");
-            NodeList idNodes = doc.getElementsByTagName("Id");
-            NodeList keyNodes = doc.getElementsByTagName("Key");
-
-            int nodeBasedCount = Math.max(Math.max(urlNodes.getLength(), metadataNodes.getLength()),
-                    Math.max(idNodes.getLength(), keyNodes.getLength()));
-            int count = trackNum > 0 ? Math.min(trackNum, nodeBasedCount) : nodeBasedCount;
+            for (int eventType = parser.getEventType();
+                 eventType != XmlPullParser.END_DOCUMENT;
+                 eventType = parser.next()) {
+                if (eventType == XmlPullParser.START_TAG) {
+                    String name = parser.getName();
+                    if (parser.getDepth() == 3 && isTrackElement(name)) {
+                        currentTrack = new TrackINFO_Type();
+                    } else if (currentTrack == null && "ListName".equalsIgnoreCase(name)) {
+                        result.listName = readText(parser);
+                    } else if (currentTrack == null && "TrackNumber".equalsIgnoreCase(name)) {
+                        declaredTrackNumber = safeParseInt(readText(parser));
+                    } else if (currentTrack != null) {
+                        if ("URL".equalsIgnoreCase(name)) {
+                            currentTrack.setURL(readText(parser));
+                        } else if ("Metadata".equalsIgnoreCase(name)) {
+                            currentTrack.setMetaData(readText(parser));
+                        } else if ("Id".equalsIgnoreCase(name)) {
+                            currentTrack.setId(readText(parser));
+                        } else if ("Key".equalsIgnoreCase(name)) {
+                            currentTrack.setKey(readText(parser));
+                        } else if ("Source".equalsIgnoreCase(name)) {
+                            currentTrack.setSource(readText(parser));
+                        }
+                    }
+                } else if (eventType == XmlPullParser.END_TAG
+                        && currentTrack != null
+                        && parser.getDepth() == 3
+                        && isTrackElement(parser.getName())) {
+                    result.tracks.add(currentTrack);
+                    currentTrack = null;
+                }
+            }
+            if (declaredTrackNumber > 0 && result.tracks.size() != declaredTrackNumber) {
+                Log.w(TAG, "queue track count mismatch declared=" + declaredTrackNumber
+                        + ", parsed=" + result.tracks.size());
+            }
             if (ENABLE_APP_PUSH_FORMAT_LOG) {
                 Log.i(TAG, "APP_PUSH_FORMAT parsed listName=" + result.listName
-                        + ", declaredTrackNumber=" + trackNum
-                        + ", urlNodes=" + urlNodes.getLength()
-                        + ", metadataNodes=" + metadataNodes.getLength()
-                        + ", idNodes=" + idNodes.getLength()
-                        + ", keyNodes=" + keyNodes.getLength()
-                        + ", parseCount=" + count);
-            }
-
-            for (int i = 0; i < count; i++) {
-                TrackINFO_Type track = new TrackINFO_Type();
-                String url = getNodeValue(urlNodes, i);
-                String metadata = getNodeValue(metadataNodes, i);
-                String id = getNodeValue(idNodes, i);
-                String key = getNodeValue(keyNodes, i);
-                if (ENABLE_APP_PUSH_FORMAT_LOG) {
-                    Log.i(TAG, "APP_PUSH_FORMAT track[" + i + "] id=" + id
-                            + ", key=" + key
-                            + ", urlLen=" + (url == null ? 0 : url.length())
-                            + ", metadataLen=" + (metadata == null ? 0 : metadata.length()));
-                    logLongString("APP_PUSH_FORMAT track[" + i + "] URL", url);
-                    logLongString("APP_PUSH_FORMAT track[" + i + "] Metadata", metadata);
-                }
-                track.setURL(url);
-                track.setMetaData(metadata);
-                track.setId(id);
-                track.setKey(key);
-                result.tracks.add(track);
+                        + ", declaredTrackNumber=" + declaredTrackNumber
+                        + ", parsedTracks=" + result.tracks.size());
             }
         } catch (Exception e) {
             Log.e(TAG, "parseQueueContext failed", e);
@@ -256,16 +255,31 @@ public final class PlayQueueController implements IRendererInterface.IPlayQueueC
         return result;
     }
 
-    private static String getNodeValue(NodeList nodes, int index) {
-        if (nodes == null || index < 0 || index >= nodes.getLength()) {
-            return "";
+    private void normalizeCurrentIndexLocked() {
+        int size = playMusicList.getPQMusicList().size();
+        int index = playMusicList.getCurPlayIndex();
+        if (size == 0) {
+            playMusicList.setCurPlayIndex(0);
+        } else if (index < 0 || index >= size) {
+            playMusicList.setCurPlayIndex(0);
         }
-        Node node = nodes.item(index);
-        if (node == null) {
-            return "";
+    }
+
+    private static boolean isTrackElement(String name) {
+        if (name == null || name.length() <= 5 || !name.startsWith("Track")) {
+            return false;
         }
-        Node firstChild = node.getFirstChild();
-        return firstChild == null ? "" : firstChild.getNodeValue();
+        for (int i = 5; i < name.length(); i++) {
+            if (!Character.isDigit(name.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static String readText(XmlPullParser parser) throws Exception {
+        String value = parser.nextText();
+        return value == null ? "" : value;
     }
 
     private static int safeParseInt(String value) {
@@ -273,6 +287,32 @@ public final class PlayQueueController implements IRendererInterface.IPlayQueueC
             return Integer.parseInt(value);
         } catch (Exception ignore) {
             return 0;
+        }
+    }
+
+    private static String summarizeQueueContext(String queueContext) {
+        if (queueContext == null) {
+            return "queueContext=null";
+        }
+        return "queueContextLen=" + queueContext.length()
+                + ", hash=" + Integer.toHexString(queueContext.hashCode());
+    }
+
+    private boolean isDuplicateAppend(String queueContext) {
+        if (queueContext == null) {
+            return false;
+        }
+        int hash = queueContext.hashCode();
+        int length = queueContext.length();
+        long now = android.os.SystemClock.uptimeMillis();
+        synchronized (queueLock) {
+            boolean duplicate = hash == lastAppendQueueHash
+                    && length == lastAppendQueueLength
+                    && now - lastAppendQueueAtMs < 2000L;
+            lastAppendQueueHash = hash;
+            lastAppendQueueLength = length;
+            lastAppendQueueAtMs = now;
+            return duplicate;
         }
     }
 
@@ -307,5 +347,32 @@ public final class PlayQueueController implements IRendererInterface.IPlayQueueC
     private static final class QueueParseResult {
         String listName = "";
         List<TrackINFO_Type> tracks = new ArrayList<>();
+    }
+
+    public static final class CurrentTrackSnapshot {
+        private static final CurrentTrackSnapshot EMPTY = new CurrentTrackSnapshot(-1, null);
+        private final int index;
+        private final TrackINFO_Type track;
+
+        private CurrentTrackSnapshot(int index, TrackINFO_Type track) {
+            this.index = index;
+            this.track = track;
+        }
+
+        private static CurrentTrackSnapshot empty() {
+            return EMPTY;
+        }
+
+        public int getIndex() {
+            return index;
+        }
+
+        public TrackINFO_Type getTrack() {
+            return track;
+        }
+
+        public boolean isValid() {
+            return track != null;
+        }
     }
 }

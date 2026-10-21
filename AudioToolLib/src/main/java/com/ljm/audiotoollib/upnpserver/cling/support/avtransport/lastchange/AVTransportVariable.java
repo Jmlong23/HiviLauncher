@@ -67,7 +67,26 @@ public class AVTransportVariable {
         add(AbsoluteTimePosition.class);
         add(RelativeCounterPosition.class);
         add(AbsoluteCounterPosition.class);
+        add(PlaybackStorageMedium.class);
+        add(TrackSource.class);
+        add(A_ARG_TYPE_SeekTarget.class);
     }};
+
+    public static class PlaybackStorageMedium extends EventedValueEnum<StorageMedium> {
+        public PlaybackStorageMedium(StorageMedium value) { super(value); }
+        public PlaybackStorageMedium(Map.Entry<String, String>[] attributes) { super(attributes); }
+        @Override protected StorageMedium enumValueOf(String value) { return StorageMedium.valueOf(value); }
+    }
+
+    public static class TrackSource extends EventedValueString {
+        public TrackSource(String value) { super(value); }
+        public TrackSource(Map.Entry<String, String>[] attributes) { super(attributes); }
+    }
+
+    public static class A_ARG_TYPE_SeekTarget extends EventedValueString {
+        public A_ARG_TYPE_SeekTarget(String value) { super(value); }
+        public A_ARG_TYPE_SeekTarget(Map.Entry<String, String>[] attributes) { super(attributes); }
+    }
 
     public static class TransportState extends EventedValueEnum<com.ljm.audiotoollib.upnpserver.cling.support.model.TransportState> {
         public TransportState(com.ljm.audiotoollib.upnpserver.cling.support.model.TransportState avTransportState) {

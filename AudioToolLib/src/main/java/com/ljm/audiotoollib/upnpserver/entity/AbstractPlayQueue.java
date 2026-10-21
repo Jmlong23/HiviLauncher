@@ -12,8 +12,6 @@ import com.ljm.audiotoollib.upnpserver.cling.binding.annotations.UpnpStateVariab
 import com.ljm.audiotoollib.upnpserver.cling.model.types.UnsignedIntegerFourBytes;
 import com.ljm.audiotoollib.upnpserver.cling.support.lastchange.LastChange;
 import com.ljm.audiotoollib.upnpserver.cling.support.lastchange.LastChangeDelegator;
-import com.ljm.audiotoollib.upnpserver.cling.support.renderingcontrol.RenderingControlException;
-import com.ljm.audiotoollib.upnpserver.cling.support.renderingcontrol.lastchange.RenderingControlLastChangeParser;
 
 import java.beans.PropertyChangeSupport;
 
@@ -36,6 +34,10 @@ import java.beans.PropertyChangeSupport;
                 sendEvents = false,
                 datatype = "string"),
         @UpnpStateVariable(
+                name = "CurrentPlayListName",
+                sendEvents = false,
+                datatype = "string"),
+        @UpnpStateVariable(
                 name = "QueueName",
                 sendEvents = false,
                 datatype = "string"),
@@ -51,14 +53,14 @@ import java.beans.PropertyChangeSupport;
 
 public abstract class AbstractPlayQueue implements LastChangeDelegator {
 
-    @UpnpStateVariable(eventMaximumRateMilliseconds = 200)
+    @UpnpStateVariable
     final private LastChange lastChange;
 
     final protected PropertyChangeSupport propertyChangeSupport;
 
     protected AbstractPlayQueue() {
         this.propertyChangeSupport = new PropertyChangeSupport(this);
-        this.lastChange = new LastChange(new RenderingControlLastChangeParser());
+        this.lastChange = new LastChange(new PlayQueueLastChangeParser());
     }
 
     protected AbstractPlayQueue(LastChange lastChange) {
@@ -68,7 +70,7 @@ public abstract class AbstractPlayQueue implements LastChangeDelegator {
 
     protected AbstractPlayQueue(PropertyChangeSupport propertyChangeSupport) {
         this.propertyChangeSupport = propertyChangeSupport;
-        this.lastChange = new LastChange(new RenderingControlLastChangeParser());
+        this.lastChange = new LastChange(new PlayQueueLastChangeParser());
     }
 
     protected AbstractPlayQueue(PropertyChangeSupport propertyChangeSupport, LastChange lastChange) {

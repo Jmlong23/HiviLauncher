@@ -16,6 +16,8 @@
 package com.ljm.audiotoollib.upnpserver.cling.support.renderingcontrol.lastchange;
 
 import com.ljm.audiotoollib.upnpserver.cling.model.types.UnsignedIntegerTwoBytes;
+import com.ljm.audiotoollib.upnpserver.cling.model.types.UnsignedIntegerFourBytes;
+import com.ljm.audiotoollib.upnpserver.cling.support.lastchange.EventedValueUnsignedIntegerFourBytes;
 import com.ljm.audiotoollib.upnpserver.cling.support.lastchange.EventedValue;
 import com.ljm.audiotoollib.upnpserver.cling.support.lastchange.EventedValueShort;
 import com.ljm.audiotoollib.upnpserver.cling.support.lastchange.EventedValueString;
@@ -48,7 +50,93 @@ public class RenderingControlVariable {
         add(VolumeDB.class);
         add(Volume.class);
         add(Loudness.class);
+        add(RoleId.class);
+        add(WallpaperId.class);
+        add(WallpaperSource.class);
+        add(WallpaperIds.class);
+        add(ClockId.class);
+        add(ClockStyle.class);
+        add(DeviceName.class);
+        add(GroupName.class);
+        add(Route.class);
+        add(Slave.class);
     }};
+
+    public static class DeviceName extends EventedValueString {
+        public DeviceName(String value) { super(value); }
+        public DeviceName(Map.Entry<String, String>[] attributes) { super(attributes); }
+    }
+
+    public static class GroupName extends EventedValueString {
+        public GroupName(String value) { super(value); }
+        public GroupName(Map.Entry<String, String>[] attributes) { super(attributes); }
+    }
+
+    public static class Route extends EventedValueString {
+        public Route(String value) { super(value); }
+        public Route(Map.Entry<String, String>[] attributes) { super(attributes); }
+    }
+
+    public static class Slave extends EventedValueString {
+        private final Map.Entry<String, String>[] attributes;
+
+        public Slave(Map.Entry<String, String>[] attributes) {
+            super(attributes);
+            this.attributes = attributes.clone();
+        }
+
+        public Slave(String action, String uuid, Integer volume, Long timestamp) {
+            super(uuid);
+            java.util.List<Map.Entry<String, String>> values = new java.util.ArrayList<>();
+            values.add(new java.util.AbstractMap.SimpleEntry<>("action", action));
+            values.add(new java.util.AbstractMap.SimpleEntry<>("val", uuid));
+            if (volume != null) {
+                values.add(new java.util.AbstractMap.SimpleEntry<>("SlaveVolume", volume.toString()));
+            }
+            if (timestamp != null) {
+                values.add(new java.util.AbstractMap.SimpleEntry<>("TimeStamp", timestamp.toString()));
+            }
+            attributes = values.toArray(new Map.Entry[0]);
+        }
+
+        @Override
+        public Map.Entry<String, String>[] getAttributes() { return attributes.clone(); }
+    }
+
+    public static class WallpaperId extends EventedValueUnsignedIntegerFourBytes {
+        public WallpaperId(UnsignedIntegerFourBytes value) { super(value); }
+        public WallpaperId(Map.Entry<String, String>[] attributes) { super(attributes); }
+    }
+
+    public static class WallpaperSource extends EventedValueString {
+        public WallpaperSource(String value) { super(value); }
+        public WallpaperSource(Map.Entry<String, String>[] attributes) { super(attributes); }
+    }
+
+    public static class WallpaperIds extends EventedValueString {
+        public WallpaperIds(String value) { super(value); }
+        public WallpaperIds(Map.Entry<String, String>[] attributes) { super(attributes); }
+    }
+
+    public static class ClockId extends EventedValueUnsignedIntegerFourBytes {
+        public ClockId(UnsignedIntegerFourBytes value) { super(value); }
+        public ClockId(Map.Entry<String, String>[] attributes) { super(attributes); }
+    }
+
+    public static class ClockStyle extends EventedValueUnsignedIntegerFourBytes {
+        public ClockStyle(UnsignedIntegerFourBytes value) { super(value); }
+        public ClockStyle(Map.Entry<String, String>[] attributes) { super(attributes); }
+    }
+
+    public static class RoleId extends EventedValueUnsignedIntegerTwoBytes {
+        public RoleId(UnsignedIntegerTwoBytes value) {
+            super(value);
+        }
+
+        public RoleId(Map.Entry<String, String>[] attributes) {
+            super(attributes);
+        }
+    }
 
     public static class PresetNameList extends EventedValueString {
         public PresetNameList(String s) {

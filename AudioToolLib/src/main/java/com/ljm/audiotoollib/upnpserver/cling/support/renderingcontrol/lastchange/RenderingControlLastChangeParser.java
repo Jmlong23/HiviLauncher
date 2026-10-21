@@ -30,7 +30,7 @@ import javax.xml.transform.stream.StreamSource;
 public class RenderingControlLastChangeParser extends LastChangeParser {
 
     public static final String NAMESPACE_URI = "urn:schemas-upnp-org:metadata-1-0/RCS/";
-    public static final String SCHEMA_RESOURCE = "org/fourthline/cling/support/renderingcontrol/metadata-1.0-rcs.xsd";
+    public static final String SCHEMA_RESOURCE = "com/ljm/audiotoollib/upnpserver/hivi-rcs.xsd";
 
     @Override
     protected String getNamespace() {

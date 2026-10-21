@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:avt="urn:schemas-upnp-org:metadata-1-0/AVT/"
+           targetNamespace="urn:schemas-upnp-org:metadata-1-0/AVT/"
+           elementFormDefault="qualified">
+    <xs:redefine schemaLocation="metadata-1.01-avt.xsd">
+        <xs:group name="allowed-under-InstanceID">
+            <xs:choice>
+                <xs:group ref="avt:allowed-under-InstanceID"/>
+                <xs:element ref="avt:TrackSource"/>
+                <xs:element ref="avt:A_ARG_TYPE_SeekTarget"/>
+            </xs:choice>
+        </xs:group>
+    </xs:redefine>
+    <xs:complexType name="HiViStringValue">
+        <xs:attribute name="val" type="xs:string" use="required"/>
+    </xs:complexType>
+    <xs:element name="TrackSource" type="avt:HiViStringValue"/>
+    <xs:element name="A_ARG_TYPE_SeekTarget" type="avt:HiViStringValue"/>
+</xs:schema>

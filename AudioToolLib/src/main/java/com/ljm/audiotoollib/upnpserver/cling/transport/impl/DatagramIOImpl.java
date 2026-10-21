@@ -100,12 +100,11 @@ public class DatagramIOImpl implements DatagramIO<DatagramIOConfigurationImpl> {
     public void run() {
         log.fine("Entering blocking receiving loop, listening for UDP datagrams on: " + socket.getLocalAddress());
 
-        byte[] buf = new byte[getConfiguration().getMaxDatagramBytes()];
-        DatagramPacket datagram = new DatagramPacket(buf, buf.length);
         while (true) {
 
             try {
-                datagram.setLength(buf.length);
+                byte[] buf = new byte[getConfiguration().getMaxDatagramBytes()];
+                DatagramPacket datagram = new DatagramPacket(buf, buf.length);
 
                 socket.receive(datagram);
 

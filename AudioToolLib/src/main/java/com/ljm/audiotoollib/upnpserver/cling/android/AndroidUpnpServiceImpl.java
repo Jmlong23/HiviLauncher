@@ -46,6 +46,13 @@ public class AndroidUpnpServiceImpl extends Service {
     protected Binder binder = new Binder();
 
     /**
+     * Called after the UPnP stack has fully released its registry, router and
+     * network resources. The callback is made from the shutdown worker thread.
+     */
+    protected void onUpnpServiceShutdownCompleted() {
+    }
+
+    /**
      * Starts the UPnP service.
      */
     @Override
@@ -72,7 +79,20 @@ public class AndroidUpnpServiceImpl extends Service {
                 // Now we can concurrently run the Cling shutdown code, without occupying the
                 // Android main UI thread. This will complete probably after the main UI thread
                 // is done.
-                super.shutdown(true);
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            shutdownInBackground();
+                        } finally {
+                            AndroidUpnpServiceImpl.this.onUpnpServiceShutdownCompleted();
+                        }
+                    }
+                }, "upnp-service-shutdown").start();
+            }
+
+            private void shutdownInBackground() {
+                super.shutdown(false);
             }
         };
     }

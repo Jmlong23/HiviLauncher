@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:rcs="urn:schemas-upnp-org:metadata-1-0/RCS/"
+           targetNamespace="urn:schemas-upnp-org:metadata-1-0/RCS/"
+           elementFormDefault="qualified" attributeFormDefault="unqualified">
+    <!-- Standard RCS fields and HiVi device, role and multiroom extensions. -->
+    <xs:element name="Event">
+        <xs:complexType>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+                <xs:element ref="rcs:InstanceID"/>
+            </xs:choice>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="InstanceID">
+        <xs:complexType>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+                <xs:element ref="rcs:PresetNameList"/>
+                <xs:element ref="rcs:Brightness"/>
+                <xs:element ref="rcs:Contrast"/>
+                <xs:element ref="rcs:Sharpness"/>
+                <xs:element ref="rcs:RedVideoGain"/>
+                <xs:element ref="rcs:GreenVideoGain"/>
+                <xs:element ref="rcs:BlueVideoGain"/>
+                <xs:element ref="rcs:RedVideoBlackLevel"/>
+                <xs:element ref="rcs:GreenVideoBlackLevel"/>
+                <xs:element ref="rcs:BlueVideoBlackLevel"/>
+                <xs:element ref="rcs:ColorTemperature"/>
+                <xs:element ref="rcs:HorizontalKeystone"/>
+                <xs:element ref="rcs:VerticalKeystone"/>
+                <xs:element ref="rcs:Mute"/>
+                <xs:element ref="rcs:Volume"/>
+                <xs:element ref="rcs:VolumeDB"/>
+                <xs:element ref="rcs:Loudness"/>
+                <xs:element ref="rcs:RoleId"/>
+                <xs:element ref="rcs:WallpaperId"/>
+                <xs:element ref="rcs:WallpaperSource"/>
+                <xs:element ref="rcs:WallpaperIds"/>
+                <xs:element ref="rcs:ClockId"/>
+                <xs:element ref="rcs:ClockStyle"/>
+                <xs:element ref="rcs:DeviceName"/>
+                <xs:element ref="rcs:GroupName"/>
+                <xs:element ref="rcs:Route"/>
+                <xs:element ref="rcs:Slave"/>
+            </xs:choice>
+            <xs:attribute name="val" type="xs:unsignedInt" use="required"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:complexType name="StringValue">
+        <xs:attribute name="val" type="xs:string" use="required"/>
+    </xs:complexType>
+    <xs:complexType name="UnsignedValue">
+        <xs:attribute name="val" type="xs:unsignedInt" use="required"/>
+    </xs:complexType>
+    <xs:complexType name="IntegerValue">
+        <xs:attribute name="val" type="xs:integer" use="required"/>
+    </xs:complexType>
+    <xs:complexType name="BooleanChannelValue">
+        <xs:attribute name="val" type="xs:boolean" use="required"/>
+        <xs:attribute name="channel" type="xs:string" use="required"/>
+    </xs:complexType>
+    <xs:complexType name="UnsignedChannelValue">
+        <xs:attribute name="val" type="xs:unsignedInt" use="required"/>
+        <xs:attribute name="channel" type="xs:string" use="required"/>
+    </xs:complexType>
+    <xs:complexType name="IntegerChannelValue">
+        <xs:attribute name="val" type="xs:integer" use="required"/>
+        <xs:attribute name="channel" type="xs:string" use="required"/>
+    </xs:complexType>
+    <xs:element name="PresetNameList" type="rcs:StringValue"/>
+    <xs:element name="DeviceName" type="rcs:StringValue"/>
+    <xs:element name="WallpaperId" type="rcs:UnsignedValue"/>
+    <xs:element name="WallpaperSource" type="rcs:StringValue"/>
+    <xs:element name="WallpaperIds" type="rcs:StringValue"/>
+    <xs:element name="ClockId" type="rcs:UnsignedValue"/>
+    <xs:element name="ClockStyle" type="rcs:UnsignedValue"/>
+    <xs:element name="GroupName" type="rcs:StringValue"/>
+    <xs:element name="Route" type="rcs:StringValue"/>
+    <xs:element name="Slave">
+        <xs:complexType>
+            <xs:attribute name="action" type="xs:string" use="required"/>
+            <xs:attribute name="val" type="xs:string" use="required"/>
+            <xs:attribute name="SlaveVolume" type="xs:unsignedInt"/>
+            <xs:attribute name="TimeStamp" type="xs:unsignedLong"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="Brightness" type="rcs:UnsignedValue"/>
+    <xs:element name="Contrast" type="rcs:UnsignedValue"/>
+    <xs:element name="Sharpness" type="rcs:UnsignedValue"/>
+    <xs:element name="RedVideoGain" type="rcs:UnsignedValue"/>
+    <xs:element name="GreenVideoGain" type="rcs:UnsignedValue"/>
+    <xs:element name="BlueVideoGain" type="rcs:UnsignedValue"/>
+    <xs:element name="RedVideoBlackLevel" type="rcs:UnsignedValue"/>
+    <xs:element name="GreenVideoBlackLevel" type="rcs:UnsignedValue"/>
+    <xs:element name="BlueVideoBlackLevel" type="rcs:UnsignedValue"/>
+    <xs:element name="ColorTemperature" type="rcs:UnsignedValue"/>
+    <xs:element name="HorizontalKeystone" type="rcs:IntegerValue"/>
+    <xs:element name="VerticalKeystone" type="rcs:IntegerValue"/>
+    <xs:element name="Mute" type="rcs:BooleanChannelValue"/>
+    <xs:element name="Volume" type="rcs:UnsignedChannelValue"/>
+    <xs:element name="VolumeDB" type="rcs:IntegerChannelValue"/>
+    <xs:element name="Loudness" type="rcs:BooleanChannelValue"/>
+    <xs:element name="RoleId">
+        <xs:complexType>
+            <xs:attribute name="val" use="required">
+                <xs:simpleType>
+                    <xs:restriction base="xs:unsignedShort">
+                        <xs:minInclusive value="1"/>
+                        <xs:maxInclusive value="5"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:attribute>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>

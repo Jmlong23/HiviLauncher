@@ -114,6 +114,9 @@ public class ReceivingSubscribe extends ReceivingSync<StreamRequestMessage, Outg
         log.fine("Renewing subscription: " + subscription);
         subscription.setSubscriptionDuration(requestMessage.getRequestedTimeoutSeconds());
         if (getUpnpService().getRegistry().updateLocalSubscription(subscription)) {
+            log.info("GENA subscription renewed: SID=" + subscription.getSubscriptionId()
+                    + ", service=" + service.getServiceType()
+                    + ", timeout=" + subscription.getActualDurationSeconds());
             return new OutgoingSubscribeResponseMessage(subscription);
         } else {
             log.fine("Subscription went away before it could be renewed: " + getInputMessage());
@@ -149,6 +152,8 @@ public class ReceivingSubscribe extends ReceivingSync<StreamRequestMessage, Outg
                 }
 
                 public void ended(CancelReason reason) {
+                    log.info("GENA subscription ended: SID=" + getSubscriptionId()
+                            + ", service=" + getService().getServiceType() + ", reason=" + reason);
                 }
 
                 public void eventReceived() {
@@ -166,6 +171,10 @@ public class ReceivingSubscribe extends ReceivingSync<StreamRequestMessage, Outg
 
         log.fine("Adding subscription to registry: " + subscription);
         getUpnpService().getRegistry().addLocalSubscription(subscription);
+        log.info("GENA subscription accepted (awaiting response completion): SID="
+                + subscription.getSubscriptionId() + ", service=" + service.getServiceType()
+                + ", callbacks=" + callbackURLs
+                + ", timeout=" + subscription.getActualDurationSeconds());
 
         log.fine("Returning subscription response, waiting to send initial event");
         return new OutgoingSubscribeResponseMessage(subscription);
@@ -186,6 +195,8 @@ public class ReceivingSubscribe extends ReceivingSync<StreamRequestMessage, Outg
             log.fine("Establishing subscription");
             subscription.registerOnService();
             subscription.establish();
+            log.info("GENA subscription active, scheduling initial NOTIFY: SID="
+                    + subscription.getSubscriptionId() + ", service=" + subscription.getService().getServiceType());
 
             log.fine("Response to subscription sent successfully, now sending initial event asynchronously");
             getUpnpService().getConfiguration().getAsyncProtocolExecutor().execute(
@@ -207,6 +218,8 @@ public class ReceivingSubscribe extends ReceivingSync<StreamRequestMessage, Outg
     @Override
     public void responseException(Throwable t) {
         if (subscription == null) return; // Nothing to do, we didn't get that far
+        log.warning("GENA subscription response failed: SID=" + subscription.getSubscriptionId()
+                + ", cause=" + Exceptions.unwrap(t));
         log.fine("Response could not be send to subscriber, removing local GENA subscription: " + subscription);
         getUpnpService().getRegistry().removeLocalSubscription(subscription);
     }

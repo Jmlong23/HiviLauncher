@@ -6,6 +6,7 @@ import com.ljm.audiotoollib.upnpserver.cling.model.ModelUtil;
 import com.ljm.audiotoollib.upnpserver.cling.model.types.ErrorCode;
 import com.ljm.audiotoollib.upnpserver.cling.model.types.UnsignedIntegerFourBytes;
 import com.ljm.audiotoollib.upnpserver.cling.support.avtransport.AVTransportException;
+import com.ljm.audiotoollib.upnpserver.cling.support.avtransport.AVTransportErrorCode;
 import com.ljm.audiotoollib.upnpserver.cling.support.model.DeviceCapabilities;
 import com.ljm.audiotoollib.upnpserver.cling.support.model.MediaInfo;
 import com.ljm.audiotoollib.upnpserver.cling.support.model.PositionInfo;
@@ -30,6 +31,17 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
     private static final TransportAction[] TRANSPORT_ACTION_PLAYING = new TransportAction[]{TransportAction.Stop, TransportAction.Pause, TransportAction.Seek};
     private static final TransportAction[] TRANSPORT_ACTION_PAUSE_PLAYBACK = new TransportAction[]{TransportAction.Play, TransportAction.Seek, TransportAction.Stop};
 
+    public interface OnTransportStateChangedListener {
+        void onTransportStateChanged(TransportState state, TransportStatus status,
+                                     TransportAction[] availableActions);
+    }
+
+    private enum VideoControlMode {
+        UNKNOWN,
+        STANDARD_AV_TRANSPORT,
+        DEDICATED_VIDEO_ACTIONS
+    }
+
     private final UnsignedIntegerFourBytes mInstanceId;
     private static  AVTransportController instance;
     private final TransportInfo mTransportInfo = new TransportInfo();
@@ -40,11 +52,15 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
     private PositionInfo mOriginPositionVideoInfo = new PositionInfo();
     private MediaInfo mMediaVideoInfo = new MediaInfo();
     private OnVideoControlListener mVideoControl;
-    private TransportState curTransportState = TransportState.STOPPED;
-    private boolean isVideoCasting = false;
+    private volatile TransportState curTransportState = TransportState.STOPPED;
+    private volatile TransportStatus curTransportStatus = TransportStatus.OK;
+    private final Object transportStateLock = new Object();
+    private volatile boolean isVideoCasting = false;
+    private volatile VideoControlMode videoControlMode = VideoControlMode.UNKNOWN;
+    private volatile OnTransportStateChangedListener mTransportStateChangedListener;
 
 
-    public static AVTransportController getInstance() {
+    public static synchronized AVTransportController getInstance() {
         if(instance == null) {
             instance =  new AVTransportController();
         }
@@ -54,8 +70,9 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
 
     public void stopVideo() {
         Log.i(TAG,"stopVideo");
-        curTransportState = TransportState.STOPPED;
         isVideoCasting = false;
+        videoControlMode = VideoControlMode.UNKNOWN;
+        setTransportState(TransportState.STOPPED);
     }
 
 
@@ -69,6 +86,36 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
 
     public void setOnVideoControlListener(OnVideoControlListener listener) {
         mVideoControl = listener;
+    }
+
+    public void setOnTransportStateChangedListener(OnTransportStateChangedListener listener) {
+        synchronized (transportStateLock) {
+            mTransportStateChangedListener = listener;
+        }
+    }
+
+    public void clearOnTransportStateChangedListener(OnTransportStateChangedListener listener) {
+        synchronized (transportStateLock) {
+            if (mTransportStateChangedListener == listener) {
+                mTransportStateChangedListener = null;
+            }
+        }
+    }
+
+    public void reportAudioTransportState(TransportState state, TransportStatus status) {
+        synchronized (transportStateLock) {
+            if (!isVideoCasting) {
+                setTransportState(state, status);
+            }
+        }
+    }
+
+    /**
+     * Called by local video playback paths that do not originate from an AVTransport action, such
+     * as AI interruption and renderer callbacks. This keeps subscribed DLNA controllers in sync.
+     */
+    public void reportVideoTransportState(TransportState state) {
+        setTransportState(state);
     }
 
     public UnsignedIntegerFourBytes getInstanceId() {
@@ -86,18 +133,23 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
     @Override
     public MediaInfo getMediaInfo() {
         if (isVideoCasting) {
-            // 标准音频 MediaInfo 查询在视频投放期间不应暴露 MV 元数据；
-            // 否则手机端音乐播放器会把当前投放的 MV 当成音乐曲目展示。
-            // 视频详情仍然通过 getMediaVideoInfo()/getPositionVideoInfo() 提供。
-            return new MediaInfo("", "", new UnsignedIntegerFourBytes(0), "00:00:00", StorageMedium.NONE);
+            /*
+             * Standard DLNA controllers such as Bilibili use GetMediaInfo together with
+             * GetPositionInfo to decide whether the current item supports a time seek. Returning
+             * an empty URI and 00:00:00 here makes a real video session look like NO_MEDIA.
+             */
+            return buildVideoMediaInfo();
         }
-        TrackINFO_Type info_type = PlayQueueController.getInstance().getCurrentTrack();
-        if (info_type == null) {
-            mMediaInfo = new MediaInfo("", "", new UnsignedIntegerFourBytes(1), "", StorageMedium.NETWORK);
+        PlayQueueController.CurrentTrackSnapshot snapshot =
+                PlayQueueController.getInstance().getCurrentTrackSnapshot();
+        if (!snapshot.isValid()) {
+            mMediaInfo = new MediaInfo("", "", new UnsignedIntegerFourBytes(0), "00:00:00", StorageMedium.NONE);
             return mMediaInfo;
         }
+        TrackINFO_Type info_type = snapshot.getTrack();
 
-        mMediaInfo = new MediaInfo(info_type.getURL(), info_type.getMetaData(), new UnsignedIntegerFourBytes(1), "", StorageMedium.NETWORK);
+        mMediaInfo = new MediaInfo(info_type.getURL(), info_type.getMetaData(),
+                new UnsignedIntegerFourBytes(1), getPositionInfo().getTrackDuration(), StorageMedium.NETWORK);
         return mMediaInfo;
     }
 
@@ -105,16 +157,23 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
     public PositionInfo getPositionInfo() {
 //        Log.i(TAG,"getPositionInfo");
         if (isVideoCasting) {
-            // 与 getMediaInfo() 一致：标准音频 PositionInfo 查询在视频投放期间返回空轨道，
-            // 避免手机端音乐播放器继续显示 MV 标题、进度等信息。
-            return new PositionInfo(0, "", "");
+            /*
+             * Third-party DLNA controllers normally poll the standard GetPositionInfo action,
+             * rather than the legacy GetPositionVideoInfo extension. Return the actual IjkPlayer
+             * timing and the current video identity so they can associate the position with the
+             * active media item and enable standard REL_TIME seek controls.
+             */
+            return buildVideoPositionInfo(true);
         }
-        PlayQueueController playQueueController = PlayQueueController.getInstance();
-        TrackINFO_Type info_type = playQueueController.getCurrentTrack();
-        if (info_type == null) {
+        PlayQueueController.CurrentTrackSnapshot snapshot =
+                PlayQueueController.getInstance().getCurrentTrackSnapshot();
+        if (!snapshot.isValid()) {
+            mOriginPositionInfo = new PositionInfo(0, "00:00:00", "", "",
+                    "00:00:00", "00:00:00", Integer.MAX_VALUE, Integer.MAX_VALUE);
             return mOriginPositionInfo;
         }
-        int index = playQueueController.getCurrentTrackIndex();
+        int index = snapshot.getIndex();
+        TrackINFO_Type info_type = snapshot.getTrack();
 
         if (mMediaControl != null) {
             try {
@@ -140,7 +199,7 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
             }
         }
 
-        mOriginPositionInfo = new PositionInfo(1000, info_type.getMetaData(),info_type.getURL());
+        mOriginPositionInfo = new PositionInfo(index + 1, info_type.getMetaData(),info_type.getURL());
         return mOriginPositionInfo;
     }
 
@@ -171,16 +230,18 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
 
     private void updateTransportState(InfoEx infoEx) {
         if (infoEx != null && infoEx.getCurrentTransportState() != null) {
-            curTransportState = infoEx.getCurrentTransportState();
+            reportAudioTransportState(infoEx.getCurrentTransportState(),
+                    infoEx.getCurrentTransportStatus());
         }
     }
 
 
     @Override
     public void play(String speed) {
-        Log.i(TAG,"play speed: " + speed + " isVideoCasting: " + isVideoCasting);
-        curTransportState = TransportState.TRANSITIONING;
-        if (isVideoCasting) {
+        Log.i(TAG,"play speed: " + speed + " isVideoCasting: " + isVideoCasting
+                + " videoControlMode: " + videoControlMode);
+        if (shouldRouteStandardActionToVideo("play")) {
+            setTransportState(getVideoTransportStateForPlay());
             if (mVideoControl != null) {
                 mVideoControl.playVideo();
             }
@@ -192,9 +253,10 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
     }
 
     public void pause() {
-        Log.i(TAG,"pause isVideoCasting: " + isVideoCasting);
-        curTransportState = TransportState.PAUSED_PLAYBACK;
-        if (isVideoCasting) {
+        Log.i(TAG,"pause isVideoCasting: " + isVideoCasting
+                + " videoControlMode: " + videoControlMode);
+        if (shouldRouteStandardActionToVideo("pause")) {
+            setTransportState(TransportState.PAUSED_PLAYBACK);
             if (mVideoControl != null) {
                 mVideoControl.pauseVideo();
             }
@@ -207,38 +269,61 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
 
     @Override
     public void seek(String unit, String target) throws AVTransportException {
-        Log.i(TAG,"seek unit: " + unit + " target:" + target + " isVideoCasting: " + isVideoCasting);
-        if (isVideoCasting) {
+        if (!"REL_TIME".equals(unit) && !"ABS_TIME".equals(unit)) {
+            throw new AVTransportException(AVTransportErrorCode.SEEKMODE_NOT_SUPPORTED);
+        }
+        long positionMs;
+        try {
+            if (target == null || !target.matches("[0-9]+:[0-5][0-9]:[0-5][0-9](\\.[0-9]+)?")) {
+                throw new IllegalArgumentException("Invalid time");
+            }
+            String[] time = target.split(":");
+            long hours = Math.multiplyExact(Long.parseLong(time[0]), 3600L);
+            long seconds = Math.addExact(hours, ModelUtil.fromTimeString("0:" + time[1] + ":" + time[2]));
+            positionMs = Math.multiplyExact(seconds, 1000L);
+            if (positionMs < 0) throw new IllegalArgumentException("Negative time");
+        } catch (RuntimeException invalid) {
+            throw new AVTransportException(AVTransportErrorCode.ILLEGAL_SEEK_TARGET);
+        }
+        Log.i(TAG,"seek unit: " + unit + " target:" + target + " isVideoCasting: "
+                + isVideoCasting + " videoControlMode: " + videoControlMode);
+        if (shouldRouteStandardActionToVideo("seek")) {
             if(mVideoControl != null) {
-                mVideoControl.seekVideo(ModelUtil.fromTimeString(target) * 1000);
+                mVideoControl.seekVideo(positionMs);
+            } else {
+                throw new AVTransportException(AVTransportErrorCode.TRANSITION_NOT_AVAILABLE);
             }
             return;
         }
         if(mMediaControl != null) {
-            mMediaControl.seek(ModelUtil.fromTimeString(target) * 1000);
+            mMediaControl.seek(positionMs);
+        } else {
+            throw new AVTransportException(AVTransportErrorCode.TRANSITION_NOT_AVAILABLE);
         }
     }
 
     synchronized public void stop() {
         Log.i(TAG,"stop isVideoCasting: " + isVideoCasting);
-        curTransportState = TransportState.STOPPED;
         if (isVideoCasting) {
             isVideoCasting = false;
+            videoControlMode = VideoControlMode.UNKNOWN;
+            setTransportState(TransportState.STOPPED);
             if(mVideoControl != null) {
                 mVideoControl.stop();
             }
             return;
         }
 
-        if (mVideoControl != null) {
-            mVideoControl.stop();
+        if (mMediaControl != null) {
+            mMediaControl.stop();
         }
     }
 
     @Override
     public void previous() {
-        Log.i(TAG,"previous isVideoCasting: " + isVideoCasting);
-        if (isVideoCasting) {
+        Log.i(TAG,"previous isVideoCasting: " + isVideoCasting
+                + " videoControlMode: " + videoControlMode);
+        if (shouldRouteStandardActionToVideo("previous")) {
             if(mVideoControl != null) {
                 mVideoControl.previousVideo();
             }
@@ -251,8 +336,9 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
 
     @Override
     public void next() {
-        Log.i(TAG,"next isVideoCasting: " + isVideoCasting);
-        if (isVideoCasting) {
+        Log.i(TAG,"next isVideoCasting: " + isVideoCasting
+                + " videoControlMode: " + videoControlMode);
+        if (shouldRouteStandardActionToVideo("next")) {
             if(mVideoControl != null) {
                 mVideoControl.nextVideo();
             }
@@ -296,15 +382,17 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
         Log.i(TAG, "setAVTransportURI uri={" + summarizeValue(currentURI)
                 + "} meta={" + summarizeValue(currentURIMetaData) + "}");
         UpnpMetadataDebugUtil.logTransportMetadata(TAG, currentURI, currentURIMetaData);
-        curTransportState = TransportState.PLAYING;
-        isVideoCasting = UpnpMediaTypeUtil.determineMediaKind(currentURI, currentURIMetaData)
-                != UpnpMediaTypeUtil.MediaKind.AUDIO;
         try {
             new URI(currentURI);
         } catch (Exception ex) {
             isVideoCasting = false;
+            videoControlMode = VideoControlMode.UNKNOWN;
             throw new AVTransportException(ErrorCode.INVALID_ARGS, "CurrentURI can not be null or malformed");
         }
+        isVideoCasting = UpnpMediaTypeUtil.determineMediaKind(currentURI, currentURIMetaData)
+                != UpnpMediaTypeUtil.MediaKind.AUDIO;
+        videoControlMode = VideoControlMode.UNKNOWN;
+        setTransportState(TransportState.TRANSITIONING);
         mMediaVideoInfo = new MediaInfo(currentURI, currentURIMetaData, new UnsignedIntegerFourBytes(1), "", StorageMedium.NETWORK);
         mOriginPositionVideoInfo = new PositionInfo(1, currentURIMetaData, currentURI);
         if(mVideoControl != null){
@@ -321,7 +409,8 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
     @Override
     public void playVideo(String speed) throws AVTransportException {
         Log.i(TAG,"playVideo");
-        curTransportState = TransportState.PLAYING;
+        markDedicatedVideoAction("playVideo");
+        setTransportState(getVideoTransportStateForPlay());
         if(mVideoControl != null) {
             mVideoControl.playVideo();
         }
@@ -330,7 +419,8 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
     @Override
     public void pauseVideo() throws AVTransportException {
         Log.i(TAG,"pauseVideo");
-        curTransportState = TransportState.PAUSED_PLAYBACK;
+        markDedicatedVideoAction("pauseVideo");
+        setTransportState(TransportState.PAUSED_PLAYBACK);
         if(mVideoControl != null) {
             mVideoControl.pauseVideo();
         }
@@ -339,6 +429,7 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
     @Override
     public void seekVideo(String unit, String target) throws AVTransportException {
         Log.i(TAG,"seekVideo unit: " + unit + " target:" + target);
+        markDedicatedVideoAction("seekVideo");
         if(mVideoControl != null) {
             mVideoControl.seekVideo(ModelUtil.fromTimeString(target) * 1000);
         }
@@ -347,6 +438,7 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
     @Override
     public void previousVideo() {
         Log.i(TAG,"previousVideo");
+        markDedicatedVideoAction("previousVideo");
         if(mVideoControl != null) {
             mVideoControl.previousVideo();
         }
@@ -355,6 +447,7 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
     @Override
     public void nextVideo() {
         Log.i(TAG,"nextVideo");
+        markDedicatedVideoAction("nextVideo");
         if(mVideoControl != null) {
             mVideoControl.nextVideo();
         }
@@ -362,46 +455,188 @@ public class AVTransportController implements IRendererInterface.IAVTransportCon
 
     @Override
     public MediaInfo getMediaVideoInfo() {
-        if(mMediaVideoInfo == null){
-            mMediaVideoInfo = new MediaInfo("", "", new UnsignedIntegerFourBytes(1), "", StorageMedium.NETWORK);
-            return mMediaVideoInfo;
-        }
-        return mMediaVideoInfo;
+        markDedicatedVideoAction("getMediaVideoInfo");
+        return buildVideoMediaInfo();
     }
 
     @Override
     public PositionInfo getPositionVideoInfo() {
-        if(mVideoControl != null){
-            String duration = ModelUtil.toTimeString(mVideoControl.getDurationVideo() / 1000);
-            String realTime = ModelUtil.toTimeString(mVideoControl.getPositionVideo() / 1000);
+        markDedicatedVideoAction("getPositionVideoInfo");
+        return buildVideoPositionInfo(true);
+    }
 
-            return new PositionInfo(0,  duration, mMediaVideoInfo.getCurrentURI() ,realTime,realTime );
+    private boolean shouldRouteStandardActionToVideo(String action) {
+        if (!isVideoCasting) {
+            return false;
         }
-        return mOriginPositionVideoInfo;
+        if (videoControlMode == VideoControlMode.DEDICATED_VIDEO_ACTIONS) {
+            Log.i(TAG, action + " routed to music control because current video uses dedicated actions");
+            return false;
+        }
+        if (videoControlMode == VideoControlMode.UNKNOWN) {
+            videoControlMode = VideoControlMode.STANDARD_AV_TRANSPORT;
+            Log.i(TAG, "video control mode -> STANDARD_AV_TRANSPORT, action=" + action);
+        }
+        return true;
+    }
+
+    private void markDedicatedVideoAction(String action) {
+        if (!isVideoCasting || videoControlMode == VideoControlMode.DEDICATED_VIDEO_ACTIONS) {
+            return;
+        }
+        videoControlMode = VideoControlMode.DEDICATED_VIDEO_ACTIONS;
+        Log.i(TAG, "video control mode -> DEDICATED_VIDEO_ACTIONS, action=" + action);
     }
 
     @Override
     public TransportInfo getTransportInfo() {
 //        Log.i(TAG,"getTransportInfo: " + curTransportState);
-        if (!isVideoCasting && mMediaControl != null) {
+        if (isVideoCasting) {
+            updateVideoTransportStateFromPlayback();
+        } else if (mMediaControl != null) {
             updateTransportState(mMediaControl.getInfoEx());
         }
-        return new TransportInfo(curTransportState, TransportStatus.OK, "1");
+        synchronized (transportStateLock) {
+            return new TransportInfo(curTransportState, curTransportStatus, "1");
+        }
     }
 
     public synchronized TransportAction[] getCurrentTransportActions() {
-        if (!isVideoCasting && mMediaControl != null) {
+        if (isVideoCasting) {
+            updateVideoTransportStateFromPlayback();
+        } else if (mMediaControl != null) {
             updateTransportState(mMediaControl.getInfoEx());
         }
         Log.i(TAG,"getCurrentTransportState: " + curTransportState);
-        switch (curTransportState) {
+        return getTransportActions(curTransportState);
+    }
+
+    private PositionInfo buildVideoPositionInfo(boolean includeVideoUri) {
+        if (mVideoControl == null) {
+            return mOriginPositionVideoInfo;
+        }
+        try {
+            long durationMs = Math.max(0L, mVideoControl.getDurationVideo());
+            long positionMs = Math.max(0L, mVideoControl.getPositionVideo());
+            String duration = ModelUtil.toTimeString(durationMs / 1000L);
+            String realTime = ModelUtil.toTimeString(positionMs / 1000L);
+            String trackUri = includeVideoUri && mMediaVideoInfo != null
+                    && !isEmpty(mMediaVideoInfo.getCurrentURI())
+                    ? mMediaVideoInfo.getCurrentURI()
+                    : "";
+            String trackMetaData = includeVideoUri && mMediaVideoInfo != null
+                    && !isEmpty(mMediaVideoInfo.getCurrentURIMetaData())
+                    ? mMediaVideoInfo.getCurrentURIMetaData()
+                    : "";
+            return new PositionInfo(1, duration, trackMetaData, trackUri, realTime, realTime,
+                    Integer.MAX_VALUE, Integer.MAX_VALUE);
+        } catch (Throwable t) {
+            Log.w(TAG, "get video position failed", t);
+            return mOriginPositionVideoInfo;
+        }
+    }
+
+    private MediaInfo buildVideoMediaInfo() {
+        MediaInfo videoInfo = mMediaVideoInfo;
+        String currentUri = videoInfo == null || isEmpty(videoInfo.getCurrentURI())
+                ? "" : videoInfo.getCurrentURI();
+        String currentMetaData = videoInfo == null || isEmpty(videoInfo.getCurrentURIMetaData())
+                ? "" : videoInfo.getCurrentURIMetaData();
+        String duration = videoInfo == null
+                ? "00:00:00"
+                : normalizePositionTime(videoInfo.getMediaDuration());
+        if (mVideoControl != null) {
+            try {
+                long durationMs = Math.max(0L, mVideoControl.getDurationVideo());
+                if (durationMs > 0L) {
+                    duration = ModelUtil.toTimeString(durationMs / 1000L);
+                }
+            } catch (Throwable t) {
+                Log.w(TAG, "get video media duration failed", t);
+            }
+        }
+        return new MediaInfo(currentUri, currentMetaData, new UnsignedIntegerFourBytes(1),
+                duration, StorageMedium.NETWORK);
+    }
+
+    private void updateVideoTransportStateFromPlayback() {
+        if (mVideoControl == null) {
+            return;
+        }
+        try {
+            TransportState actualState = mVideoControl.getVideoTransportState();
+            if (actualState != null) {
+                setTransportState(actualState);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "get video transport state failed", t);
+        }
+    }
+
+    /**
+     * A Play received while a video session is paused is a resume, not a fresh asynchronous load.
+     * QQ Music relies on the AVTransport LastChange event for its play button state and does not
+     * necessarily poll again after issuing Play, so reporting TRANSITIONING here leaves its UI in
+     * the wrong state when IjkPlayer resumes without another first-frame callback.
+     */
+    private TransportState getVideoTransportStateForPlay() {
+        if (!isVideoCasting) {
+            return TransportState.TRANSITIONING;
+        }
+        if (curTransportState == TransportState.PAUSED_PLAYBACK) {
+            return TransportState.PLAYING;
+        }
+        if (mVideoControl != null) {
+            try {
+                TransportState actualState = mVideoControl.getVideoTransportState();
+                if (actualState == TransportState.PAUSED_PLAYBACK
+                        || actualState == TransportState.PLAYING) {
+                    return TransportState.PLAYING;
+                }
+            } catch (Throwable t) {
+                Log.w(TAG, "get video transport state for play failed", t);
+            }
+        }
+        return TransportState.TRANSITIONING;
+    }
+
+    private void setTransportState(TransportState state) {
+        setTransportState(state, TransportStatus.OK);
+    }
+
+    private void setTransportState(TransportState state, TransportStatus status) {
+        synchronized (transportStateLock) {
+            TransportStatus resolvedStatus = status == null ? TransportStatus.OK : status;
+            if (state == null || (curTransportState == state && curTransportStatus == resolvedStatus)) {
+                return;
+            }
+            TransportState previousState = curTransportState;
+            curTransportState = state;
+            curTransportStatus = resolvedStatus;
+            Log.i(TAG, "transport state " + previousState + " -> " + state
+                    + ", status=" + resolvedStatus + ", isVideoCasting=" + isVideoCasting);
+            OnTransportStateChangedListener listener = mTransportStateChangedListener;
+            if (listener != null) {
+                try {
+                    listener.onTransportStateChanged(state, resolvedStatus, getTransportActions(state));
+                } catch (Throwable t) {
+                    Log.w(TAG, "notify transport state changed failed", t);
+                }
+            }
+        }
+    }
+
+    private TransportAction[] getTransportActions(TransportState state) {
+        switch (state) {
+            case NO_MEDIA_PRESENT:
+                return new TransportAction[0];
             case PLAYING:
             case TRANSITIONING:
-                return TRANSPORT_ACTION_PLAYING;
+                return TRANSPORT_ACTION_PLAYING.clone();
             case PAUSED_PLAYBACK:
-                return TRANSPORT_ACTION_PAUSE_PLAYBACK;
+                return TRANSPORT_ACTION_PAUSE_PLAYBACK.clone();
             default:
-                return TRANSPORT_ACTION_STOPPED;
+                return TRANSPORT_ACTION_STOPPED.clone();
         }
     }
 

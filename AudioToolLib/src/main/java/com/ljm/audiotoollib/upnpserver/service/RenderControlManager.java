@@ -45,7 +45,7 @@ public final class RenderControlManager {
 
     public UnsignedIntegerFourBytes[] getAudioControlCurrentInstanceIds() {
         if (audioControlUnsignedIntegerFourBytes == null) {
-            audioControlUnsignedIntegerFourBytes = new UnsignedIntegerFourBytes[avControlMap.size()];
+            audioControlUnsignedIntegerFourBytes = new UnsignedIntegerFourBytes[audioControlMap.size()];
             audioControlUnsignedIntegerFourBytes = audioControlMap.keySet().toArray(new UnsignedIntegerFourBytes[0]);
         }
         return audioControlUnsignedIntegerFourBytes;

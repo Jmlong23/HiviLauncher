@@ -6,9 +6,9 @@ import java.util.List;
 
 public class PlayMusicListType {
 
-    List<TrackINFO_Type> PQMusicList;
-    int CurPlayIndex;
-    String CurPlayListName;
+    private volatile List<TrackINFO_Type> PQMusicList;
+    private volatile int CurPlayIndex;
+    volatile String CurPlayListName;
     String CurPlayTitle;
     String CurPlayArtist;
     String CurPlayAlbum;
@@ -32,10 +32,16 @@ public class PlayMusicListType {
     }
 
     public void clearPQMusicList() {
-        if(PQMusicList != null){
-            PQMusicList.clear();
-        }
-        PQMusicList = null;
+        PQMusicList = new ArrayList<TrackINFO_Type>();
+        CurPlayIndex = 0;
+    }
+
+    /**
+     * Replaces the queue in one assignment so readers never observe the transient empty state
+     * produced by clear() followed by addAll().
+     */
+    public void replacePQMusicList(List<TrackINFO_Type> value) {
+        PQMusicList = value == null ? new ArrayList<TrackINFO_Type>() : value;
     }
 
     public void removeListByIndex(int index) {

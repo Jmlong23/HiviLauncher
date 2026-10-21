@@ -3,6 +3,8 @@ package com.ljm.audiotoollib.upnpserver;
 import android.content.Context;
 import android.content.Intent;
 import android.os.IBinder;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import com.ljm.audiotoollib.upnpserver.cling.UpnpServiceConfiguration;
@@ -36,6 +38,7 @@ import com.ljm.audiotoollib.upnpserver.service.ConnectionManagerServiceImpl;
 import com.ljm.audiotoollib.upnpserver.service.PlayQueueController;
 import com.ljm.audiotoollib.upnpserver.service.PlayQueueServiceImpl;
 import com.ljm.audiotoollib.upnpserver.service.RenderControlManager;
+import com.ljm.audiotoollib.upnpserver.service.RoleController;
 import com.ljm.audiotoollib.upnpserver.utils.UpnpNetworkUtils;
 
 import org.seamless.util.logging.LoggingUtil;
@@ -44,6 +47,9 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  *
@@ -59,6 +65,34 @@ public class DLNARendererService extends AndroidUpnpServiceImpl {
     private LastChange mPlayQueueLastChange;
     private final RendererServiceBinder mBinder = new RendererServiceBinder();
     private LocalDevice mRendererDevice;
+    private volatile AVTransportServiceImpl mAvTransportService;
+    private volatile AudioRenderServiceImpl mAudioRenderService;
+    private volatile PlayQueueServiceImpl mPlayQueueService;
+    private final Handler stateHandler = new Handler(Looper.getMainLooper());
+    private final AtomicBoolean stateSamplePending = new AtomicBoolean();
+    private volatile boolean destroyed;
+    private final Runnable stateSampler = new Runnable() {
+        @Override public void run() {
+            if (destroyed) return;
+            if (stateSamplePending.compareAndSet(false, true)) {
+                // Player and UI-owned values are read on the main thread, never under Cling locks.
+                try {
+                    if (mAudioRenderService != null) mAudioRenderService.refreshState();
+                } catch (Exception e) { Log.w(TAG, "sample RenderingControl failed", e); }
+                try {
+                    if (mAvTransportService != null) mAvTransportService.refreshState();
+                } catch (Exception e) { Log.w(TAG, "sample AVTransport failed", e); }
+                try {
+                    if (mPlayQueueService != null) mPlayQueueService.refreshState();
+                } catch (Exception e) { Log.w(TAG, "sample PlayQueue failed", e); }
+                transportEventExecutor.execute(() -> stateSamplePending.set(false));
+            }
+            stateHandler.postDelayed(this, 1000);
+        }
+    };
+    private final ExecutorService transportEventExecutor = Executors.newSingleThreadExecutor();
+    /** 事件分发与 SOAP 动作共用 manager 锁，默认 500ms 超时 + 单次尝试会静默丢事件 */
+    private static final int EVENT_DISPATCH_ATTEMPTS = 3;
     private static String macAddress = "";
     /** 当前运行的实例，供改名等外部操作在原服务上原地重注册，避免销毁重建整个 UPnP 栈 */
     private static volatile DLNARendererService sRunningInstance;
@@ -68,24 +102,21 @@ public class DLNARendererService extends AndroidUpnpServiceImpl {
     }
 
     /**
-     * 原地更新设备名称：registry 移除旧设备（ssdp:byebye）→ 以新名重建 LocalDevice → 重新注册
-     * （ssdp:alive）。不销毁 UPnP 服务与播放状态，避免反复改名累积线程/组播 socket 造成卡顿，
-     * 也避免打断 GENA 订阅与 AVTransport 会话导致歌词等推送丢失。
+     * Refresh the dynamic friendly name and discovery advertisements without replacing services
+     * or cancelling their existing GENA subscriptions.
      *
-     * @return true 已原地重注册；false 服务未就绪，调用方需回退到完整重启（restartAndBind）。
+     * @return true if refreshed; false if the renderer is not ready.
      */
     public synchronized boolean reannounceWithUpdatedDeviceName() {
         if (upnpService == null || upnpService.getRegistry() == null || mRendererDevice == null) {
             return false;
         }
         try {
-            // 先构建新设备再移除旧的，构建失败时不影响现有注册
-            LocalDevice newDevice = createRendererDevice(getApplicationContext());
-            upnpService.getRegistry().removeDevice(mRendererDevice);
             // 描述符缓存按 URI（含 UDN）缓存，UDN 不变则 key 不变，必须清掉否则回放旧名描述符
             ReceivingRetrieval.clearDescriptorCache();
-            mRendererDevice = newDevice;
-            upnpService.getRegistry().addDevice(mRendererDevice);
+            upnpService.getRegistry().advertiseLocalDevices();
+            stateHandler.removeCallbacks(stateSampler);
+            stateHandler.post(stateSampler);
             Log.i(TAG, "reannounceWithUpdatedDeviceName done, name: " + SWDeviceStatus.deviceName);
             return true;
         } catch (Exception e) {
@@ -121,6 +152,7 @@ public class DLNARendererService extends AndroidUpnpServiceImpl {
         try {
             mRendererDevice = createRendererDevice(getApplicationContext());
             upnpService.getRegistry().addDevice(mRendererDevice);
+            stateHandler.postDelayed(stateSampler, 1000);
         } catch (Exception e) {
             e.printStackTrace();
             stopSelf();
@@ -139,11 +171,27 @@ public class DLNARendererService extends AndroidUpnpServiceImpl {
 
     @Override
     public void onDestroy() {
+        destroyed = true;
+        stateHandler.removeCallbacks(stateSampler);
         sRunningInstance = null;
+        if (mAvTransportService != null) {
+            mAvTransportService.close();
+        }
+        if (mAudioRenderService != null) {
+            mAudioRenderService.close();
+        }
+        if (mPlayQueueService != null) mPlayQueueService.close();
+        transportEventExecutor.shutdown();
         if (mRendererDevice != null && upnpService != null && upnpService.getRegistry() != null) {
             upnpService.getRegistry().removeDevice(mRendererDevice);
         }
         super.onDestroy();
+    }
+
+    @Override
+    protected void onUpnpServiceShutdownCompleted() {
+        Log.i(TAG, "UPnP shutdown completed for renderer service");
+        UpnpServerManager.onRendererServiceShutdownCompleted();
     }
 
     private static final String DMS_DESC = "MPI MediaPlayer";
@@ -158,7 +206,11 @@ public class DLNARendererService extends AndroidUpnpServiceImpl {
         UDADeviceType deviceType = new UDADeviceType(TYPE_MEDIA_PLAYER, VERSION);
         DeviceDetails details = new DeviceDetails(SWDeviceStatus.deviceName,
                 new ManufacturerDetails(android.os.Build.MANUFACTURER),
-                new ModelDetails(android.os.Build.MODEL, DMS_DESC, "v1", String.format("http://%s", SWDeviceStatus.companyWebsite)));
+                new ModelDetails(android.os.Build.MODEL, DMS_DESC, "v1", String.format("http://%s", SWDeviceStatus.companyWebsite))) {
+            @Override public String getFriendlyName() {
+                return SWDeviceStatus.deviceName;
+            }
+        };
         Icon[] icons = null;
         return new LocalDevice(deviceIdentity, deviceType, details, icons, generateLocalServices());
     }
@@ -177,31 +229,82 @@ public class DLNARendererService extends AndroidUpnpServiceImpl {
 
         // av transport service
         mAvTransportLastChange = new LastChange(new AVTransportLastChangeParser());
+        final LastChange avTransportLastChange = mAvTransportLastChange;
         LocalService<AVTransportServiceImpl> avTransportService = new AnnotationLocalServiceBinder().read(AVTransportServiceImpl.class);
         avTransportService.setManager(new LastChangeAwareServiceManager<AVTransportServiceImpl>(avTransportService, new AVTransportLastChangeParser()) {
             @Override
             protected AVTransportServiceImpl createServiceInstance() {
-                return new AVTransportServiceImpl(mAvTransportLastChange, mRenderControlManager);
+                if (mAvTransportService != null) {
+                    mAvTransportService.close();
+                }
+                mAvTransportService = new AVTransportServiceImpl(avTransportLastChange,
+                        mRenderControlManager, event -> transportEventExecutor.execute(() -> {
+                            for (int attempt = 1; attempt <= EVENT_DISPATCH_ATTEMPTS; attempt++) {
+                                try {
+                                    avTransportService.getManager().execute(manager -> event.run());
+                                    return;
+                                } catch (Exception exception) {
+                                    Log.w(TAG, "dispatch AVTransport state event failed, attempt " + attempt, exception);
+                                }
+                            }
+                        }));
+                return mAvTransportService;
+            }
+
+            @Override
+            protected int getLockTimeoutMillis() {
+                return 2500;
             }
         });
 
         // render service
         mAudioControlLastChange = new LastChange(new RenderingControlLastChangeParser());
+        final LastChange audioControlLastChange = mAudioControlLastChange;
         LocalService<AudioRenderServiceImpl> renderingControlService = new AnnotationLocalServiceBinder().read(AudioRenderServiceImpl.class);
         renderingControlService.setManager(new LastChangeAwareServiceManager<AudioRenderServiceImpl>(renderingControlService, new RenderingControlLastChangeParser()) {
             @Override
             protected AudioRenderServiceImpl createServiceInstance() {
-                return new AudioRenderServiceImpl(mAudioControlLastChange, mRenderControlManager);
+                if (mAudioRenderService != null) {
+                    mAudioRenderService.close();
+                }
+                mAudioRenderService = new AudioRenderServiceImpl(audioControlLastChange,
+                        mRenderControlManager, RoleController.getInstance(),
+                        event -> transportEventExecutor.execute(() -> {
+                            for (int attempt = 1; attempt <= EVENT_DISPATCH_ATTEMPTS; attempt++) {
+                                try {
+                                    renderingControlService.getManager().execute(manager -> event.run());
+                                    return;
+                                } catch (Exception exception) {
+                                    Log.w(TAG, "dispatch RenderingControl role event failed, attempt " + attempt, exception);
+                                }
+                            }
+                        }));
+                return mAudioRenderService;
+            }
+
+            @Override
+            protected int getLockTimeoutMillis() {
+                return 2500;
             }
         });
 
         // playQueue service
         mPlayQueueLastChange = new LastChange(new PlayQueueLastChangeParser());
+        final LastChange playQueueLastChange = mPlayQueueLastChange;
         LocalService<PlayQueueServiceImpl> playQueueService = new AnnotationLocalServiceBinder().read(PlayQueueServiceImpl.class);
         playQueueService.setManager(new LastChangeAwareServiceManager<PlayQueueServiceImpl>(playQueueService, new PlayQueueLastChangeParser()) {
             @Override
             protected PlayQueueServiceImpl createServiceInstance() {
-                return new PlayQueueServiceImpl(mPlayQueueLastChange, mPlayQueueManager);
+                if (mPlayQueueService != null) mPlayQueueService.close();
+                mPlayQueueService = new PlayQueueServiceImpl(playQueueLastChange, mPlayQueueManager,
+                        event -> transportEventExecutor.execute(() -> {
+                            try {
+                                playQueueService.getManager().execute(manager -> event.run());
+                            } catch (Exception exception) {
+                                Log.w(TAG, "dispatch PlayQueue event failed", exception);
+                            }
+                        }));
+                return mPlayQueueService;
             }
         });
 

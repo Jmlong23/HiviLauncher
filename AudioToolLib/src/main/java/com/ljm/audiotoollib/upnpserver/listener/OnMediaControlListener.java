@@ -12,6 +12,8 @@ public interface OnMediaControlListener {
 
     void pause();
 
+    void stop();
+
     void previous();
 
     void next();

@@ -69,6 +69,9 @@ public class TrackINFO_Type {
                 } else if ("playUrl".equals(name)) {
                     bean.setPlayUrl(nextStringCompat(reader));
                     hasAnyField = true;
+                } else if ("playQuality".equals(name)) {
+                    bean.setPlayQuality(nextStringCompat(reader));
+                    hasAnyField = true;
                 } else if ("coverUrl".equals(name)) {
                     bean.setCoverUrl(nextStringCompat(reader));
                     hasAnyField = true;

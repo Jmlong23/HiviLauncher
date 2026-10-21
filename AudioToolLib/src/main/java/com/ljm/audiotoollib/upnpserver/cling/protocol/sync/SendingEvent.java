@@ -19,6 +19,7 @@ import com.ljm.audiotoollib.upnpserver.cling.UpnpService;
 import com.ljm.audiotoollib.upnpserver.cling.model.gena.LocalGENASubscription;
 import com.ljm.audiotoollib.upnpserver.cling.model.message.StreamResponseMessage;
 import com.ljm.audiotoollib.upnpserver.cling.model.message.gena.OutgoingEventRequestMessage;
+import com.ljm.audiotoollib.upnpserver.cling.model.message.header.UpnpHeader;
 import com.ljm.audiotoollib.upnpserver.cling.model.types.UnsignedIntegerFourBytes;
 import com.ljm.audiotoollib.upnpserver.cling.protocol.SendingSync;
 import com.ljm.audiotoollib.upnpserver.cling.transport.RouterException;
@@ -45,6 +46,8 @@ public class SendingEvent extends SendingSync<OutgoingEventRequestMessage, Strea
     final protected String subscriptionId;
     final protected OutgoingEventRequestMessage[] requestMessages;
     final protected UnsignedIntegerFourBytes currentSequence;
+    private final String serviceType;
+    private final boolean renderingControl;
 
     public SendingEvent(UpnpService upnpService, LocalGENASubscription subscription) {
         super(upnpService, null); // Special case, we actually need to send several messages to each callback URL
@@ -52,6 +55,8 @@ public class SendingEvent extends SendingSync<OutgoingEventRequestMessage, Strea
         // TODO: Ugly design! It is critical (concurrency) that we prepare the event messages here, in the constructor thread!
 
         subscriptionId = subscription.getSubscriptionId();
+        serviceType = subscription.getService().getServiceType().toString();
+        renderingControl = "RenderingControl".equals(subscription.getService().getServiceType().getType());
 
         requestMessages = new OutgoingEventRequestMessage[subscription.getCallbackURLs().size()];
         int i = 0;
@@ -61,7 +66,7 @@ public class SendingEvent extends SendingSync<OutgoingEventRequestMessage, Strea
             i++;
         }
 
-        currentSequence = subscription.getCurrentSequence();
+        currentSequence = new UnsignedIntegerFourBytes(subscription.getCurrentSequence().getValue());
 
         // Always increment sequence now, as (its value) has already been set on the headers and the
         // next event will use the incremented value
@@ -83,8 +88,29 @@ public class SendingEvent extends SendingSync<OutgoingEventRequestMessage, Strea
             }
 
 
-            // Send request
-            lastResponse = getUpnpService().getRouter().send(requestMessage);
+            // Trace role, wallpaper and initial snapshots without logging every volume sample.
+            String context = "SID=" + subscriptionId + ", service=" + serviceType
+                    + ", SEQ=" + requestMessage.getHeaders().getFirstHeaderString(UpnpHeader.Type.SEQ)
+                    + ", callback=" + requestMessage.getUri();
+            boolean trace = renderingControl && (currentSequence.getValue() == 0
+                    || requestMessage.getBodyString().contains("&lt;RoleId")
+                    || requestMessage.getBodyString().contains("&lt;WallpaperId"));
+            if (trace) log.info("GENA NOTIFY sending: " + context);
+            try {
+                lastResponse = getUpnpService().getRouter().send(requestMessage);
+            } catch (RouterException ex) {
+                log.warning("GENA NOTIFY transport failed: " + context + ", cause=" + ex);
+                throw ex;
+            }
+            if (lastResponse == null) {
+                log.warning("GENA NOTIFY no HTTP response (check callback listener/network): " + context);
+            } else if (lastResponse.getOperation().isFailed()) {
+                log.warning("GENA NOTIFY rejected: " + context
+                        + ", HTTP=" + lastResponse.getOperation().getStatusCode());
+            } else if (trace) {
+                log.info("GENA NOTIFY delivered: " + context
+                        + ", HTTP=" + lastResponse.getOperation().getStatusCode());
+            }
             log.fine("Received event callback response: " + lastResponse);
 
         }

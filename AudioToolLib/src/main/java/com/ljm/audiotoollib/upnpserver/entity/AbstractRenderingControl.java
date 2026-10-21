@@ -126,11 +126,27 @@ import java.beans.PropertyChangeSupport;
                 name = "AudioMode",
                 sendEvents = false,
                 datatype = "string"),
+        @UpnpStateVariable(
+                name = "RoleId",
+                sendEvents = false,
+                datatype = "ui2",
+                defaultValue = "1",
+                allowedValueMinimum = 1,
+                allowedValueMaximum = 5),
+        @UpnpStateVariable(name = "DeviceName", sendEvents = false, datatype = "string"),
+        @UpnpStateVariable(name = "GroupName", sendEvents = false, datatype = "string"),
+        @UpnpStateVariable(name = "Route", sendEvents = false, datatype = "string"),
+        @UpnpStateVariable(name = "Slave", sendEvents = false, datatype = "string"),
+        @UpnpStateVariable(name = "WallpaperId", sendEvents = false, datatype = "ui4", defaultValue = "0"),
+        @UpnpStateVariable(name = "WallpaperSource", sendEvents = false, datatype = "string"),
+        @UpnpStateVariable(name = "WallpaperIds", sendEvents = false, datatype = "string"),
+        @UpnpStateVariable(name = "ClockId", sendEvents = false, datatype = "ui4", defaultValue = "0"),
+        @UpnpStateVariable(name = "ClockStyle", sendEvents = false, datatype = "ui4", defaultValue = "0"),
 
 })
 public abstract class AbstractRenderingControl implements LastChangeDelegator {
 
-    @UpnpStateVariable(eventMaximumRateMilliseconds = 200)
+    @UpnpStateVariable
     final private LastChange lastChange;
 
     final protected PropertyChangeSupport propertyChangeSupport;
@@ -218,6 +234,32 @@ public abstract class AbstractRenderingControl implements LastChangeDelegator {
     @UpnpAction
     public abstract void setAudioMode(@UpnpInputArgument(name = "InstanceID") UnsignedIntegerFourBytes instanceId,
                                       @UpnpInputArgument(name = "DesiredAudioMode", stateVariable = "AudioMode") String desiredAudioMode)
+            throws RenderingControlException;
+
+    @UpnpAction(out = @UpnpOutputArgument(name = "CurrentWallpaperId", stateVariable = "WallpaperId"))
+    public abstract UnsignedIntegerFourBytes getWallpaperId(
+            @UpnpInputArgument(name = "InstanceID") UnsignedIntegerFourBytes instanceId)
+            throws RenderingControlException;
+
+    @UpnpAction(out = @UpnpOutputArgument(name = "CurrentClockId", stateVariable = "ClockId"))
+    public abstract UnsignedIntegerFourBytes getClockId(
+            @UpnpInputArgument(name = "InstanceID") UnsignedIntegerFourBytes instanceId)
+            throws RenderingControlException;
+
+    @UpnpAction(out = @UpnpOutputArgument(name = "CurrentClockStyle", stateVariable = "ClockStyle"))
+    public abstract UnsignedIntegerFourBytes getClockStyle(
+            @UpnpInputArgument(name = "InstanceID") UnsignedIntegerFourBytes instanceId)
+            throws RenderingControlException;
+
+    @UpnpAction(out = @UpnpOutputArgument(name = "CurrentRoleId", stateVariable = "RoleId"))
+    public abstract UnsignedIntegerTwoBytes getRoleId(
+            @UpnpInputArgument(name = "InstanceID") UnsignedIntegerFourBytes instanceId)
+            throws RenderingControlException;
+
+    @UpnpAction
+    public abstract void setRoleId(
+            @UpnpInputArgument(name = "InstanceID") UnsignedIntegerFourBytes instanceId,
+            @UpnpInputArgument(name = "DesiredRoleId", stateVariable = "RoleId") UnsignedIntegerTwoBytes roleId)
             throws RenderingControlException;
 
     @UpnpAction(out = @UpnpOutputArgument(name = "CurrentVolume", stateVariable = "VolumeDB"))

@@ -30,10 +30,12 @@ import com.ljm.audiotoollib.upnpserver.listener.OnPlayMusicByIndexListener;
 import com.ljm.audiotoollib.upnpserver.listener.OnRenderControlListener;
 import com.ljm.audiotoollib.upnpserver.listener.OnUpnpHttpServerListener;
 import com.ljm.audiotoollib.upnpserver.listener.OnVideoControlListener;
+import com.ljm.audiotoollib.upnpserver.service.AVTransportController;
 import com.ljm.audiotoollib.upnpserver.service.PlayQueueController;
 import com.ljm.audiotoollib.upnpserver.utils.UpnpMediaTypeUtil;
 import com.ljm.audiotoollib.upnpserver.cling.model.ModelUtil;
 import com.ljm.audiotoollib.upnpserver.cling.support.model.TransportState;
+import com.ljm.audiotoollib.upnpserver.cling.support.model.TransportStatus;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -81,6 +83,8 @@ public final class UpnpPlaybackManager {
     private String coverUrl = "";
     private long durationFallbackMs;
     private int loopMode;
+    /** 最近一次本地 MediaPlayer 异步准备/播放是否失败，用于向订阅方上报 TransportStatus */
+    private volatile boolean playbackFailed;
 
     public interface Listener {
         void onPlaybackChanged(UpnpPlaybackState state);
@@ -253,6 +257,9 @@ public final class UpnpPlaybackManager {
         mediaPrepared = false;
         preparing = false;
         manualPaused = false;
+        // 立即向订阅方广播（不等下一秒状态采样）
+        AVTransportController.getInstance().reportAudioTransportState(
+                resolveTransportState(), TransportStatus.OK);
         notifyStateChanged();
     }
 
@@ -315,6 +322,12 @@ public final class UpnpPlaybackManager {
 
     private final OnMediaControlListener mediaControlListener = new OnMediaControlListener() {
         @Override
+        public void stop() {
+            AppLog.i(TAG, "UPnP AVTransport Stop received");
+            mainHandler.post(UpnpPlaybackManager.this::stop);
+        }
+
+        @Override
         public void play() {
             AppLog.i(TAG, "UPnP AVTransport Play received");
             mainHandler.post(UpnpPlaybackManager.this::play);
@@ -362,6 +375,8 @@ public final class UpnpPlaybackManager {
         public InfoEx getInfoEx() {
             InfoEx infoEx = new InfoEx();
             infoEx.setCurrentTransportState(resolveTransportState());
+            infoEx.setCurrentTransportStatus(playbackFailed
+                    ? TransportStatus.ERROR_OCCURRED : TransportStatus.OK);
             infoEx.setRelTime(ModelUtil.toTimeString(getCurrentPositionMs() / 1000L));
             infoEx.setTrackDuration(ModelUtil.toTimeString(getCurrentDurationMs() / 1000L));
             infoEx.setTrackURI(currentUrl);
@@ -406,6 +421,11 @@ public final class UpnpPlaybackManager {
         @Override
         public long getDurationVideo() {
             return getCurrentDurationMs();
+        }
+
+        @Override
+        public TransportState getVideoTransportState() {
+            return resolveTransportState();
         }
 
         @Override
@@ -634,6 +654,7 @@ public final class UpnpPlaybackManager {
             preparing = true;
             mediaPrepared = false;
             manualPaused = false;
+            playbackFailed = false;
             mediaPlayer.reset();
             applyAudioAttributes(mediaPlayer);
             mediaPlayer.setDataSource(currentUrl);
@@ -667,6 +688,7 @@ public final class UpnpPlaybackManager {
         mediaPlayer.setOnPreparedListener(mp -> {
             preparing = false;
             mediaPrepared = true;
+            playbackFailed = false;
             try {
                 if (!manualPaused) {
                     mp.start();
@@ -682,13 +704,18 @@ public final class UpnpPlaybackManager {
                     && playMusicList.getPQMusicList().size() > 1) {
                 next();
             } else {
+                AVTransportController.getInstance().reportAudioTransportState(
+                        TransportState.STOPPED, TransportStatus.OK);
                 notifyStateChanged();
             }
         });
         mediaPlayer.setOnErrorListener((mp, what, extra) -> {
             preparing = false;
             mediaPrepared = false;
+            playbackFailed = true;
             AppLog.e(TAG, "MediaPlayer error what=" + what + ", extra=" + extra);
+            AVTransportController.getInstance().reportAudioTransportState(
+                    TransportState.STOPPED, TransportStatus.ERROR_OCCURRED);
             notifyStateChanged();
             return true;
         });
