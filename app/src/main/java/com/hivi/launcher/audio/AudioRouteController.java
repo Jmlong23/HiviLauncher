@@ -56,6 +56,10 @@ public final class AudioRouteController {
     private static final String MCU_EVENT_BLUETOOTH_PLAYING = "MCU+PST+002";
     private static final String MCU_EVENT_BLUETOOTH_PHONE_NAME = "MCU+PNM+";
     private static final String MCU_EVENT_BLUETOOTH_NAME = "MCU+BNM+";
+    // Karaoke microphone link state; the MCU re-sends the current state continuously, so
+    // listeners are only notified on actual transitions.
+    private static final String MCU_EVENT_MICROPHONE_CONNECTED = "MCU+MIC+CONNECTED";
+    private static final String MCU_EVENT_MICROPHONE_DISCONNECTED = "MCU+MIC+DICONNECT";
 
     private static final String TAG = "AudioRouteController";
     private static final String PREFERENCES_NAME = "audio_route";
@@ -73,12 +77,15 @@ public final class AudioRouteController {
             new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<McuBluetoothListener> mMcuBluetoothListeners =
             new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<McuMicrophoneListener> mMcuMicrophoneListeners =
+            new CopyOnWriteArrayList<>();
 
     private Context mContext;
     private boolean mSerialPortOpened;
     private int mAmplifierVolumePercent = DEFAULT_AMPLIFIER_VOLUME;
     private int mLastAmplifierVolumePercent = DEFAULT_AMPLIFIER_VOLUME;
     private boolean mAmplifierMuted;
+    private boolean mMicrophoneConnected;
 
     public interface AmplifierVolumeListener {
         void onAmplifierVolumeChanged(int volumePercent, boolean muted);
@@ -102,6 +109,11 @@ public final class AudioRouteController {
 
     public interface FactoryResetCallback {
         void onFactoryResetCommandFinished(boolean commandSent);
+    }
+
+    /** Reports karaoke-microphone connection changes as reported by the MCU. */
+    public interface McuMicrophoneListener {
+        void onMicrophoneConnectionChanged(boolean connected);
     }
 
     private AudioRouteController() {
@@ -244,6 +256,25 @@ public final class AudioRouteController {
     public void removeMcuBluetoothListener(McuBluetoothListener listener) {
         if (listener != null) {
             mMcuBluetoothListeners.remove(listener);
+        }
+    }
+
+    public void addMcuMicrophoneListener(McuMicrophoneListener listener) {
+        if (listener != null) {
+            mMcuMicrophoneListeners.addIfAbsent(listener);
+        }
+    }
+
+    public void removeMcuMicrophoneListener(McuMicrophoneListener listener) {
+        if (listener != null) {
+            mMcuMicrophoneListeners.remove(listener);
+        }
+    }
+
+    /** Last karaoke-microphone link state reported by the MCU; false until a report arrives. */
+    public boolean isMicrophoneConnected() {
+        synchronized (mLock) {
+            return mMicrophoneConnected;
         }
     }
 
@@ -598,6 +629,10 @@ public final class AudioRouteController {
         } else if (event.startsWith(MCU_EVENT_BLUETOOTH_NAME)) {
             dispatchBluetoothNameChanged(
                     event.substring(MCU_EVENT_BLUETOOTH_NAME.length()).trim());
+        } else if (MCU_EVENT_MICROPHONE_CONNECTED.equals(event)) {
+            dispatchMicrophoneConnectionChanged(true);
+        } else if (MCU_EVENT_MICROPHONE_DISCONNECTED.equals(event)) {
+            dispatchMicrophoneConnectionChanged(false);
         }
     }
 
@@ -642,6 +677,22 @@ public final class AudioRouteController {
         mMainHandler.post(() -> {
             for (McuBluetoothListener listener : mMcuBluetoothListeners) {
                 listener.onBluetoothPlayStateChanged(playing);
+            }
+        });
+    }
+
+    private void dispatchMicrophoneConnectionChanged(boolean connected) {
+        synchronized (mLock) {
+            if (mMicrophoneConnected == connected) {
+                // The MCU repeats the current state every ~100ms; forward transitions only.
+                return;
+            }
+            mMicrophoneConnected = connected;
+        }
+        AppLog.i(TAG, "MCU microphone connection changed: connected=" + connected);
+        mMainHandler.post(() -> {
+            for (McuMicrophoneListener listener : mMcuMicrophoneListeners) {
+                listener.onMicrophoneConnectionChanged(connected);
             }
         });
     }
