@@ -365,4 +365,5 @@
     <string name="onboarding_input_mode_title">Choose an input mode</string>
     <string name="onboarding_input_mode_subtitle">On the home screen, select any mode to start using the device.</string>
     <string name="onboarding_enter_home">Go to Home</string>
+    <string name="device_name_changed_toast">Device name changed to %1$s</string>
 </resources>

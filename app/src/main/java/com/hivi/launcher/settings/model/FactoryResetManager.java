@@ -207,6 +207,9 @@ public final class FactoryResetManager {
         if (!FirstUseGuideStore.clear(mApplicationContext)) {
             throw new IOException("Unable to clear first-use guide state.");
         }
+        if (!UpnpPlaybackManager.clearPersistedDeviceName(mApplicationContext)) {
+            throw new IOException("Unable to clear persisted device name.");
+        }
     }
 
     private void clearLauncherFiles() {

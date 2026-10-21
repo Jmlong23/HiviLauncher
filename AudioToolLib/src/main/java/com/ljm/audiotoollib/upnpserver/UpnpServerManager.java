@@ -79,6 +79,24 @@ public class UpnpServerManager {
         initControllers(context);
     }
 
+    /**
+     * 原地更新设备名称并重发 SSDP 公告（byebye→alive），不销毁/重建 UPnP 服务。
+     * 改名应优先走此方法；仅当 UPnP 服务未运行（无法原地重注册）时，调用方才回退到
+     * restartAndBindUpnpServer 完整重启。
+     *
+     * @return true 已原地完成；false 服务未就绪，需调用方兜底重启
+     */
+    public boolean updateDeviceNameInPlace(String deviceName) {
+        Log.i(TAG, "updateDeviceNameInPlace name: " + deviceName);
+        SWDeviceStatus.updateDeviceName(deviceName);
+        DLNARendererService service = DLNARendererService.getRunningInstance();
+        if (service == null) {
+            Log.w(TAG, "updateDeviceNameInPlace renderer service not running, need full restart");
+            return false;
+        }
+        return service.reannounceWithUpdatedDeviceName();
+    }
+
     public void restartAndBindUpnpServer(Context context, ServiceConnection conn, int flags, String deviceName) {
         Log.i(TAG, "restartAndBindUpnpServer name: " + deviceName
                 + ", conn=" + conn + ", flags=" + flags);

@@ -338,4 +338,5 @@
     <string name="onboarding_input_mode_title">选择一种输入模式</string>
     <string name="onboarding_input_mode_subtitle">首次进入首页时，点击任一模式即可开始使用</string>
     <string name="onboarding_enter_home">进入首页</string>
+    <string name="device_name_changed_toast">设备名称已经改为%1$s</string>
 </resources>

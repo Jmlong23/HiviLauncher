@@ -14,6 +14,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import fi.iki.elonen.NanoHTTPD;
 
@@ -22,6 +23,11 @@ public class UpnpHttpServer extends NanoHTTPD implements IResourceServer {
     private static final String TAG = "NanoHttpServer";
     private static final Map<String, String> MIME_TYPE = new HashMap<>();
     private static final String MIME_PLAINTEXT = "text/plain";
+    private static final String CMD_SET_DEVICE_NAME_PREFIX = "setDeviceName:";
+    // 名称长度规则与控制端一致：含中文 ≤12 字符，纯英文/数字/符号 ≤24 字符
+    private static final int MAX_NAME_LENGTH_WITH_CHINESE = 12;
+    private static final int MAX_NAME_LENGTH = 24;
+    private static final Pattern CHINESE_PATTERN = Pattern.compile("[\\u4E00-\\u9FFF]");
     private static UpnpHttpServer instance;
     private OnUpnpHttpServerListener mListener;
     private final Gson gson = new Gson();
@@ -132,7 +138,21 @@ public class UpnpHttpServer extends NanoHTTPD implements IResourceServer {
                 if(mListener != null) {
                     mListener.restoreToDefault();
                 }
-            }  else {
+            } else if (param.startsWith(CMD_SET_DEVICE_NAME_PREFIX)) {
+                // NanoHTTPD 已按 UTF-8 对 query 做 URL 解码，冒号后即名称本体
+                String name = normalizeDeviceName(param.substring(CMD_SET_DEVICE_NAME_PREFIX.length()));
+                if (name == null) {
+                    Log.w(TAG, "setDeviceName rejected, invalid name");
+                    return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "invalid device name");
+                }
+                // 先更新本地真值（getStatusEx 等立即返回新名），再异步通知上层持久化并重启 SSDP：
+                // SSDP byebye/alive 必须晚于本次 HTTP ACK（协议要求先应答再重启发现服务）
+                SWDeviceStatus.updateDeviceName(name);
+                Log.i(TAG, "setDeviceName accept: " + name);
+                if (mListener != null) {
+                    mListener.setDeviceName(name);
+                }
+            } else {
                 Log.i(TAG, "other param: " + param);
             }
 
@@ -164,5 +184,27 @@ public class UpnpHttpServer extends NanoHTTPD implements IResourceServer {
 
     public void setGetPlayerStatusListener(OnUpnpHttpServerListener listener) {
         mListener = listener;
+    }
+
+    /**
+     * 名称合法性校验：非空、不含 '+'（query 中 '+' 会被解析为空格）、
+     * 含中文 ≤12 字符 / 纯英文数字符号 ≤24 字符（按 Unicode 码点计）。
+     *
+     * @return 规范化后的名称；非法返回 null
+     */
+    private static String normalizeDeviceName(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String name = raw.trim();
+        if (name.isEmpty() || name.contains("+")) {
+            return null;
+        }
+        int maxLength = CHINESE_PATTERN.matcher(name).find()
+                ? MAX_NAME_LENGTH_WITH_CHINESE : MAX_NAME_LENGTH;
+        if (name.codePointCount(0, name.length()) > maxLength) {
+            return null;
+        }
+        return name;
     }
 }

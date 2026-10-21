@@ -21,6 +21,7 @@ import com.ljm.audiotoollib.upnpserver.cling.model.meta.ManufacturerDetails;
 import com.ljm.audiotoollib.upnpserver.cling.model.meta.ModelDetails;
 import com.ljm.audiotoollib.upnpserver.cling.model.types.UDADeviceType;
 import com.ljm.audiotoollib.upnpserver.cling.model.types.UDN;
+import com.ljm.audiotoollib.upnpserver.cling.protocol.sync.ReceivingRetrieval;
 import com.ljm.audiotoollib.upnpserver.cling.support.avtransport.lastchange.AVTransportLastChangeParser;
 import com.ljm.audiotoollib.upnpserver.cling.support.lastchange.LastChange;
 import com.ljm.audiotoollib.upnpserver.cling.support.lastchange.LastChangeAwareServiceManager;
@@ -59,6 +60,39 @@ public class DLNARendererService extends AndroidUpnpServiceImpl {
     private final RendererServiceBinder mBinder = new RendererServiceBinder();
     private LocalDevice mRendererDevice;
     private static String macAddress = "";
+    /** 当前运行的实例，供改名等外部操作在原服务上原地重注册，避免销毁重建整个 UPnP 栈 */
+    private static volatile DLNARendererService sRunningInstance;
+
+    public static DLNARendererService getRunningInstance() {
+        return sRunningInstance;
+    }
+
+    /**
+     * 原地更新设备名称：registry 移除旧设备（ssdp:byebye）→ 以新名重建 LocalDevice → 重新注册
+     * （ssdp:alive）。不销毁 UPnP 服务与播放状态，避免反复改名累积线程/组播 socket 造成卡顿，
+     * 也避免打断 GENA 订阅与 AVTransport 会话导致歌词等推送丢失。
+     *
+     * @return true 已原地重注册；false 服务未就绪，调用方需回退到完整重启（restartAndBind）。
+     */
+    public synchronized boolean reannounceWithUpdatedDeviceName() {
+        if (upnpService == null || upnpService.getRegistry() == null || mRendererDevice == null) {
+            return false;
+        }
+        try {
+            // 先构建新设备再移除旧的，构建失败时不影响现有注册
+            LocalDevice newDevice = createRendererDevice(getApplicationContext());
+            upnpService.getRegistry().removeDevice(mRendererDevice);
+            // 描述符缓存按 URI（含 UDN）缓存，UDN 不变则 key 不变，必须清掉否则回放旧名描述符
+            ReceivingRetrieval.clearDescriptorCache();
+            mRendererDevice = newDevice;
+            upnpService.getRegistry().addDevice(mRendererDevice);
+            Log.i(TAG, "reannounceWithUpdatedDeviceName done, name: " + SWDeviceStatus.deviceName);
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "reannounceWithUpdatedDeviceName failed", e);
+            return false;
+        }
+    }
 
     @Override
     protected UpnpServiceConfiguration createConfiguration() {
@@ -74,6 +108,7 @@ public class DLNARendererService extends AndroidUpnpServiceImpl {
     public void onCreate() {
         LoggingUtil.resetRootHandler(new FixedAndroidLogHandler());
         super.onCreate();
+        sRunningInstance = this;
 
         mPlayQueueManager = PlayQueueController.getInstance(getApplicationContext());
         mRenderControlManager.addControl(AudioRenderController.getInstance(getApplicationContext()));
@@ -104,6 +139,7 @@ public class DLNARendererService extends AndroidUpnpServiceImpl {
 
     @Override
     public void onDestroy() {
+        sRunningInstance = null;
         if (mRendererDevice != null && upnpService != null && upnpService.getRegistry() != null) {
             upnpService.getRegistry().removeDevice(mRendererDevice);
         }

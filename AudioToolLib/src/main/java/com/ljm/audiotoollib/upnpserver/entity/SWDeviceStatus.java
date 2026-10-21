@@ -123,7 +123,7 @@ public class SWDeviceStatus {
 
     public static final int AND_HARDWARE_PORT = 8080;
 
-    public static  String deviceName = "MG100";
+    public static volatile String deviceName = "MG100";
     public static String companyWebsite = "www.hivi.com";
     public static String macAddress = "";
     public static String ipAddress = "";

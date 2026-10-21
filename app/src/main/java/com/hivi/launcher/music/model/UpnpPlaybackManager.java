@@ -3,6 +3,7 @@ package com.hivi.launcher.music.model;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.os.Handler;
@@ -10,6 +11,8 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.text.Html;
 import android.text.TextUtils;
+import android.widget.Toast;
+import com.hivi.launcher.R;
 import com.hivi.launcher.utils.log.AppLog;
 
 import com.hivi.launcher.audio.AudioRouteController;
@@ -19,6 +22,7 @@ import com.ljm.audiotoollib.upnpserver.entity.MediaInfo;
 import com.ljm.audiotoollib.upnpserver.entity.MusicDataBean;
 import com.ljm.audiotoollib.upnpserver.entity.PlayMusicListType;
 import com.ljm.audiotoollib.upnpserver.entity.PlayStatusBean;
+import com.ljm.audiotoollib.upnpserver.entity.SWDeviceStatus;
 import com.ljm.audiotoollib.upnpserver.entity.TrackINFO_Type;
 import com.ljm.audiotoollib.upnpserver.httpserver.UpnpHttpServer;
 import com.ljm.audiotoollib.upnpserver.listener.OnMediaControlListener;
@@ -40,7 +44,11 @@ import java.util.regex.Pattern;
 
 public final class UpnpPlaybackManager {
     private static final String TAG = "UpnpPlaybackManager";
+    /** 恢复出厂/未改名时的默认设备名称 */
     private static final String DEVICE_NAME = "Soundbar";
+    /** 设备名称偏好，控制端 setDeviceName 改名后持久化于此，重启后仍生效 */
+    private static final String PREFS_NAME_DEVICE = "hivinetwork";
+    public static final String PREF_KEY_DEVICE_NAME = "device_name";
     private static final long PROGRESS_TICK_MS = 1000L;
 
     private static final UpnpPlaybackManager INSTANCE = new UpnpPlaybackManager();
@@ -97,7 +105,8 @@ public final class UpnpPlaybackManager {
         started = true;
         try {
             AudioToolManager.instance().getUpnpServerManager().initUpnpServer(
-                    appContext, renderServiceConnection, Context.BIND_AUTO_CREATE, DEVICE_NAME);
+                    appContext, renderServiceConnection, Context.BIND_AUTO_CREATE,
+                    getPersistedDeviceName(appContext));
         } catch (Throwable e) {
             AppLog.e(TAG, "start UPnP renderer failed", e);
         }
@@ -111,6 +120,43 @@ public final class UpnpPlaybackManager {
         }
         listeners.add(listener);
         listener.onPlaybackChanged(getCurrentState());
+    }
+
+    /** 读持久化设备名称，未改名时返回默认名 */
+    public static String getPersistedDeviceName(Context context) {
+        if (context == null) {
+            return DEVICE_NAME;
+        }
+        String name = context.getApplicationContext().getSharedPreferences(
+                PREFS_NAME_DEVICE, Context.MODE_PRIVATE).getString(PREF_KEY_DEVICE_NAME, "");
+        return TextUtils.isEmpty(name) ? DEVICE_NAME : name;
+    }
+
+    private boolean persistDeviceName(String name) {
+        if (appContext == null || TextUtils.isEmpty(name)) {
+            return false;
+        }
+        return appContext.getSharedPreferences(PREFS_NAME_DEVICE, Context.MODE_PRIVATE)
+                .edit().putString(PREF_KEY_DEVICE_NAME, name).commit();
+    }
+
+    /**
+     * 恢复出厂时清除持久化的设备名称，内存真值复位为默认名并重发 SSDP 公告。
+     *
+     * @return 持久化层是否清除成功；公告失败仅记录日志（服务可能已停止或随后整体重启）
+     */
+    public static boolean clearPersistedDeviceName(Context context) {
+        if (context == null) {
+            return false;
+        }
+        Context appContext = context.getApplicationContext();
+        boolean cleared = appContext.getSharedPreferences(PREFS_NAME_DEVICE, Context.MODE_PRIVATE)
+                .edit().remove(PREF_KEY_DEVICE_NAME).commit();
+        SWDeviceStatus.updateDeviceName(DEVICE_NAME);
+        boolean announced = AudioToolManager.instance().getUpnpServerManager()
+                .updateDeviceNameInPlace(DEVICE_NAME);
+        AppLog.i(TAG, "clearPersistedDeviceName cleared=" + cleared + ", announced=" + announced);
+        return cleared;
     }
 
     public void removeListener(Listener listener) {
@@ -467,6 +513,28 @@ public final class UpnpPlaybackManager {
         @Override
         public void restoreToDefault() {
             stop();
+        }
+
+        @Override
+        public void setDeviceName(String name) {
+            AppLog.i(TAG, "setDeviceName persist and announce: " + name);
+            mainHandler.post(() -> {
+                // HTTP ACK 已先行返回（NanoHTTPD 线程写响应后才执行本任务），此处再改 SSDP：
+                persistDeviceName(name);
+                // 优先原地重注册（不重启 UPnP 服务，避免播放/歌词中断），服务未运行才回退完整重启
+                boolean inPlace = AudioToolManager.instance().getUpnpServerManager()
+                        .updateDeviceNameInPlace(name);
+                if (!inPlace) {
+                    AppLog.w(TAG, "setDeviceName in-place announce failed, fallback to full rebind");
+                    AudioToolManager.instance().getUpnpServerManager().restartAndBindUpnpServer(
+                            appContext, renderServiceConnection, Context.BIND_AUTO_CREATE, name);
+                }
+                if (appContext != null) {
+                    Toast.makeText(appContext,
+                            appContext.getString(R.string.device_name_changed_toast, name),
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
         }
     };
 
