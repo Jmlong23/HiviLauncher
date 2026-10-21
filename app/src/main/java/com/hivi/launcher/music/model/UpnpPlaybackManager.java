@@ -9,6 +9,7 @@ import android.media.MediaPlayer;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.text.Html;
 import android.text.TextUtils;
 import android.widget.Toast;
@@ -16,6 +17,8 @@ import com.hivi.launcher.R;
 import com.hivi.launcher.utils.log.AppLog;
 
 import com.hivi.launcher.audio.AudioRouteController;
+import com.hivi.launcher.wifi.model.MediaSessionPlaybackManager;
+import com.hivi.launcher.wifi.model.MediaSessionPlaybackState;
 import com.ljm.audiotoollib.AudioToolManager;
 import com.ljm.audiotoollib.upnpserver.entity.InfoEx;
 import com.ljm.audiotoollib.upnpserver.entity.MediaInfo;
@@ -44,7 +47,7 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public final class UpnpPlaybackManager {
+public final class UpnpPlaybackManager implements MediaSessionPlaybackManager.Listener {
     private static final String TAG = "UpnpPlaybackManager";
     /** 恢复出厂/未改名时的默认设备名称 */
     private static final String DEVICE_NAME = "Soundbar";
@@ -52,6 +55,8 @@ public final class UpnpPlaybackManager {
     private static final String PREFS_NAME_DEVICE = "hivinetwork";
     public static final String PREF_KEY_DEVICE_NAME = "device_name";
     private static final long PROGRESS_TICK_MS = 1000L;
+    /** 投歌接管后等待音乐App自行上报暂停的宽限期，期内不反向暂停投歌 */
+    private static final long LOCAL_APP_PAUSE_GRACE_MS = 5_000L;
 
     private static final UpnpPlaybackManager INSTANCE = new UpnpPlaybackManager();
 
@@ -85,6 +90,11 @@ public final class UpnpPlaybackManager {
     private int loopMode;
     /** 最近一次本地 MediaPlayer 异步准备/播放是否失败，用于向订阅方上报 TransportStatus */
     private volatile boolean playbackFailed;
+    /** 最近一次通知本机音乐App暂停（让位给投歌）的时刻，仅主线程访问 */
+    private long lastLocalAppPauseRequestMs;
+    /** 宽限期后复查音乐App是否仍未暂停，未暂停则按互斥规则暂停投歌 */
+    private final Runnable localAppPauseRecheck = () ->
+            arbitrateLocalAppPlayback(MediaSessionPlaybackManager.getInstance().getCurrentState());
 
     public interface Listener {
         void onPlaybackChanged(UpnpPlaybackState state);
@@ -107,6 +117,9 @@ public final class UpnpPlaybackManager {
             return;
         }
         started = true;
+        // 音乐App与投歌互斥的前提是会话监听常驻：随渲染器一并启动并注册仲裁监听
+        MediaSessionPlaybackManager.getInstance().start(appContext);
+        MediaSessionPlaybackManager.getInstance().addListener(this);
         try {
             AudioToolManager.instance().getUpnpServerManager().initUpnpServer(
                     appContext, renderServiceConnection, Context.BIND_AUTO_CREATE,
@@ -198,6 +211,7 @@ public final class UpnpPlaybackManager {
             if (TextUtils.isEmpty(currentUrl)) {
                 return;
             }
+            preemptLocalMusicApp();
             manualPaused = false;
             if (preparing) {
                 return;
@@ -558,6 +572,46 @@ public final class UpnpPlaybackManager {
         }
     };
 
+    /**
+     * 互斥规则一：本机音乐App开始播放时暂停投歌。只暂停不销毁，手机端恢复播放时会
+     * 经规则二反过来暂停音乐App，保证任一时刻只有一个音源出声。
+     */
+    @Override
+    public void onMediaPlaybackChanged(MediaSessionPlaybackState state) {
+        mainHandler.post(() -> arbitrateLocalAppPlayback(state));
+    }
+
+    private void arbitrateLocalAppPlayback(MediaSessionPlaybackState state) {
+        if (state == null || !state.hasSession() || !state.isPlaying()) {
+            return;
+        }
+        if (!isPlaying() && !preparing) {
+            return;
+        }
+        if (SystemClock.elapsedRealtime() - lastLocalAppPauseRequestMs < LOCAL_APP_PAUSE_GRACE_MS) {
+            // 刚通知过音乐App让位，等它自行上报暂停；若宽限期后仍在播则复查
+            mainHandler.removeCallbacks(localAppPauseRecheck);
+            mainHandler.postDelayed(localAppPauseRecheck, LOCAL_APP_PAUSE_GRACE_MS);
+            return;
+        }
+        AppLog.i(TAG, "local music app playing, pause UPnP cast playback");
+        lastLocalAppPauseRequestMs = SystemClock.elapsedRealtime();
+        pause();
+        AVTransportController.getInstance().reportAudioTransportState(
+                resolveTransportState(), TransportStatus.OK);
+    }
+
+    /** 互斥规则二：投歌开始或恢复前，暂停正在播放的本机音乐App。 */
+    private void preemptLocalMusicApp() {
+        MediaSessionPlaybackState state =
+                MediaSessionPlaybackManager.getInstance().getCurrentState();
+        if (state == null || !state.hasSession() || !state.isPlaying()) {
+            return;
+        }
+        lastLocalAppPauseRequestMs = SystemClock.elapsedRealtime();
+        MediaSessionPlaybackManager.getInstance().pauseActivePlayback();
+    }
+
     private void playCurrentTrack() {
         TrackINFO_Type track = getCurrentTrack();
         if (track == null) {
@@ -650,6 +704,7 @@ public final class UpnpPlaybackManager {
         if (mediaPlayer == null) {
             return;
         }
+        preemptLocalMusicApp();
         try {
             preparing = true;
             mediaPrepared = false;

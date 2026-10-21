@@ -9,6 +9,7 @@ import com.hivi.launcher.R;
 import com.hivi.launcher.base.BasePresenter;
 import com.hivi.launcher.music.model.UpnpPlaybackManager;
 import com.hivi.launcher.music.model.UpnpPlaybackState;
+import com.hivi.launcher.music.ui.MusicActivity;
 import com.hivi.launcher.wifi.model.BootAutoPlaySuppressor;
 import com.hivi.launcher.wifi.model.MediaSessionPlaybackManager;
 import com.hivi.launcher.wifi.model.MediaSessionPlaybackState;
@@ -18,8 +19,9 @@ import com.hivi.launcher.wifi.ui.WifiMusicView;
 /**
  * Owns Wi-Fi music-page interactions. Playback is fed by two sources: the media sessions of the
  * known music apps (QQ Music / NetEase / Kugou playing on this device) take priority, and the
- * local UPnP renderer is the fallback for DLNA-cast playback. Transport controls and the app
- * launched by tapping the player card follow whichever source is currently on screen.
+ * local UPnP renderer is the fallback for DLNA-cast playback. Transport controls follow whichever
+ * source is currently on screen; tapping the player card opens the full player page for a cast,
+ * or returns to the owning music app for local app playback.
  */
 public final class WifiMusicPresenter extends BasePresenter<WifiMusicView>
         implements UpnpPlaybackManager.Listener, MediaSessionPlaybackManager.Listener {
@@ -63,6 +65,37 @@ public final class WifiMusicPresenter extends BasePresenter<WifiMusicView>
     /** Opens the app that currently owns playback, or the app the user picked last. */
     public void openPlayingMusicApp() {
         BootAutoPlaySuppressor.getInstance().markUserInteraction();
+        openCurrentlyPlayingApp();
+    }
+
+    /**
+     * Player-card tap: UPnP-cast playback opens the full-screen player page; playback owned by a
+     * local music app returns to that app; with nothing playing the selected app is opened.
+     */
+    public void openPlayingDetailsOrSourceApp() {
+        BootAutoPlaySuppressor.getInstance().markUserInteraction();
+        if (mediaSessionActive()) {
+            openCurrentlyPlayingApp();
+            return;
+        }
+        if (mUpnpState != null && mUpnpState.hasRealSong()) {
+            Intent intent = new Intent(mContext, MusicActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+            try {
+                mContext.startActivity(intent);
+            } catch (RuntimeException e) {
+                WifiMusicView view = getView();
+                if (view != null) {
+                    view.showToast(mContext.getString(R.string.wifi_music_app_launch_failed,
+                            mContext.getString(R.string.input_mode_wifi_music)));
+                }
+            }
+            return;
+        }
+        openCurrentlyPlayingApp();
+    }
+
+    private void openCurrentlyPlayingApp() {
         WifiMusicApp target = mediaSessionActive() && mMediaState.getApp() != null
                 ? mMediaState.getApp() : mSelectedApp;
         if (target != null) {

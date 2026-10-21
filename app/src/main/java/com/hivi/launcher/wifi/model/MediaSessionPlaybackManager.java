@@ -133,6 +133,17 @@ public final class MediaSessionPlaybackManager {
         }
     }
 
+    /** Pauses the playing music-app session; used to yield audio to the UPnP cast. */
+    public void pauseActivePlayback() {
+        MediaController controller = pickActiveController();
+        if (controller == null || !isPlaying(controller)
+                || controller.getTransportControls() == null) {
+            return;
+        }
+        controller.getTransportControls().pause();
+        AppLog.i(TAG, "paused music app to yield audio: " + controller.getPackageName());
+    }
+
     private void refreshSessions() {
         if (mediaSessionManager == null || appContext == null) {
             return;

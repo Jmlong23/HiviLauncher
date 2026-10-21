@@ -202,7 +202,7 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
         mBinding.playerCard.setOnClickListener(view -> {
             WifiMusicPresenter presenter = getPresenter();
             if (presenter != null) {
-                presenter.openPlayingMusicApp();
+                presenter.openPlayingDetailsOrSourceApp();
             }
         });
     }
