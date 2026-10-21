@@ -6,6 +6,7 @@ import android.text.TextUtils;
 import com.hivi.launcher.audio.AudioRouteController;
 import com.hivi.launcher.music.model.UpnpPlaybackManager;
 import com.hivi.launcher.utils.log.AppLog;
+import com.hivi.launcher.wifi.model.BootAutoPlaySuppressor;
 import com.hivi.launcher.wifi.model.MediaSessionPlaybackManager;
 
 import org.json.JSONObject;
@@ -113,6 +114,8 @@ public final class AiIotCommandExecutor {
     }
 
     private static Result executeMusicTransport(Context context, MusicCommand command) {
+        // 语音播放/切歌是用户主动操作，结束开机自动播放抑制，避免误杀刚被拉起的音乐。
+        BootAutoPlaySuppressor.getInstance().markUserInteraction();
         MediaSessionPlaybackManager mediaSessions = MediaSessionPlaybackManager.getInstance();
         if (context != null) {
             mediaSessions.start(context);

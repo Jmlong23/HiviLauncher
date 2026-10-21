@@ -9,6 +9,7 @@ import com.hivi.launcher.utils.LocaleHelper;
 import com.hivi.launcher.utils.log.DailyAppLogWriter;
 import com.hivi.launcher.utils.log.PersistentLogcatMirror;
 import com.hivi.launcher.utils.network.NetworkManager;
+import com.hivi.launcher.wifi.model.BootAutoPlaySuppressor;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -40,6 +41,7 @@ public class HiviLauncherApplication extends Application {
         installCrashLogHandler();
         NetworkManager.initialize(deviceProtectedContext);
         PersistentLogcatMirror.start(deviceProtectedContext);
+        BootAutoPlaySuppressor.getInstance().start(this);
     }
 
     @Override

@@ -11,6 +11,7 @@ import com.hivi.launcher.R;
 import com.hivi.launcher.base.BasePresenter;
 import com.hivi.launcher.systemapps.model.AppEntry;
 import com.hivi.launcher.systemapps.ui.SystemAppsView;
+import com.hivi.launcher.wifi.model.BootAutoPlaySuppressor;
 
 import java.text.Collator;
 import java.util.ArrayList;
@@ -40,6 +41,7 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView> {
     }
 
     public void launchApp(AppEntry app) {
+        BootAutoPlaySuppressor.getInstance().markUserInteraction();
         Intent intent = new Intent(Intent.ACTION_MAIN);
         intent.addCategory(Intent.CATEGORY_LAUNCHER);
         intent.setClassName(app.getPackageName(), app.getActivityName());

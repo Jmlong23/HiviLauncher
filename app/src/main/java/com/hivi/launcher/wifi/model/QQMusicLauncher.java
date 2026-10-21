@@ -28,6 +28,7 @@ public final class QQMusicLauncher {
 
     /** keyword 为空时仅打开 QQ 音乐。 */
     public static void openForSearch(Context context, String keyword) {
+        BootAutoPlaySuppressor.getInstance().markUserInteraction();
         Context appContext = context.getApplicationContext();
         String packageName = WifiMusicApp.QQ_MUSIC.getPackageName();
         Intent fallback = appContext.getPackageManager().getLaunchIntentForPackage(packageName);

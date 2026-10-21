@@ -9,6 +9,7 @@ import com.hivi.launcher.R;
 import com.hivi.launcher.base.BasePresenter;
 import com.hivi.launcher.music.model.UpnpPlaybackManager;
 import com.hivi.launcher.music.model.UpnpPlaybackState;
+import com.hivi.launcher.wifi.model.BootAutoPlaySuppressor;
 import com.hivi.launcher.wifi.model.MediaSessionPlaybackManager;
 import com.hivi.launcher.wifi.model.MediaSessionPlaybackState;
 import com.hivi.launcher.wifi.model.WifiMusicApp;
@@ -55,11 +56,13 @@ public final class WifiMusicPresenter extends BasePresenter<WifiMusicView>
         if (view != null) {
             view.renderMusicAppSelection(app);
         }
+        BootAutoPlaySuppressor.getInstance().markUserInteraction();
         launchMusicApp(app);
     }
 
     /** Opens the app that currently owns playback, or the app the user picked last. */
     public void openPlayingMusicApp() {
+        BootAutoPlaySuppressor.getInstance().markUserInteraction();
         WifiMusicApp target = mediaSessionActive() && mMediaState.getApp() != null
                 ? mMediaState.getApp() : mSelectedApp;
         if (target != null) {
@@ -68,6 +71,7 @@ public final class WifiMusicPresenter extends BasePresenter<WifiMusicView>
     }
 
     public void togglePlayback() {
+        BootAutoPlaySuppressor.getInstance().markUserInteraction();
         if (mediaSessionActive()) {
             mMediaSessionManager.playOrPause();
         } else {
@@ -76,6 +80,7 @@ public final class WifiMusicPresenter extends BasePresenter<WifiMusicView>
     }
 
     public void nextTrack() {
+        BootAutoPlaySuppressor.getInstance().markUserInteraction();
         if (mediaSessionActive()) {
             mMediaSessionManager.next();
         } else {
@@ -84,6 +89,7 @@ public final class WifiMusicPresenter extends BasePresenter<WifiMusicView>
     }
 
     public void previousTrack() {
+        BootAutoPlaySuppressor.getInstance().markUserInteraction();
         if (mediaSessionActive()) {
             mMediaSessionManager.previous();
         } else {
