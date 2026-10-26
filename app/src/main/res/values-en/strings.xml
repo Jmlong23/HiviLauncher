@@ -54,6 +54,23 @@
         <item quantity="one">%1$d app</item>
         <item quantity="other">%1$d apps</item>
     </plurals>
+    <string name="system_apps_badge_not_installed">Not installed</string>
+    <string name="system_apps_downloading_preparing">Downloading %1$s...</string>
+    <string name="system_apps_downloading">Downloading %1$s (%2$d%%)</string>
+    <string name="system_apps_installing">Installing %1$s...</string>
+    <string name="system_apps_download_failed">Download failed, please check the network and try again</string>
+    <string name="system_apps_install_failed">Installation failed, please try again later</string>
+    <string name="system_apps_download_unavailable">%1$s download is not available yet</string>
+    <string name="preset_app_qq_music">QQ Music</string>
+    <string name="preset_app_netease_music">NetEase Cloud Music</string>
+    <string name="preset_app_kugou_music">Kugou Music</string>
+    <string name="preset_app_kuwo_music">Kuwo Music</string>
+    <string name="preset_app_ximalaya">Ximalaya</string>
+    <string name="preset_app_soda_music">Soda Music</string>
+    <string name="preset_app_spotify">Spotify</string>
+    <string name="preset_app_apple_music">Apple Music</string>
+    <string name="preset_app_apple_classical">Apple Music Classical</string>
+    <string name="preset_app_tidal">TIDAL</string>
 
     <string name="auth">AI Authorization</string>
     <string name="auth_hint1">Please use the mobile app to scan the QR code to connect to the network</string>

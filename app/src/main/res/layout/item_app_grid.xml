@@ -10,11 +10,33 @@
     android:paddingRight="8dp"
     android:paddingBottom="8dp">
 
-    <ImageView
-        android:id="@+id/app_icon"
-        android:layout_width="54dp"
-        android:layout_height="54dp"
-        android:scaleType="fitCenter" />
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content">
+
+        <ImageView
+            android:id="@+id/app_icon"
+            android:layout_width="54dp"
+            android:layout_height="54dp"
+            android:scaleType="fitCenter" />
+
+        <TextView
+            android:id="@+id/app_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:background="@drawable/bg_app_badge_not_installed"
+            android:includeFontPadding="false"
+            android:paddingLeft="5dp"
+            android:paddingTop="2dp"
+            android:paddingRight="5dp"
+            android:paddingBottom="2dp"
+            android:singleLine="true"
+            android:text="@string/system_apps_badge_not_installed"
+            android:textColor="#FFFFFFFF"
+            android:textSize="10sp"
+            android:visibility="gone" />
+    </FrameLayout>
 
     <TextView
         android:id="@+id/app_label"

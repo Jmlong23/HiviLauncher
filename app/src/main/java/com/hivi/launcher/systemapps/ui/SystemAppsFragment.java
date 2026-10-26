@@ -23,6 +23,9 @@ import java.util.List;
 
 public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
         implements SystemAppsView {
+    /** 未安装预置应用占位图标的置灰透明度。 */
+    private static final float NOT_INSTALLED_ICON_ALPHA = 0.4f;
+
     private FragmentSystemAppsBinding mBinding;
 
     @Override
@@ -51,6 +54,9 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
         mBinding.appsDialogRoot.setBackground(new RoundRectDrawable(0xee303030, dp(8)));
         mBinding.appsCloseButton.setBackground(new RoundRectDrawable(0x66454545, dp(20)));
         mBinding.appsCloseButton.setOnClickListener(ignored -> closePage());
+        mBinding.appsProgressOverlay.setOnClickListener(ignored -> {
+            // 下载安装进行中拦截点击，避免误触底部网格
+        });
         SystemAppsPresenter presenter = getPresenter();
         if (presenter != null) {
             presenter.loadApps();
@@ -87,6 +93,23 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
     }
 
     @Override
+    public void showInstallProgress(String message) {
+        if (mBinding == null) {
+            return;
+        }
+        mBinding.appsProgressText.setText(message);
+        mBinding.appsProgressOverlay.setVisibility(View.VISIBLE);
+    }
+
+    @Override
+    public void hideInstallProgress() {
+        if (mBinding == null) {
+            return;
+        }
+        mBinding.appsProgressOverlay.setVisibility(View.GONE);
+    }
+
+    @Override
     public void closePage() {
         Activity activity = getActivity();
         if (activity instanceof MainActivity) {
@@ -106,6 +129,10 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
         });
         itemBinding.appIcon.setImageDrawable(app.getIcon());
         itemBinding.appLabel.setText(app.getLabel());
+        if (!app.isInstalled()) {
+            itemBinding.appIcon.setAlpha(NOT_INSTALLED_ICON_ALPHA);
+            itemBinding.appBadge.setVisibility(View.VISIBLE);
+        }
         return itemBinding.getRoot();
     }
 

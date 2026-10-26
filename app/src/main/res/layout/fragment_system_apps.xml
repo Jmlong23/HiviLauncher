@@ -1,64 +1,102 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/apps_dialog_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:paddingLeft="26dp"
     android:paddingTop="22dp"
     android:paddingRight="26dp"
     android:paddingBottom="24dp">
 
     <LinearLayout
-        android:id="@+id/apps_dialog_header"
+        android:id="@+id/apps_dialog_content"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/apps_title_text"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
+        <LinearLayout
+            android:id="@+id/apps_dialog_header"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/apps_title_text"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:includeFontPadding="false"
+                android:text="@string/system_apps_title"
+                android:textColor="#FFFFFFFF"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/apps_close_button"
+                android:layout_width="86dp"
+                android:layout_height="42dp"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:text="@string/system_apps_close"
+                android:textColor="#FFFFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <ScrollView
+            android:id="@+id/apps_scroll_view"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
             android:layout_weight="1"
-            android:includeFontPadding="false"
-            android:text="@string/system_apps_title"
-            android:textColor="#FFFFFFFF"
-            android:textSize="24sp"
-            android:textStyle="bold" />
+            android:fillViewport="false">
+
+            <GridLayout
+                android:id="@+id/apps_grid"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingTop="18dp" />
+        </ScrollView>
 
         <TextView
-            android:id="@+id/apps_close_button"
-            android:layout_width="86dp"
-            android:layout_height="42dp"
-            android:gravity="center"
+            android:id="@+id/apps_count_text"
+            android:layout_width="match_parent"
+            android:layout_height="26dp"
+            android:gravity="right"
             android:includeFontPadding="false"
-            android:text="@string/system_apps_close"
-            android:textColor="#FFFFFFFF"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:textColor="#FFCFCFCF"
+            android:textSize="16sp" />
     </LinearLayout>
 
-    <ScrollView
-        android:id="@+id/apps_scroll_view"
+    <FrameLayout
+        android:id="@+id/apps_progress_overlay"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:fillViewport="false">
+        android:layout_height="match_parent"
+        android:background="#D9000000"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone">
 
-        <GridLayout
-            android:id="@+id/apps_grid"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingTop="18dp" />
-    </ScrollView>
+            android:layout_gravity="center"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/apps_count_text"
-        android:layout_width="match_parent"
-        android:layout_height="26dp"
-        android:gravity="right"
-        android:includeFontPadding="false"
-        android:textColor="#FFCFCFCF"
-        android:textSize="16sp" />
-</LinearLayout>
+            <ProgressBar
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:indeterminate="true" />
+
+            <TextView
+                android:id="@+id/apps_progress_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:includeFontPadding="false"
+                android:textColor="#FFFFFFFF"
+                android:textSize="18sp" />
+        </LinearLayout>
+    </FrameLayout>
+</FrameLayout>
