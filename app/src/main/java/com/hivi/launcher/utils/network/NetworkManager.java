@@ -19,6 +19,7 @@ import io.reactivex.functions.Consumer;
 import io.reactivex.schedulers.Schedulers;
 import okhttp3.Cache;
 import okhttp3.Headers;
+import okhttp3.HttpUrl;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -36,6 +37,7 @@ public final class NetworkManager {
 
     private static volatile Context sApplicationContext;
     private static volatile ApiService sApiService;
+    private static OkHttpClient sHttpClient;
 
     private NetworkManager() {
     }
@@ -44,15 +46,18 @@ public final class NetworkManager {
         sApplicationContext = context.getApplicationContext();
     }
 
-    public static ApiService getApiService() {
+    public static synchronized ApiService getApiService() {
         if (sApiService == null) {
-            synchronized (NetworkManager.class) {
-                if (sApiService == null) {
-                    sApiService = createRetrofit().create(ApiService.class);
-                }
-            }
+            sApiService = createRetrofit().create(ApiService.class);
         }
         return sApiService;
+    }
+
+    public static synchronized void resetApiService() {
+        if (sHttpClient != null) {
+            sHttpClient.dispatcher().cancelAll();
+        }
+        sApiService = null;
     }
 
     public static <T> Disposable execute(Observable<T> request, final NetworkCallback<T> callback) {
@@ -74,17 +79,19 @@ public final class NetworkManager {
 
     private static Retrofit createRetrofit() {
         Context context = getApplicationContext();
-        OkHttpClient client = new OkHttpClient.Builder()
-                .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                .writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                .cache(new Cache(context.getCacheDir(), CACHE_SIZE_BYTES))
-                .addInterceptor(new AuthorizationInterceptor(context))
-                .addInterceptor(new VersionDetailsLoggingInterceptor())
-                .build();
+        if (sHttpClient == null) {
+            sHttpClient = new OkHttpClient.Builder()
+                    .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .cache(new Cache(context.getCacheDir(), CACHE_SIZE_BYTES))
+                    .addInterceptor(new AuthorizationInterceptor(context))
+                    .addInterceptor(new VersionDetailsLoggingInterceptor())
+                    .build();
+        }
         return new Retrofit.Builder()
                 .baseUrl(Constants.getCurrentBaseUrl(context))
-                .client(client)
+                .client(sHttpClient)
                 .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
                 .addConverterFactory(ScalarsConverterFactory.create())
                 .build();
@@ -107,6 +114,13 @@ public final class NetworkManager {
 
         @Override
         public Response intercept(Chain chain) throws java.io.IOException {
+            HttpUrl requestUrl = chain.request().url();
+            HttpUrl currentBaseUrl = HttpUrl.get(Constants.getCurrentBaseUrl(mContext));
+            if (!requestUrl.scheme().equals(currentBaseUrl.scheme())
+                    || !requestUrl.host().equals(currentBaseUrl.host())
+                    || requestUrl.port() != currentBaseUrl.port()) {
+                throw new java.io.IOException("Server environment changed; discard stale request.");
+            }
             Request.Builder builder = chain.request().newBuilder();
             String token = AuthorizationStore.getToken(mContext);
             if (!TextUtils.isEmpty(token)) {

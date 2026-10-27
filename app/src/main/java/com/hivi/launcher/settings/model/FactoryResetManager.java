@@ -15,8 +15,10 @@ import com.hivi.launcher.audio.AudioRouteController;
 import com.hivi.launcher.music.model.UpnpPlaybackManager;
 import com.hivi.launcher.onboarding.model.FirstUseGuideStore;
 import com.hivi.launcher.utils.LocaleHelper;
+import com.hivi.launcher.utils.Constants;
 import com.hivi.launcher.utils.log.AppLog;
 import com.hivi.launcher.utils.network.AuthorizationStore;
+import com.hivi.launcher.utils.network.NetworkManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -198,6 +200,10 @@ public final class FactoryResetManager {
         if (!AuthorizationStore.clear(mApplicationContext)) {
             throw new IOException("Unable to clear account authorization state.");
         }
+        if (!Constants.setTestEnvironment(mApplicationContext, true)) {
+            throw new IOException("Unable to reset server environment.");
+        }
+        NetworkManager.resetApiService();
         if (!AiPresenter.clearPersistedSession(mApplicationContext)) {
             throw new IOException("Unable to clear persisted AI session state.");
         }

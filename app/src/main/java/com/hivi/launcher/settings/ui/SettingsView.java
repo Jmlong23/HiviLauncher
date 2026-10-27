@@ -12,6 +12,10 @@ public interface SettingsView extends BaseView {
 
     void renderSystemUpdate(SystemUpdateInfo updateInfo, boolean updateInProgress);
 
+    void renderServerEnvironment(boolean testEnvironment);
+
+    void requestServerAuthorization();
+
     void showSystemUpdateConfirmation(SystemUpdateInfo updateInfo);
 
     void showSystemUpdateProgress(int progress, String status);

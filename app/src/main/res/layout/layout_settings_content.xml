@@ -823,6 +823,42 @@
                         android:layout_height="23dp"
                         android:src="@drawable/ic_enter" />
                 </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/settings_server_environment"
+                    android:layout_width="match_parent"
+                    android:layout_height="42dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/item_medium_long_bg"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingLeft="21dp"
+                    android:paddingRight="21dp">
+
+                    <TextView
+                        android:id="@+id/settings_current_server"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textColor="@color/text_color"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginRight="9dp"
+                        android:text="@string/settings_switch_server"
+                        android:textColor="@color/text_color2"
+                        android:textSize="13sp" />
+
+                    <ImageView
+                        android:layout_width="23dp"
+                        android:layout_height="23dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_enter" />
+                </LinearLayout>
             </LinearLayout>
 
             <LinearLayout

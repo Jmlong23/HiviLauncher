@@ -788,6 +788,29 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private void setupAboutSettings() {
         mBinding.settingsProductInformation.setOnClickListener(
                 view -> showProductInformationDialog());
+        mBinding.settingsServerEnvironment.setOnClickListener(view -> {
+            SettingsPresenter presenter = getPresenter();
+            if (presenter != null) {
+                presenter.onServerEnvironmentSelected();
+            }
+        });
+    }
+
+    @Override
+    public void renderServerEnvironment(boolean testEnvironment) {
+        if (mBinding != null) {
+            mBinding.settingsCurrentServer.setText(getString(R.string.settings_current_server,
+                    getString(testEnvironment ? R.string.server_environment_test
+                            : R.string.server_environment_production)));
+        }
+    }
+
+    @Override
+    public void requestServerAuthorization() {
+        Activity activity = getHostActivity();
+        if (activity instanceof MainActivity) {
+            ((MainActivity) activity).reauthorizeForServerEnvironment();
+        }
     }
 
     private void showProductInformationDialog() {

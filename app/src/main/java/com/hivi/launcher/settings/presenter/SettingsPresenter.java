@@ -8,6 +8,7 @@ import com.hivi.launcher.utils.log.AppLog;
 
 import com.hivi.launcher.BuildConfig;
 import com.hivi.launcher.R;
+import com.hivi.launcher.ai.presenter.AiPresenter;
 import com.hivi.launcher.base.BasePresenter;
 import com.hivi.launcher.settings.model.FactoryResetManager;
 import com.hivi.launcher.settings.model.LogUploadManager;
@@ -17,6 +18,7 @@ import com.hivi.launcher.update.SystemUpdateInfo;
 import com.hivi.launcher.update.SystemUpdateManager;
 import com.hivi.launcher.utils.Constants;
 import com.hivi.launcher.utils.network.ApiService;
+import com.hivi.launcher.utils.network.AuthorizationStore;
 import com.hivi.launcher.utils.network.NetworkCallback;
 import com.hivi.launcher.utils.network.NetworkManager;
 
@@ -66,6 +68,7 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
         renderSelectedSection();
         renderDisplaySettings();
         renderSystemUpdate();
+        renderServerEnvironment();
         if (mModel.getSelectedSection() == SECTION_SYSTEM) {
             requestSystemUpdateDetails();
         }
@@ -89,6 +92,42 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
         renderDisplaySettings();
         if (section == SECTION_SYSTEM) {
             requestSystemUpdateDetails();
+        }
+    }
+
+    public void onServerEnvironmentSelected() {
+        SettingsView view = getView();
+        if (view == null || mApplicationContext == null) {
+            return;
+        }
+        if (mFactoryResetInProgress || mSystemUpdateInProgress || mLogUploadInProgress) {
+            view.showToast(mApplicationContext.getString(R.string.server_switch_busy));
+            return;
+        }
+        boolean wasAuthorized = AuthorizationStore.hasToken(mApplicationContext);
+        boolean testEnvironment = !Constants.isTestEnvironment(mApplicationContext);
+        if (!AuthorizationStore.clear(mApplicationContext)
+                || !Constants.setTestEnvironment(mApplicationContext, testEnvironment)) {
+            view.showToast(mApplicationContext.getString(R.string.server_switch_failed));
+            return;
+        }
+        disposeSystemUpdateCheckRequest();
+        NetworkManager.resetApiService();
+        AiPresenter aiPresenter = AiPresenter.peekShared();
+        if (aiPresenter != null) {
+            aiPresenter.endConversation();
+        }
+        mApiService = null;
+        mSystemUpdateInfo = SystemUpdateInfo.currentVersion(getCurrentVersionName(),
+                getCurrentVersionCode());
+        renderSystemUpdate();
+        renderServerEnvironment();
+        AppLog.i(TAG, "Server environment switched: "
+                + Constants.getCurrentBaseUrl(mApplicationContext));
+        view.showToast(mApplicationContext.getString(wasAuthorized
+                ? R.string.server_switched_reauthorize : R.string.server_switched));
+        if (wasAuthorized) {
+            view.requestServerAuthorization();
         }
     }
 
@@ -465,6 +504,13 @@ public final class SettingsPresenter extends BasePresenter<SettingsView> {
         SettingsView view = getView();
         if (view != null) {
             view.renderSystemUpdate(mSystemUpdateInfo, mSystemUpdateInProgress);
+        }
+    }
+
+    private void renderServerEnvironment() {
+        SettingsView view = getView();
+        if (view != null && mApplicationContext != null) {
+            view.renderServerEnvironment(Constants.isTestEnvironment(mApplicationContext));
         }
     }
 

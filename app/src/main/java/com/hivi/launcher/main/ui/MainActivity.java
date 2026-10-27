@@ -881,6 +881,15 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         mAuthorizationDialog.show();
     }
 
+    public void reauthorizeForServerEnvironment() {
+        if (mAuthorizationDialog != null) {
+            mAuthorizationDialog.release();
+            mAuthorizationDialog = null;
+        }
+        updateAccountText();
+        showAuthorization();
+    }
+
     @Override
     public void showVolumeDialog(int volumePercent, boolean muted) {
         if (isFinishing() || isDestroyed() || binding == null) {

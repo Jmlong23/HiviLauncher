@@ -227,6 +227,14 @@
     <string name="product_information_close">关闭</string>
     <string name="settings_help">帮助</string>
     <string name="settings_privacy">隐私</string>
+    <string name="settings_current_server">当前服务器：%1$s</string>
+    <string name="settings_switch_server">点击切换</string>
+    <string name="server_environment_production">正式服</string>
+    <string name="server_environment_test">测试服</string>
+    <string name="server_switched_reauthorize">服务器已切换，请重新授权。</string>
+    <string name="server_switched">服务器已切换。</string>
+    <string name="server_switch_busy">正在执行维护操作，请完成后再切换服务器。</string>
+    <string name="server_switch_failed">服务器切换失败，请重试。</string>
     <string name="settings_restore_factory">恢复出厂设置</string>
     <string name="factory_reset_continue_action">继续恢复</string>
     <string name="factory_reset_final_confirmation_message">此操作不可撤销。恢复完成后，设备将进入首次设置引导。</string>

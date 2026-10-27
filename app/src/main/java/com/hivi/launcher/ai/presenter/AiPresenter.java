@@ -350,7 +350,7 @@ public final class AiPresenter extends BasePresenter<AiView>
     }
 
     private void openConversation() {
-        if (mReleased || mWebSocketManager != null) {
+        if (mReleased || mWebSocketManager != null || !AuthorizationStore.hasToken(mContext)) {
             return;
         }
         final int generation = ++mCallbackGeneration;
