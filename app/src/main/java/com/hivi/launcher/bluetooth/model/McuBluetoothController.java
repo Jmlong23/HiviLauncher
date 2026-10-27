@@ -1,10 +1,10 @@
 package com.hivi.launcher.bluetooth.model;
 
 import android.content.Context;
-import android.content.SharedPreferences;
+import android.os.Handler;
+import android.os.Looper;
 
 import com.hivi.launcher.audio.AudioRouteController;
-import com.hivi.launcher.utils.log.AppLog;
 
 import java.util.ArrayList;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -15,14 +15,13 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * <p>The phone connects to the speaker through the MCU, so every connection transition,
  * device name, and playback state arrives as a serial report. The launcher only sends
  * requests (disconnect/connect/clear/transport) and mirrors what the MCU confirms, the
- * same way the Hivi-Audio launcher does. The last connection state is persisted so UI
- * can restore instantly after a reboot or locale change; the MCU re-sync corrects it via
- * the connection-state query sent at startup.</p>
+ * same way the Hivi-Audio launcher does. At startup no state is cached: the phone that
+ * was connected before a reboot is gone, so the real state is queried from the MCU,
+ * with brief retries in case it cannot answer right away.</p>
  */
 public final class McuBluetoothController implements AudioRouteController.McuBluetoothListener {
-    private static final String TAG = "McuBluetoothController";
-    private static final String PREFERENCES_NAME = "mcu_bluetooth";
-    private static final String PREFERENCE_CONNECTED = "bt_connected";
+    private static final int CONNECTION_STATE_QUERY_RETRY_COUNT = 5;
+    private static final long CONNECTION_STATE_QUERY_RETRY_INTERVAL_MS = 2000L;
 
     private static final McuBluetoothController INSTANCE = new McuBluetoothController();
 
@@ -44,6 +43,11 @@ public final class McuBluetoothController implements AudioRouteController.McuBlu
     private String mPhoneName = "";
     private String mTrackTitle = "";
     private String mTrackLyric = "";
+    private final Handler mMainHandler = new Handler(Looper.getMainLooper());
+    // Accessed on the main thread only: reports arrive via the dispatch main handler and
+    // start()/queries are issued from UI code.
+    private boolean mReceivedConnectionStateReport;
+    private int mRemainingConnectionStateQueries;
 
     private McuBluetoothController() {
     }
@@ -63,10 +67,11 @@ public final class McuBluetoothController implements AudioRouteController.McuBlu
         mStarted = true;
         mAudioRouteController.initialize(mAppContext);
         mAudioRouteController.addMcuBluetoothListener(this);
-        mConnected = readPersistedConnected(mAppContext);
-        // The MCU is the source of truth: ask it for the live connection state and the
-        // local/phone Bluetooth names so a stale cached flag gets corrected right away.
-        mAudioRouteController.queryBluetoothConnectionState();
+        // The MCU is the source of truth: a phone connected before a reboot is gone, so
+        // start disconnected and let the connection-state query report the real state.
+        // The query is retried briefly because the MCU may not answer right at boot.
+        mRemainingConnectionStateQueries = CONNECTION_STATE_QUERY_RETRY_COUNT;
+        queryConnectionStateUntilReported();
         mAudioRouteController.queryBluetoothName();
         mAudioRouteController.queryBluetoothPhoneName();
     }
@@ -132,15 +137,23 @@ public final class McuBluetoothController implements AudioRouteController.McuBlu
 
     @Override
     public void onBluetoothConnectionChanged(boolean connected) {
+        mReceivedConnectionStateReport = true;
+        boolean queryPhoneName;
         synchronized (this) {
             mConnected = connected;
+            queryPhoneName = connected;
+            // Reset so a different phone reconnecting cannot briefly show the old name.
+            mPhoneName = "";
             if (!connected) {
                 mPlaying = false;
-                mPhoneName = "";
                 clearTrackInfoLocked();
             }
         }
-        persistConnected(connected);
+        if (queryPhoneName) {
+            // The connection report carries no device name; ask the MCU for it so the
+            // home bar and the Bluetooth page can show which phone just connected.
+            mAudioRouteController.queryBluetoothPhoneName();
+        }
         notifyStateChanged();
     }
 
@@ -152,7 +165,6 @@ public final class McuBluetoothController implements AudioRouteController.McuBlu
             mPhoneName = "";
             clearTrackInfoLocked();
         }
-        persistConnected(false);
         for (Listener listener : copyListeners()) {
             listener.onBluetoothPairingsCleared();
         }
@@ -243,12 +255,24 @@ public final class McuBluetoothController implements AudioRouteController.McuBlu
                     break;
             }
         }
-        if (stateFixed) {
-            persistConnected(true);
-        }
         if (changed || stateFixed) {
             notifyStateChanged();
         }
+    }
+
+    /**
+     * Sends the connection-state query until the MCU answers once or the retries run out;
+     * the first report (connected or not) stops the retries.
+     */
+    private void queryConnectionStateUntilReported() {
+        if (!mStarted || mReceivedConnectionStateReport
+                || mRemainingConnectionStateQueries <= 0) {
+            return;
+        }
+        mRemainingConnectionStateQueries--;
+        mAudioRouteController.queryBluetoothConnectionState();
+        mMainHandler.postDelayed(this::queryConnectionStateUntilReported,
+                CONNECTION_STATE_QUERY_RETRY_INTERVAL_MS);
     }
 
     private void clearTrackInfoLocked() {
@@ -318,22 +342,5 @@ public final class McuBluetoothController implements AudioRouteController.McuBlu
         for (Listener listener : copyListeners()) {
             listener.onBluetoothStateChanged();
         }
-    }
-
-    private boolean readPersistedConnected(Context context) {
-        return getPreferences(context).getBoolean(PREFERENCE_CONNECTED, false);
-    }
-
-    private void persistConnected(boolean connected) {
-        Context context = mAppContext;
-        if (context == null) {
-            return;
-        }
-        getPreferences(context).edit().putBoolean(PREFERENCE_CONNECTED, connected).apply();
-        AppLog.i(TAG, "Persisted MCU bluetooth connected=" + connected);
-    }
-
-    private SharedPreferences getPreferences(Context context) {
-        return context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
     }
 }
