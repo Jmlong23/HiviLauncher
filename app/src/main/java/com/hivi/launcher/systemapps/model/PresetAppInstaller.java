@@ -8,6 +8,9 @@ import android.text.TextUtils;
 
 import com.hivi.launcher.utils.log.AppLog;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -60,7 +63,7 @@ public final class PresetAppInstaller {
             @Override
             public void run() {
                 try {
-                    File apkFile = downloadApk(downloadUrl, listener);
+                    File apkFile = downloadApk(resolveRealApkUrl(downloadUrl), listener);
                     String packageName = verifyApk(apkFile, candidatePackages);
                     AppLog.i(TAG, "Preset app package is ready; installing: "
                             + apkFile.getAbsolutePath());
@@ -77,6 +80,30 @@ public final class PresetAppInstaller {
                 }
             }
         }, "PresetAppInstall").start();
+    }
+
+    /**
+     * 喜马拉雅官方车机版分发接口（…/get-new-apk）返回 JSON 而非 APK，解析其中的 apk_url
+     * 得到最新车机版的真实地址；其余直链原样返回。
+     */
+    private String resolveRealApkUrl(String downloadUrl) throws IOException {
+        if (downloadUrl == null || !downloadUrl.endsWith("get-new-apk")) {
+            return downloadUrl;
+        }
+        Request request = new Request.Builder().url(downloadUrl).get().build();
+        try (Response response = mHttpClient.newCall(request).execute()) {
+            if (!response.isSuccessful() || response.body() == null) {
+                throw new IOException("Unable to resolve car app download info. HTTP "
+                        + response.code());
+            }
+            String apkUrl = new JSONObject(response.body().string()).optString("apk_url");
+            if (TextUtils.isEmpty(apkUrl)) {
+                throw new IOException("Car app download info has no apk_url.");
+            }
+            return apkUrl;
+        } catch (JSONException exception) {
+            throw new IOException("Malformed car app download info.", exception);
+        }
     }
 
     private File downloadApk(String downloadUrl, Listener listener) throws IOException {

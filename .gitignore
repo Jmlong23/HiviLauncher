@@ -6,3 +6,6 @@ local.properties
 .DS_Store
 
 app/build/
+
+# 本地诊断产物：抓取脚本、验证用APK、竞品视频截图等，一律不入库
+_diag/

@@ -65,12 +65,10 @@
     <string name="preset_app_netease_music">NetEase Cloud Music</string>
     <string name="preset_app_kugou_music">Kugou Music</string>
     <string name="preset_app_kuwo_music">Kuwo Music</string>
+    <string name="preset_app_we_sing">WeSing</string>
     <string name="preset_app_ximalaya">Ximalaya</string>
     <string name="preset_app_soda_music">Soda Music</string>
-    <string name="preset_app_spotify">Spotify</string>
-    <string name="preset_app_apple_music">Apple Music</string>
-    <string name="preset_app_apple_classical">Apple Music Classical</string>
-    <string name="preset_app_tidal">TIDAL</string>
+    <string name="preset_app_qingting_fm">Qingting FM</string>
 
     <string name="auth">AI Authorization</string>
     <string name="auth_hint1">Please use the mobile app to scan the QR code to connect to the network</string>

@@ -1,12 +1,14 @@
 package com.hivi.launcher.systemapps.presenter;
 
+import android.content.ComponentName;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
 import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
+
+import androidx.annotation.Nullable;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.base.BasePresenter;
@@ -17,16 +19,14 @@ import com.hivi.launcher.systemapps.ui.SystemAppsView;
 import com.hivi.launcher.utils.log.AppLog;
 import com.hivi.launcher.wifi.model.BootAutoPlaySuppressor;
 
-import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
 
+/**
+ * 应用菜单固定展示 8 个音乐/音频应用：已安装的显示真实图标并可直接启动，
+ * 未安装的显示占位图标与“未安装”角标，点击后下载并静默安装。
+ */
 public class SystemAppsPresenter extends BasePresenter<SystemAppsView>
         implements PresetAppInstaller.Listener {
     private static final String TAG = "SystemAppsPresenter";
@@ -43,10 +43,7 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView>
     }
 
     public void loadApps() {
-        PackageManager pm = mContext.getPackageManager();
-        List<AppEntry> apps = loadLaunchableApps(pm);
-        apps.addAll(loadMissingPresetApps(apps));
-        sortApps(apps);
+        List<AppEntry> apps = loadPresetApps(mContext.getPackageManager());
         SystemAppsView view = getView();
         if (view == null) {
             return;
@@ -103,66 +100,40 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView>
                 Arrays.asList(app.getCandidatePackages()), this);
     }
 
-    private List<AppEntry> loadLaunchableApps(PackageManager pm) {
-        Intent intent = new Intent(Intent.ACTION_MAIN);
-        intent.addCategory(Intent.CATEGORY_LAUNCHER);
-        List<ResolveInfo> activities = pm.queryIntentActivities(intent, 0);
+    /** 按枚举声明顺序生成固定 8 个应用条目，展示顺序与预设顺序一致。 */
+    private List<AppEntry> loadPresetApps(PackageManager pm) {
         List<AppEntry> apps = new ArrayList<>();
-
-        for (ResolveInfo info : activities) {
-            if (info.activityInfo == null || TextUtils.isEmpty(info.activityInfo.packageName)
-                    || TextUtils.isEmpty(info.activityInfo.name)) {
+        for (PresetMusicApps preset : PresetMusicApps.values()) {
+            AppEntry installed = findInstalledEntry(pm, preset);
+            if (installed != null) {
+                apps.add(installed);
                 continue;
             }
-            String label = String.valueOf(info.loadLabel(pm));
-            if (TextUtils.isEmpty(label)) {
-                label = info.activityInfo.packageName;
-            }
-            apps.add(new AppEntry(label, info.activityInfo.packageName, info.activityInfo.name,
-                    info.loadIcon(pm)));
+            Drawable icon = mContext.getDrawable(preset.getIconResId());
+            apps.add(new AppEntry(mContext.getString(preset.getLabelResId()),
+                    preset.getCandidatePackages(), icon, preset.getDownloadUrl()));
         }
         return apps;
     }
 
-    /**
-     * 收集预置音乐服务中未安装的项，与已安装应用合并展示；已安装的候选包名会让
-     * 对应预置项被跳过，列表中由真实应用替代占位。
-     */
-    private List<AppEntry> loadMissingPresetApps(List<AppEntry> installedApps) {
-        Set<String> installedPackages = new HashSet<>();
-        for (AppEntry entry : installedApps) {
-            installedPackages.add(entry.getPackageName());
-        }
-        List<AppEntry> missing = new ArrayList<>();
-        for (PresetMusicApps preset : PresetMusicApps.values()) {
-            if (isAnyPackageInstalled(installedPackages, preset.getCandidatePackages())) {
+    /** 查找候选包名中已安装且可启动的应用；命中则返回真实图标条目。 */
+    @Nullable
+    private AppEntry findInstalledEntry(PackageManager pm, PresetMusicApps preset) {
+        for (String packageName : preset.getCandidatePackages()) {
+            Intent launchIntent = pm.getLaunchIntentForPackage(packageName);
+            ComponentName component = launchIntent == null ? null : launchIntent.getComponent();
+            if (component == null || TextUtils.isEmpty(component.getClassName())) {
                 continue;
             }
-            String label = mContext.getString(preset.getLabelResId());
-            Drawable icon = mContext.getDrawable(preset.getIconResId());
-            missing.add(new AppEntry(label, preset.getCandidatePackages(), icon,
-                    preset.getDownloadUrl()));
-        }
-        return missing;
-    }
-
-    private boolean isAnyPackageInstalled(Set<String> installedPackages, String[] candidates) {
-        for (String packageName : candidates) {
-            if (installedPackages.contains(packageName)) {
-                return true;
+            try {
+                Drawable icon = pm.getActivityIcon(component);
+                return new AppEntry(mContext.getString(preset.getLabelResId()),
+                        packageName, component.getClassName(), icon);
+            } catch (PackageManager.NameNotFoundException e) {
+                AppLog.w(TAG, "Installed preset app icon unavailable: " + packageName);
             }
         }
-        return false;
-    }
-
-    private void sortApps(List<AppEntry> apps) {
-        final Collator collator = Collator.getInstance(Locale.getDefault());
-        Collections.sort(apps, new Comparator<AppEntry>() {
-            @Override
-            public int compare(AppEntry left, AppEntry right) {
-                return collator.compare(left.getLabel(), right.getLabel());
-            }
-        });
+        return null;
     }
 
     @Override
