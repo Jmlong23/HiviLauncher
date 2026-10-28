@@ -12,6 +12,7 @@ import androidx.annotation.Nullable;
 import androidx.viewbinding.ViewBinding;
 
 import com.hivi.launcher.utils.LocaleHelper;
+import com.hivi.launcher.utils.UiUtils;
 
 public abstract class BaseActivity<B extends ViewBinding, P extends BasePresenter<?>> extends Activity
         implements BaseView {
@@ -77,13 +78,8 @@ public abstract class BaseActivity<B extends ViewBinding, P extends BasePresente
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
+    /** 沉浸式设置统一走 UiUtils：状态栏常隐，底部导航栏默认显示、可由底部栏按钮切换隐藏。 */
     protected void enterFullscreen() {
-        getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                        | View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        UiUtils.applyImmersiveVisibility(getWindow().getDecorView());
     }
 }
