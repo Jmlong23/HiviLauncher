@@ -127,6 +127,13 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
                 presenter.launchApp(app);
             }
         });
+        itemBinding.appGridItem.setOnLongClickListener(ignored -> {
+            SystemAppsPresenter presenter = getPresenter();
+            if (presenter != null) {
+                presenter.onAppLongPressed(app);
+            }
+            return true;
+        });
         itemBinding.appIcon.setImageDrawable(app.getIcon());
         itemBinding.appLabel.setText(app.getLabel());
         if (!app.isInstalled()) {
@@ -134,6 +141,34 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
             itemBinding.appBadge.setVisibility(View.VISIBLE);
         }
         return itemBinding.getRoot();
+    }
+
+    @Override
+    public void showAppActions(final AppEntry app) {
+        Activity activity = getActivity();
+        if (activity == null || activity.isFinishing()) {
+            return;
+        }
+        // 受保护的预置应用（如 QQ音乐车机版）不提供卸载，只保留应用信息
+        final boolean uninstallable = app.isUninstallable();
+        CharSequence[] items = uninstallable
+                ? new CharSequence[]{getString(R.string.system_apps_action_uninstall),
+                        getString(R.string.system_apps_action_app_info)}
+                : new CharSequence[]{getString(R.string.system_apps_action_app_info)};
+        new android.app.AlertDialog.Builder(activity)
+                .setTitle(app.getLabel())
+                .setItems(items, (dialog, which) -> {
+                    SystemAppsPresenter presenter = getPresenter();
+                    if (presenter == null) {
+                        return;
+                    }
+                    if (uninstallable && which == 0) {
+                        presenter.uninstallApp(app);
+                    } else {
+                        presenter.openAppInfo(app);
+                    }
+                })
+                .show();
     }
 
     private int getAppsPageWidth() {

@@ -83,26 +83,27 @@ public final class PresetAppInstaller {
     }
 
     /**
-     * 喜马拉雅官方车机版分发接口（…/get-new-apk）返回 JSON 而非 APK，解析其中的 apk_url
-     * 得到最新车机版的真实地址；其余直链原样返回。
+     * 公司 Swan 后台按 APP类型 发布的版本接口（…/version/details?type=…）返回 JSON，
+     * 解析其中的 updateUrl 得到最新 APK 的真实下载地址；其余直链原样返回。
      */
     private String resolveRealApkUrl(String downloadUrl) throws IOException {
-        if (downloadUrl == null || !downloadUrl.endsWith("get-new-apk")) {
+        if (downloadUrl == null || !downloadUrl.contains("/api/version/details")) {
             return downloadUrl;
         }
         Request request = new Request.Builder().url(downloadUrl).get().build();
         try (Response response = mHttpClient.newCall(request).execute()) {
             if (!response.isSuccessful() || response.body() == null) {
-                throw new IOException("Unable to resolve car app download info. HTTP "
+                throw new IOException("Unable to resolve preset app version. HTTP "
                         + response.code());
             }
-            String apkUrl = new JSONObject(response.body().string()).optString("apk_url");
+            JSONObject data = new JSONObject(response.body().string()).optJSONObject("data");
+            String apkUrl = data == null ? null : data.optString("updateUrl", null);
             if (TextUtils.isEmpty(apkUrl)) {
-                throw new IOException("Car app download info has no apk_url.");
+                throw new IOException("Preset app version has no updateUrl.");
             }
             return apkUrl;
         } catch (JSONException exception) {
-            throw new IOException("Malformed car app download info.", exception);
+            throw new IOException("Malformed preset app version response.", exception);
         }
     }
 
