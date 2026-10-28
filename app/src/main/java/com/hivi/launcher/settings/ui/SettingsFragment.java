@@ -49,6 +49,7 @@ import com.hivi.launcher.settings.model.ScreenSaverSettings;
 import com.hivi.launcher.settings.presenter.SettingsPresenter;
 import com.hivi.launcher.update.SystemUpdateInfo;
 import com.hivi.launcher.utils.LocaleHelper;
+import com.hivi.launcher.utils.UiUtils;
 import com.hivi.launcher.wifi.model.WifiNetwork;
 import com.hivi.launcher.wifi.presenter.WifiPresenter;
 import com.hivi.launcher.wifi.ui.WifiNetworkAdapter;
@@ -337,13 +338,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         dialog.show();
         if (dialog.getWindow() != null) {
             Window dialogWindow = dialog.getWindow();
-            dialogWindow.getDecorView().setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                            | View.SYSTEM_UI_FLAG_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+            UiUtils.applyImmersiveVisibility(dialogWindow.getDecorView());
             dialogWindow.setLayout(dp(690), WindowManager.LayoutParams.WRAP_CONTENT);
         }
     }
