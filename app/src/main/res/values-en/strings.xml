@@ -15,6 +15,10 @@
     <string name="main_amplifier_volume">Amplifier volume</string>
     <string name="main_volume_mute">Mute</string>
     <string name="main_volume_unmute">Unmute</string>
+    <string name="main_volume_over_limit_title">High volume</string>
+    <string name="main_volume_over_limit_message">The volume is above 80. Loud playback can damage hearing and the speakers. Continue?</string>
+    <string name="main_volume_over_limit_ok">Continue</string>
+    <string name="main_volume_over_limit_cancel">Cancel</string>
     <string name="main_volume_placeholder">--</string>
     <string name="main_volume_up">+</string>
     <string name="main_volume_adjust">Adjust</string>

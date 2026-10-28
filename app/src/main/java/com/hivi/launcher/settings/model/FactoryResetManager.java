@@ -223,6 +223,12 @@ public final class FactoryResetManager {
         clearDirectoryContents(mApplicationContext.getCacheDir(), "app cache");
         clearDirectoryContents(mApplicationContext.getExternalFilesDir(null), "external app files");
         clearDirectoryContents(mApplicationContext.getExternalCacheDir(), "external app cache");
+        // Catch-all wipe of every remaining preference store (screen saver, update flags,
+        // and any store added later); the per-store resets above already restored the
+        // in-memory defaults (test issue #21: settings surviving factory reset).
+        File sharedPrefsDirectory = new File(mApplicationContext.getApplicationInfo().dataDir,
+                "shared_prefs");
+        clearDirectoryContents(sharedPrefsDirectory, "shared preferences");
     }
 
     private void clearDirectoryContents(File directory, String description) {

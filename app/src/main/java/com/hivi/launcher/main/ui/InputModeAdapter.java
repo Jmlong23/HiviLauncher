@@ -1,7 +1,6 @@
 package com.hivi.launcher.main.ui;
 
 import android.content.Context;
-import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.ViewGroup;
 
@@ -68,11 +67,11 @@ final class InputModeAdapter extends RecyclerView.Adapter<InputModeAdapter.Input
         holder.binding.modeBackground.setImageResource(selected
                 ? mode.selectedCardResId : mode.unselectedCardResId);
         holder.binding.modeNameText.setText(mode.title);
-        holder.binding.modeStatusText.setText(mode.status);
-        holder.binding.modeStatusText.setTextColor(mContext.getColor(mode.statusColorResId));
+        holder.binding.modeSubNameText.setText(mode.subName);
         holder.binding.modeCard.setContentDescription(mode.title);
         holder.binding.modeCard.setSelected(selected);
         holder.binding.modeCard.setOnClickListener(view -> {
+            com.hivi.launcher.utils.FeedbackSound.playClick();
             if (mOnModeClickListener != null) {
                 mOnModeClickListener.onModeClicked(mode.page);
             }
@@ -110,60 +109,40 @@ final class InputModeAdapter extends RecyclerView.Adapter<InputModeAdapter.Input
         return false;
     }
 
+    /**
+     * 兼容入口：卡片上的连接状态文字已按需求隐藏，未连接置灰改由左上角状态区表达，
+     * 这里不再刷新卡片内容。
+     */
     boolean updateConnectivityState(boolean bluetoothConnected, String wifiLabel) {
-        boolean wifiConnected = !TextUtils.isEmpty(wifiLabel)
-                && !TextUtils.equals(wifiLabel, mContext.getString(R.string.main_disconnected));
-
-        InputMode bluetoothMode = mModes.get(MODE_BLUETOOTH);
-        bluetoothMode.status = mContext.getString(bluetoothConnected
-                ? R.string.input_mode_status_connected
-                : R.string.input_mode_status_disconnected);
-        bluetoothMode.statusColorResId = bluetoothConnected
-                ? R.color.status_connected : R.color.text_color;
-        notifyItemChanged(MODE_BLUETOOTH);
-
-        InputMode wifiMusicMode = mModes.get(MODE_WIFI_MUSIC);
-        wifiMusicMode.status = mContext.getString(wifiConnected
-                ? R.string.input_mode_status_connected
-                : R.string.input_mode_status_disconnected);
-        wifiMusicMode.statusColorResId = wifiConnected
-                ? R.color.status_connected : R.color.text_color;
-        notifyItemChanged(MODE_WIFI_MUSIC);
-
         return false;
     }
 
     private void addDefaultModes() {
         mModes.add(createMode(R.string.input_mode_line_top, R.string.input_mode_line,
-                R.string.input_mode_status_no_signal,
-                R.drawable.mode_line, R.drawable.mode_line_selected, MainPage.LINE));
+                "LINE IN", R.drawable.mode_line, R.drawable.mode_line_selected, MainPage.LINE));
         mModes.add(createMode(R.string.input_mode_microphone_top,
-                R.string.input_mode_microphone,
-                R.string.input_mode_status_no_signal,
+                R.string.input_mode_microphone, "MIC",
                 R.drawable.mode_microphone, R.drawable.mode_microphone_selected,
                 MainPage.MICROPHONE));
         mModes.add(createMode(R.string.input_mode_optical_top, R.string.input_mode_optical,
-                R.string.input_mode_status_no_signal,
-                R.drawable.mode_optical, R.drawable.mode_optical_selected, MainPage.OPTICAL));
+                "OPTICAL", R.drawable.mode_optical, R.drawable.mode_optical_selected,
+                MainPage.OPTICAL));
         mModes.add(createMode(R.string.input_mode_coax_top, R.string.input_mode_coax,
-                R.string.input_mode_status_no_signal,
-                R.drawable.mode_coax, R.drawable.mode_coax_selected, MainPage.COAX));
+                "COAXIAL", R.drawable.mode_coax, R.drawable.mode_coax_selected, MainPage.COAX));
         mModes.add(createMode(R.string.input_mode_hdmi_top, R.string.input_mode_hdmi,
-                R.string.input_mode_status_no_signal,
-                R.drawable.mode_hdmi, R.drawable.mode_hdmi_selected, MainPage.HDMI));
+                "HDMI ARC", R.drawable.mode_hdmi, R.drawable.mode_hdmi_selected, MainPage.HDMI));
         mModes.add(createMode(R.string.input_mode_bluetooth_top, R.string.input_mode_bluetooth,
-                R.string.input_mode_status_disconnected,
-                R.drawable.mode_bluetooth, R.drawable.mode_bluetooth_selected,
+                "BLUETOOTH", R.drawable.mode_bluetooth, R.drawable.mode_bluetooth_selected,
                 MainPage.BLUETOOTH));
         mModes.add(createMode(R.string.input_mode_wifi_music_top,
-                R.string.input_mode_wifi_music, R.string.input_mode_status_disconnected,
+                R.string.input_mode_wifi_music, "WI-FI MUSIC",
                 R.drawable.mode_wifi, R.drawable.mode_wifi_selected, MainPage.WIFI));
     }
 
-    private InputMode createMode(int topLabelResId, int titleResId, int statusResId,
+    private InputMode createMode(int topLabelResId, int titleResId, String subName,
             int unselectedCardResId, int selectedCardResId, MainPage page) {
-        return new InputMode(topLabelResId, mContext.getString(titleResId),
-                mContext.getString(statusResId), unselectedCardResId, selectedCardResId, page);
+        return new InputMode(topLabelResId, mContext.getString(titleResId), subName,
+                unselectedCardResId, selectedCardResId, page);
     }
 
     private boolean updateSelectedPosition(int position) {
@@ -203,17 +182,16 @@ final class InputModeAdapter extends RecyclerView.Adapter<InputModeAdapter.Input
     private static final class InputMode {
         final int topLabelResId;
         final String title;
+        final String subName;
         final int unselectedCardResId;
         final int selectedCardResId;
         final MainPage page;
-        String status;
-        int statusColorResId = R.color.text_color;
 
-        InputMode(int topLabelResId, String title, String status,
+        InputMode(int topLabelResId, String title, String subName,
                 int unselectedCardResId, int selectedCardResId, MainPage page) {
             this.topLabelResId = topLabelResId;
             this.title = title;
-            this.status = status;
+            this.subName = subName;
             this.unselectedCardResId = unselectedCardResId;
             this.selectedCardResId = selectedCardResId;
             this.page = page;

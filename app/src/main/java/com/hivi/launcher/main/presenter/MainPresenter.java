@@ -2,6 +2,7 @@ package com.hivi.launcher.main.presenter;
 
 import android.content.Context;
 import android.os.SystemClock;
+import android.text.TextUtils;
 import com.hivi.launcher.utils.log.AppLog;
 import android.view.InputDevice;
 import android.view.KeyCharacterMap;
@@ -23,6 +24,10 @@ import java.util.Locale;
 public class MainPresenter extends BasePresenter<MainView> {
     public static final String ACTION_VOLUME_CHANGED = "android.media.VOLUME_CHANGED_ACTION";
     private static final int INJECT_INPUT_EVENT_MODE_ASYNC = 0;
+    // A fresh Wi-Fi state can trail its broadcast; a disconnected reading is re-checked
+    // briefly so the home screen self-heals instead of waiting for the Wi-Fi page (#17).
+    private static final int WIFI_STATE_RETRY_MAX = 2;
+    private static final long WIFI_STATE_RETRY_DELAY_MS = 2000L;
 
     private final Context mContext;
     private final MainStatusRepository mStatusRepository;
@@ -39,6 +44,8 @@ public class MainPresenter extends BasePresenter<MainView> {
     private final AudioRouteController.AmplifierVolumeListener mAmplifierVolumeListener =
             (volumePercent, muted) -> updateAudioStatus();
     private boolean mLastNotifiedConnected;
+    private int mRemainingWifiStateRetries;
+    private final Runnable mWifiStateRetryCheck = this::updateDeviceStatus;
     private final McuBluetoothController.Listener mMcuBluetoothListener =
             new McuBluetoothController.Listener() {
                 @Override
@@ -92,6 +99,8 @@ public class MainPresenter extends BasePresenter<MainView> {
     }
 
     public void onSystemStateChanged() {
+        // A fresh system broadcast renews the self-heal budget for the Wi-Fi reading.
+        mRemainingWifiStateRetries = WIFI_STATE_RETRY_MAX;
         updateDeviceStatus();
     }
 
@@ -228,6 +237,7 @@ public class MainPresenter extends BasePresenter<MainView> {
 
     @Override
     public void detach() {
+        removeUiThreadRunnable(mWifiStateRetryCheck);
         mAudioRouteController.removeAmplifierVolumeListener(mAmplifierVolumeListener);
         mMcuBluetoothController.removeListener(mMcuBluetoothListener);
         super.detach();
@@ -236,11 +246,29 @@ public class MainPresenter extends BasePresenter<MainView> {
     private void updateDeviceStatus() {
         MainView view = getView();
         if (view != null) {
-            view.updateConnectivity(mStatusRepository.getWifiLabel(),
+            String wifiLabel = mStatusRepository.getWifiLabel();
+            view.updateConnectivity(wifiLabel,
                     mStatusRepository.isBluetoothConnected(),
                     mStatusRepository.getBluetoothDeviceName());
+            scheduleWifiStateRetryIfNeeded(wifiLabel);
         }
         updateAudioStatus();
+    }
+
+    private void scheduleWifiStateRetryIfNeeded(String wifiLabel) {
+        boolean connected = !TextUtils.isEmpty(wifiLabel) && !TextUtils.equals(wifiLabel,
+                mContext.getString(R.string.main_disconnected));
+        if (connected) {
+            mRemainingWifiStateRetries = 0;
+            removeUiThreadRunnable(mWifiStateRetryCheck);
+            return;
+        }
+        if (mRemainingWifiStateRetries <= 0) {
+            return;
+        }
+        mRemainingWifiStateRetries--;
+        removeUiThreadRunnable(mWifiStateRetryCheck);
+        runOnUiThreadDelayed(mWifiStateRetryCheck, WIFI_STATE_RETRY_DELAY_MS);
     }
 
     private void updateAudioStatus() {

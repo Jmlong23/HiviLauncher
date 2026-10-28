@@ -223,6 +223,11 @@ public final class UpnpPlaybackManager implements MediaSessionPlaybackManager.Li
         }
         try {
             if (TextUtils.isEmpty(currentUrl)) {
+                // Stop 清空曲目后设备端再按播放：队列仍在则恢复当前曲目
+                if (getTrackCount(playMusicList) == 0) {
+                    return;
+                }
+                playCurrentTrack();
                 return;
             }
             preemptLocalMusicApp();
@@ -288,7 +293,28 @@ public final class UpnpPlaybackManager implements MediaSessionPlaybackManager.Li
         // 立即向订阅方广播（不等下一秒状态采样）
         AVTransportController.getInstance().reportAudioTransportState(
                 resolveTransportState(), TransportStatus.OK);
+        // 控制端 Stop 后渲染器不再保有曲目：清空曲目信息，否则主页的投歌兜底分支会
+        // 一直显示上一首歌（测试问题 #3）。队列保留，设备端播放键可恢复当前曲目。
+        clearCurrentTrack();
         notifyStateChanged();
+    }
+
+    /** 清空当前曲目展示状态，使 getCurrentState 回到无媒体状态；播放队列保留 */
+    private void clearCurrentTrack() {
+        currentUrl = "";
+        currentMetaData = "";
+        title = "";
+        artist = "";
+        album = "";
+        lyric = "";
+        coverUrl = "";
+        currentSongId = "";
+        durationFallbackMs = 0L;
+        ++lyricFetchGeneration;
+        if (lyricFetchDisposable != null) {
+            lyricFetchDisposable.dispose();
+            lyricFetchDisposable = null;
+        }
     }
 
     private final ServiceConnection renderServiceConnection = new ServiceConnection() {

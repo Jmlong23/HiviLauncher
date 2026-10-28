@@ -22,6 +22,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public final class McuBluetoothController implements AudioRouteController.McuBluetoothListener {
     private static final int CONNECTION_STATE_QUERY_RETRY_COUNT = 5;
     private static final long CONNECTION_STATE_QUERY_RETRY_INTERVAL_MS = 2000L;
+    // The connection report carries no device name; the MCU is asked separately and may
+    // answer slowly or drop the request, so the phone-name query is retried until the
+    // name arrives (test issue #19: device bar stuck on the generic label).
+    private static final int PHONE_NAME_QUERY_RETRY_COUNT = 5;
+    private static final long PHONE_NAME_QUERY_RETRY_INTERVAL_MS = 2000L;
 
     private static final McuBluetoothController INSTANCE = new McuBluetoothController();
 
@@ -48,6 +53,7 @@ public final class McuBluetoothController implements AudioRouteController.McuBlu
     // start()/queries are issued from UI code.
     private boolean mReceivedConnectionStateReport;
     private int mRemainingConnectionStateQueries;
+    private int mRemainingPhoneNameQueries;
 
     private McuBluetoothController() {
     }
@@ -146,13 +152,16 @@ public final class McuBluetoothController implements AudioRouteController.McuBlu
             mPhoneName = "";
             if (!connected) {
                 mPlaying = false;
+                mRemainingPhoneNameQueries = 0;
                 clearTrackInfoLocked();
             }
         }
         if (queryPhoneName) {
             // The connection report carries no device name; ask the MCU for it so the
             // home bar and the Bluetooth page can show which phone just connected.
+            mRemainingPhoneNameQueries = PHONE_NAME_QUERY_RETRY_COUNT;
             mAudioRouteController.queryBluetoothPhoneName();
+            queryPhoneNameUntilReported();
         }
         notifyStateChanged();
     }
@@ -175,6 +184,9 @@ public final class McuBluetoothController implements AudioRouteController.McuBlu
     public void onBluetoothPhoneNameChanged(String phoneName) {
         synchronized (this) {
             mPhoneName = phoneName == null ? "" : phoneName;
+            if (!mPhoneName.isEmpty()) {
+                mRemainingPhoneNameQueries = 0;
+            }
         }
         notifyStateChanged();
     }
@@ -273,6 +285,25 @@ public final class McuBluetoothController implements AudioRouteController.McuBlu
         mAudioRouteController.queryBluetoothConnectionState();
         mMainHandler.postDelayed(this::queryConnectionStateUntilReported,
                 CONNECTION_STATE_QUERY_RETRY_INTERVAL_MS);
+    }
+
+    /**
+     * Re-asks for the phone name while connected but still unnamed, so the connected-device
+     * bar shows the real phone instead of the generic label when the first query is lost.
+     */
+    private void queryPhoneNameUntilReported() {
+        if (!mStarted || mRemainingPhoneNameQueries <= 0) {
+            return;
+        }
+        synchronized (this) {
+            if (!mConnected || !mPhoneName.isEmpty()) {
+                return;
+            }
+        }
+        mRemainingPhoneNameQueries--;
+        mAudioRouteController.queryBluetoothPhoneName();
+        mMainHandler.postDelayed(this::queryPhoneNameUntilReported,
+                PHONE_NAME_QUERY_RETRY_INTERVAL_MS);
     }
 
     private void clearTrackInfoLocked() {

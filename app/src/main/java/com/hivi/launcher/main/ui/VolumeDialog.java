@@ -1,6 +1,7 @@
 package com.hivi.launcher.main.ui;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.Dialog;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
@@ -16,6 +17,8 @@ import com.hivi.launcher.utils.UiUtils;
 public final class VolumeDialog {
     private static final int VOLUME_ADJUST_LOWER = -1;
     private static final int VOLUME_ADJUST_RAISE = 1;
+    /** Raising the volume past this value asks for an explicit confirmation (test issue #12). */
+    private static final int VOLUME_PROTECT_THRESHOLD = 80;
 
     public interface Listener {
         void onVolumeAdjusted(int direction);
@@ -31,6 +34,9 @@ public final class VolumeDialog {
     private final Listener mListener;
     private Dialog mDialog;
     private DialogVolumeBinding mBinding;
+    private AlertDialog mOverLimitDialog;
+    /** Last volume actually applied to the amplifier; values beyond it need confirmation. */
+    private int mAppliedVolume = -1;
 
     public VolumeDialog(Activity activity, Listener listener) {
         mActivity = activity;
@@ -65,7 +71,11 @@ public final class VolumeDialog {
         }
         int clampedVolume = Math.max(0, Math.min(100, volumePercent));
         int displayedVolume = muted ? 0 : clampedVolume;
+        mAppliedVolume = displayedVolume;
         mBinding.volumeValue.setText(String.valueOf(displayedVolume));
+        // Volume zero doubles as the muted visual state (test issue #15).
+        mBinding.volumeValue.setAlpha(displayedVolume == 0 ? 0.4f : 1f);
+        mBinding.volumeValue.setSelected(displayedVolume == 0);
         mBinding.volumeSeekBar.setProgress(displayedVolume);
         mBinding.volumeDownButton.setEnabled(displayedVolume > 0);
         mBinding.volumeUpButton.setEnabled(displayedVolume < 100);
@@ -85,17 +95,32 @@ public final class VolumeDialog {
     }
 
     private void bindListeners() {
-        mBinding.volumeMuteButton.setOnClickListener(view -> mListener.onMuteToggleRequested());
-        mBinding.volumeDownButton.setOnClickListener(
-                view -> mListener.onVolumeAdjusted(VOLUME_ADJUST_LOWER));
-        mBinding.volumeUpButton.setOnClickListener(
-                view -> mListener.onVolumeAdjusted(VOLUME_ADJUST_RAISE));
+        mBinding.volumeMuteButton.setOnClickListener(view -> {
+            com.hivi.launcher.utils.FeedbackSound.playClick();
+            mListener.onMuteToggleRequested();
+        });
+        mBinding.volumeDownButton.setOnClickListener(view -> {
+            com.hivi.launcher.utils.FeedbackSound.playClick();
+            mListener.onVolumeAdjusted(VOLUME_ADJUST_LOWER);
+        });
+        mBinding.volumeUpButton.setOnClickListener(view -> {
+            com.hivi.launcher.utils.FeedbackSound.playClick();
+            applyVolumeRaise(VOLUME_ADJUST_RAISE);
+        });
         mBinding.volumeSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fromUser) {
-                    mListener.onVolumeChanged(progress);
+                if (!fromUser) {
+                    return;
                 }
+                if (progress > VOLUME_PROTECT_THRESHOLD
+                        && mAppliedVolume >= 0 && mAppliedVolume <= VOLUME_PROTECT_THRESHOLD) {
+                    seekBar.setProgress(mAppliedVolume);
+                    showOverLimitConfirm(progress);
+                    return;
+                }
+                mAppliedVolume = progress;
+                mListener.onVolumeChanged(progress);
             }
 
             @Override
@@ -105,9 +130,41 @@ public final class VolumeDialog {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                // The final value has already been applied in onProgressChanged.
+                com.hivi.launcher.utils.FeedbackSound.playClick();
             }
         });
+    }
+
+    /** The + button crosses the protection threshold the same way the slider does. */
+    private void applyVolumeRaise(int direction) {
+        int targetVolume = Math.max(0, Math.min(100,
+                (mAppliedVolume < 0 ? 0 : mAppliedVolume) + direction));
+        if (targetVolume > VOLUME_PROTECT_THRESHOLD
+                && mAppliedVolume >= 0 && mAppliedVolume <= VOLUME_PROTECT_THRESHOLD) {
+            showOverLimitConfirm(targetVolume);
+            return;
+        }
+        mListener.onVolumeAdjusted(direction);
+    }
+
+    private void showOverLimitConfirm(int requestedVolume) {
+        if (mOverLimitDialog != null && mOverLimitDialog.isShowing()) {
+            return;
+        }
+        mOverLimitDialog = new AlertDialog.Builder(mActivity)
+                .setTitle(R.string.main_volume_over_limit_title)
+                .setMessage(R.string.main_volume_over_limit_message)
+                .setPositiveButton(R.string.main_volume_over_limit_ok, (dialog, which) -> {
+                    mAppliedVolume = requestedVolume;
+                    if (mBinding != null) {
+                        mBinding.volumeSeekBar.setProgress(requestedVolume);
+                    }
+                    mListener.onVolumeChanged(requestedVolume);
+                })
+                .setNegativeButton(R.string.main_volume_over_limit_cancel, null)
+                .create();
+        mOverLimitDialog.setOnDismissListener(dialog -> mOverLimitDialog = null);
+        mOverLimitDialog.show();
     }
 
     private void configureWindow() {

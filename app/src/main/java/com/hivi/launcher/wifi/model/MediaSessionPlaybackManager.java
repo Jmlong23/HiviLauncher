@@ -1,5 +1,6 @@
 package com.hivi.launcher.wifi.model;
 
+import android.app.ActivityManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.media.MediaMetadata;
@@ -154,9 +155,18 @@ public final class MediaSessionPlaybackManager {
             Map<String, MediaController> wanted = new HashMap<>();
             for (MediaController session : sessions) {
                 String packageName = session.getPackageName();
-                if (WifiMusicApp.fromPackageName(packageName) != null) {
-                    wanted.put(packageName, session);
+                if (WifiMusicApp.fromPackageName(packageName) == null) {
+                    continue;
                 }
+                // A closed app can linger as a playing session: swiping the task away may
+                // keep the process (and its playback service) alive, which pinned the last
+                // song on the home UI, kept the music going and routed controls to a dead
+                // session (test issue #3). Pause the lingering audio before dropping it.
+                if (!isAppAlive(packageName)) {
+                    pauseLingeringSession(holders.get(packageName));
+                    continue;
+                }
+                wanted.put(packageName, session);
             }
 
             for (String packageName : new ArrayList<>(holders.keySet())) {
@@ -165,13 +175,89 @@ public final class MediaSessionPlaybackManager {
                 }
             }
             for (Map.Entry<String, MediaController> entry : wanted.entrySet()) {
-                if (!holders.containsKey(entry.getKey())) {
-                    registerController(entry.getKey(), entry.getValue());
+                MediaController fresh = entry.getValue();
+                ControllerHolder existing = holders.get(entry.getKey());
+                if (existing == null) {
+                    registerController(entry.getKey(), fresh);
+                } else if (!existing.controller.getSessionToken()
+                        .equals(fresh.getSessionToken())) {
+                    // Music apps recreate their session per track; keeping the old
+                    // controller pins the previous song's metadata (test issue #2).
+                    unregisterController(entry.getKey());
+                    registerController(entry.getKey(), fresh);
                 }
             }
             notifyStateChanged();
         } catch (Throwable e) {
             AppLog.e(TAG, "query active media sessions failed", e);
+        }
+    }
+
+    /**
+     * Whether the music app still counts as open: its process must be alive and its task must
+     * still exist. Swiping the app away on this device can keep the process (and therefore the
+     * paused session) alive, so the removed task is what tells us the app was closed. Only the
+     * system uid sees the full lists; when a query is unavailable the session is kept so
+     * behavior never regresses.
+     */
+    private boolean isAppAlive(String packageName) {
+        ActivityManager activityManager = (ActivityManager)
+                appContext.getSystemService(Context.ACTIVITY_SERVICE);
+        if (activityManager == null) {
+            return true;
+        }
+        List<ActivityManager.RunningAppProcessInfo> processes =
+                activityManager.getRunningAppProcesses();
+        boolean processAlive = processes == null || processes.isEmpty();
+        if (!processAlive) {
+            for (ActivityManager.RunningAppProcessInfo process : processes) {
+                if (process != null && packageName.equals(process.processName)) {
+                    processAlive = true;
+                    break;
+                }
+            }
+        }
+        if (!processAlive) {
+            return false;
+        }
+        List<ActivityManager.RunningTaskInfo> tasks = activityManager.getRunningTasks(100);
+        if (tasks == null || tasks.isEmpty()) {
+            return true;
+        }
+        // A restricted task list (missing even our own task) cannot be trusted to judge
+        // other apps; keep the session instead of clearing playback that is still real.
+        boolean sawLauncherTask = false;
+        String launcherPackage = appContext.getPackageName();
+        for (ActivityManager.RunningTaskInfo task : tasks) {
+            if (task == null || task.baseActivity == null) {
+                continue;
+            }
+            if (packageName.equals(task.baseActivity.getPackageName())) {
+                return true;
+            }
+            if (launcherPackage.equals(task.baseActivity.getPackageName())) {
+                sawLauncherTask = true;
+            }
+        }
+        return !sawLauncherTask;
+    }
+
+    /**
+     * Pauses a still-playing session whose app was closed: killing the task does not stop the
+     * app's playback service, so the speaker would keep playing music with no way back to the
+     * app. Harmless no-op when the process died with the task (session already gone).
+     */
+    private void pauseLingeringSession(@Nullable ControllerHolder holder) {
+        if (holder == null || holder.controller.getTransportControls() == null
+                || !isPlaying(holder.controller)) {
+            return;
+        }
+        try {
+            holder.controller.getTransportControls().pause();
+            AppLog.i(TAG, "paused lingering session of closed app: "
+                    + holder.controller.getPackageName());
+        } catch (Throwable e) {
+            AppLog.w(TAG, "pause lingering session failed: " + e.getMessage());
         }
     }
 

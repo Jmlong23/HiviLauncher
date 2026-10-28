@@ -74,6 +74,10 @@ public final class AudioRouteController {
     private static final int SERIAL_PORT_BAUD_RATE = 9600;
     private static final int DEFAULT_AMPLIFIER_VOLUME = 50;
     private static final int DEFAULT_KARAOKE_VOLUME = 50;
+    // Boot clamp: the amplifier stays silent at 100 and startle-loud near 0, so the
+    // restored startup volume is kept inside a safe range (test issue #7).
+    private static final int BOOT_VOLUME_MAX = 80;
+    private static final int BOOT_VOLUME_MIN = 25;
     private static final AudioRouteController INSTANCE = new AudioRouteController();
 
     private final ExecutorService mSerialExecutor = Executors.newSingleThreadExecutor();
@@ -149,10 +153,10 @@ public final class AudioRouteController {
                 return;
             }
             mContext = appContext;
-            mAmplifierVolumePercent = getStoredVolume(appContext,
-                    SERIAL_PORT_CMD_VOLUME_KEY, DEFAULT_AMPLIFIER_VOLUME);
+            mAmplifierVolumePercent = clampBootVolume(getStoredVolume(appContext,
+                    SERIAL_PORT_CMD_VOLUME_KEY, DEFAULT_AMPLIFIER_VOLUME));
             mLastAmplifierVolumePercent = mAmplifierVolumePercent;
-            mAmplifierMuted = mAmplifierVolumePercent == 0;
+            mAmplifierMuted = false;
         }
         dispatchAmplifierVolumeChanged();
         mSerialExecutor.execute(this::openSerialPortIfNeeded);
@@ -596,6 +600,11 @@ public final class AudioRouteController {
 
     private int clampVolume(int volumePercent) {
         return Math.max(0, Math.min(100, volumePercent));
+    }
+
+    /** Boot-time safe range for the restored amplifier volume; runtime volumes are unclamped. */
+    private static int clampBootVolume(int volumePercent) {
+        return Math.max(BOOT_VOLUME_MIN, Math.min(BOOT_VOLUME_MAX, volumePercent));
     }
 
     private void dispatchAmplifierVolumeChanged() {

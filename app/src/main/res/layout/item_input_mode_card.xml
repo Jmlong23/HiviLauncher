@@ -26,6 +26,20 @@
         android:textStyle="bold" />
 
     <TextView
+        android:id="@+id/mode_sub_name_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginBottom="42dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:letterSpacing="0.2"
+        android:singleLine="true"
+        android:textColor="@color/text_color2"
+        android:textSize="9sp" />
+
+    <TextView
         android:id="@+id/mode_status_text"
         android:layout_width="wrap_content"
         android:layout_height="24dp"
@@ -40,6 +54,7 @@
         android:paddingRight="10dp"
         android:singleLine="true"
         android:textColor="@color/text_color"
-        android:textSize="12sp" />
+        android:textSize="12sp"
+        android:visibility="gone" />
 
 </FrameLayout>

@@ -79,8 +79,6 @@ public final class BluetoothFragment extends BaseFragment<BluetoothPresenter>
             mBinding.connectedDeviceName.setText(deviceName);
         }
         mConnected = connected;
-        // One dual-purpose action: "disconnect" while connected, "connect" otherwise. The
-        // button stays clickable in both states and only the icon/text follow the state.
         mBinding.disconnectButton.setText(connected
                 ? R.string.bluetooth_disconnect : R.string.bluetooth_connect);
         mBinding.disconnectButton.setContentDescription(getString(connected

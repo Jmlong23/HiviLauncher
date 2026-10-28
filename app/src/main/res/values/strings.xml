@@ -16,6 +16,10 @@
     <string name="main_amplifier_volume">功放音量</string>
     <string name="main_volume_mute">静音</string>
     <string name="main_volume_unmute">取消静音</string>
+    <string name="main_volume_over_limit_title">音量过大提示</string>
+    <string name="main_volume_over_limit_message">音量超过 80，长时间大音量可能损伤听力和扬声器，确认继续吗？</string>
+    <string name="main_volume_over_limit_ok">继续</string>
+    <string name="main_volume_over_limit_cancel">取消</string>
     <string name="main_volume_placeholder">--</string>
     <string name="main_volume_up">+</string>
     <string name="main_volume_adjust">音量调节</string>

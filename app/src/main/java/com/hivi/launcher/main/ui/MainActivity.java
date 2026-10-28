@@ -93,6 +93,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private static final long PAGE_TRANSITION_DURATION_MS = 240L;
     private static final float PAGE_TRANSITION_OFFSET_DP = 28f;
     private static final float HOME_PAGE_DIMMED_ALPHA = 0.65f;
+    /** 左上角 WiFi/蓝牙状态在未连接时的置灰透明度 */
+    private static final float DISCONNECTED_STATUS_ALPHA = 0.4f;
     private static final long SYSTEM_MUSIC_VOLUME_CHECK_INTERVAL_MS = 10_000L;
     private static final long SCREEN_SAVER_MINUTE_MS = 60_000L;
     private AuthorizationDialog mAuthorizationDialog;
@@ -826,6 +828,9 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 ? (android.text.TextUtils.isEmpty(bluetoothDeviceName)
                         ? getString(R.string.main_bluetooth_default) : bluetoothDeviceName)
                 : getString(R.string.main_disconnected));
+        // 未连接时左上角状态（图标+文字）整体置灰（测试问题 #16）
+        binding.wifiStatusPill.setAlpha(mWifiConnected ? 1f : DISCONNECTED_STATUS_ALPHA);
+        binding.bluetoothStatusPill.setAlpha(bluetoothConnected ? 1f : DISCONNECTED_STATUS_ALPHA);
         if (mInputModeAdapter != null
                 && mInputModeAdapter.updateConnectivityState(bluetoothConnected, wifiLabel)) {
             scrollToSelectedMode();
@@ -931,6 +936,9 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         int displayedVolume = mAmplifierMuted ? 0 : mAmplifierVolumePercent;
         binding.bottomNavigationVolume.setText(getString(
                 R.string.main_bottom_navigation_volume_format, displayedVolume));
+        // Volume zero doubles as the muted visual state (test issue #15).
+        binding.bottomNavigationVolume.setAlpha(displayedVolume == 0 ? 0.4f : 1f);
+        binding.bottomNavigationVolume.setSelected(displayedVolume == 0);
         if (mVolumeDialog != null) {
             mVolumeDialog.updateVolume(mAmplifierVolumePercent, mAmplifierMuted);
         }
@@ -1226,8 +1234,20 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 presenter.showAuthorizationDialog();
             }
         });
-        binding.modeText.setOnClickListener(view -> showInputModeDialog());
-        binding.aiChatEntry.setOnClickListener(view -> presenter.onAiChatEntryClicked());
+        // The status pill looks tappable; open the Settings page, which lands on the
+        // Network tab (test issue #11).
+        binding.wifiStatusPill.setOnClickListener(view -> {
+            com.hivi.launcher.utils.FeedbackSound.playClick();
+            presenter.onBottomNavigationSettingsClicked();
+        });
+        binding.modeText.setOnClickListener(view -> {
+            com.hivi.launcher.utils.FeedbackSound.playClick();
+            showInputModeDialog();
+        });
+        binding.aiChatEntry.setOnClickListener(view -> {
+            com.hivi.launcher.utils.FeedbackSound.playClick();
+            presenter.onAiChatEntryClicked();
+        });
         bindBottomNavigationTouchFeedback(binding.bottomNavigationBack, BottomNavigationItem.BACK);
         bindBottomNavigationTouchFeedback(binding.bottomNavigationHome, BottomNavigationItem.HOME);
         bindBottomNavigationTouchFeedback(binding.bottomNavigationBackground,
@@ -1282,6 +1302,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             public boolean onTouch(View v, MotionEvent event) {
                 switch (event.getActionMasked()) {
                     case MotionEvent.ACTION_DOWN:
+                        com.hivi.launcher.utils.FeedbackSound.playClick();
                         selectBottomNavigationItem(item);
                         break;
                     case MotionEvent.ACTION_UP:
