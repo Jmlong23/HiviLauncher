@@ -13,4 +13,6 @@ public interface WifiView extends BaseView {
     void showWifiEmptyState(String message);
 
     void showWifiPasswordDialog(WifiNetwork network);
+
+    void showWifiNetworkActionsDialog(WifiNetwork network);
 }

@@ -69,7 +69,22 @@ public final class WifiPresenter extends BasePresenter<WifiView> {
     }
 
     public void onWifiNetworkSelected(WifiNetwork network) {
-        if (network == null || network.isConnected()) {
+        if (network == null || (network.isConnecting() && !network.isConnected())) {
+            return;
+        }
+        WifiView view = getView();
+        if (view == null) {
+            return;
+        }
+        if (network.isConnected() || network.isSaved()) {
+            view.showWifiNetworkActionsDialog(network);
+            return;
+        }
+        connectNetwork(network);
+    }
+
+    public void connectNetwork(WifiNetwork network) {
+        if (network == null || network.isConnected() || network.isConnecting()) {
             return;
         }
         mLastSelectedNetwork = network;
@@ -85,7 +100,21 @@ public final class WifiPresenter extends BasePresenter<WifiView> {
             view.showWifiPasswordDialog(network);
             return;
         }
-        mModel.connect(network, null);
+        if (mModel != null) {
+            mModel.connect(network, null);
+        }
+    }
+
+    public void disconnectNetwork(WifiNetwork network) {
+        if (mModel != null) {
+            mModel.disconnect(network);
+        }
+    }
+
+    public void forgetNetwork(WifiNetwork network) {
+        if (mModel != null) {
+            mModel.forget(network);
+        }
     }
 
     public void connectWithPassword(WifiNetwork network, String password) {
@@ -169,6 +198,12 @@ public final class WifiPresenter extends BasePresenter<WifiView> {
                 break;
             case CONNECTION_START_FAILED:
                 view.showToast(getString(R.string.settings_wifi_connection_failed));
+                break;
+            case DISCONNECT_FAILED:
+                view.showToast(getString(R.string.settings_wifi_disconnect_failed));
+                break;
+            case FORGET_FAILED:
+                view.showToast(getString(R.string.settings_wifi_forget_failed));
                 break;
             default:
                 break;

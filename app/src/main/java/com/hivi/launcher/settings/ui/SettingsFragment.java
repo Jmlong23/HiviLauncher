@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Outline;
+import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
@@ -38,6 +39,7 @@ import com.hivi.launcher.databinding.DialogLogUploadBinding;
 import com.hivi.launcher.databinding.DialogProductInformationBinding;
 import com.hivi.launcher.databinding.DialogSystemUpdateConfirmationBinding;
 import com.hivi.launcher.databinding.DialogSystemUpdateProgressBinding;
+import com.hivi.launcher.databinding.DialogWifiNetworkActionBinding;
 import com.hivi.launcher.databinding.DialogWifiPasswordBinding;
 import com.hivi.launcher.databinding.LayoutSettingsContentBinding;
 import com.hivi.launcher.databinding.PopupSettingsLanguageBinding;
@@ -84,6 +86,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private WifiNetworkAdapter mWifiNetworkAdapter;
     private ObjectAnimator mWifiRefreshAnimator;
     private Dialog mWifiPasswordDialog;
+    private Dialog mWifiNetworkActionDialog;
     private Dialog mSystemUpdateConfirmationDialog;
     private Dialog mSystemUpdateProgressDialog;
     private DialogSystemUpdateProgressBinding mSystemUpdateProgressBinding;
@@ -174,6 +177,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         flushPendingScreenBrightnessWrite();
         dismissDisplayOptionsPopup();
         dismissWifiPasswordDialog();
+        dismissWifiNetworkActionDialog();
         dismissSystemUpdateConfirmationDialog();
         dismissSystemUpdateProgress();
         dismissProductInformationDialog();
@@ -286,11 +290,92 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     }
 
     @Override
+    public void showWifiNetworkActionsDialog(WifiNetwork network) {
+        if (!isAdded() || mBinding == null || network == null) {
+            return;
+        }
+        DialogWifiNetworkActionBinding dialogBinding = DialogWifiNetworkActionBinding.inflate(
+                getHostActivity().getLayoutInflater());
+        Dialog dialog = createWifiNetworkActionDialog(dialogBinding);
+        dialogBinding.wifiNetworkActionTitle.setText(
+                getString(R.string.settings_wifi_network_actions_title, network.getSsid()));
+        dialogBinding.wifiNetworkActionPrimary.setText(network.isConnected()
+                ? R.string.settings_wifi_disconnect : R.string.settings_wifi_connect);
+        dialogBinding.wifiNetworkActionSecondary.setText(R.string.settings_wifi_forget);
+        dialogBinding.wifiNetworkActionPrimary.setOnClickListener(view -> {
+            dialog.dismiss();
+            if (network.isConnected()) {
+                showWifiNetworkActionConfirmation(network, false);
+            } else if (mWifiPresenter != null) {
+                mWifiPresenter.connectNetwork(network);
+            }
+        });
+        dialogBinding.wifiNetworkActionSecondary.setOnClickListener(view -> {
+            dialog.dismiss();
+            showWifiNetworkActionConfirmation(network, true);
+        });
+        showWifiNetworkActionDialog(dialog);
+    }
+
+    private void showWifiNetworkActionConfirmation(WifiNetwork network, boolean forget) {
+        if (!isAdded() || mBinding == null) {
+            return;
+        }
+        DialogWifiNetworkActionBinding dialogBinding = DialogWifiNetworkActionBinding.inflate(
+                getHostActivity().getLayoutInflater());
+        Dialog dialog = createWifiNetworkActionDialog(dialogBinding);
+        dialogBinding.wifiNetworkActionTitle.setText(forget
+                ? R.string.settings_wifi_forget_confirmation
+                : R.string.settings_wifi_disconnect_confirmation);
+        dialogBinding.wifiNetworkActionTitle.setTypeface(null, Typeface.BOLD);
+        dialogBinding.wifiNetworkActionPrimary.setText(R.string.settings_wifi_action_yes);
+        dialogBinding.wifiNetworkActionSecondary.setText(R.string.settings_wifi_action_no);
+        dialogBinding.wifiNetworkActionSecondary.setOnClickListener(view -> dialog.dismiss());
+        dialogBinding.wifiNetworkActionPrimary.setOnClickListener(view -> {
+            dialog.dismiss();
+            if (mWifiPresenter == null) {
+                return;
+            }
+            if (forget) {
+                mWifiPresenter.forgetNetwork(network);
+            } else {
+                mWifiPresenter.disconnectNetwork(network);
+            }
+        });
+        showWifiNetworkActionDialog(dialog);
+    }
+
+    private Dialog createWifiNetworkActionDialog(DialogWifiNetworkActionBinding dialogBinding) {
+        dismissWifiNetworkActionDialog();
+        Dialog dialog = new Dialog(getHostActivity());
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(dialogBinding.getRoot());
+        dialog.setCanceledOnTouchOutside(true);
+        dialog.setOnDismissListener(ignored -> {
+            if (mWifiNetworkActionDialog == dialog) {
+                mWifiNetworkActionDialog = null;
+            }
+        });
+        prepareSystemUpdateDialogWindow(dialog);
+        mWifiNetworkActionDialog = dialog;
+        return dialog;
+    }
+
+    private void showWifiNetworkActionDialog(Dialog dialog) {
+        showSystemUpdateDialog(dialog);
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setLayout(dp(400), dp(184));
+        }
+    }
+
+    @Override
     public void showWifiPasswordDialog(WifiNetwork network) {
         if (!isAdded() || network == null) {
             return;
         }
         dismissWifiPasswordDialog();
+        dismissWifiNetworkActionDialog();
         Dialog dialog = new Dialog(getHostActivity());
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         DialogWifiPasswordBinding dialogBinding = DialogWifiPasswordBinding.inflate(
@@ -1167,6 +1252,13 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         if (mWifiPasswordDialog != null) {
             mWifiPasswordDialog.dismiss();
             mWifiPasswordDialog = null;
+        }
+    }
+
+    private void dismissWifiNetworkActionDialog() {
+        if (mWifiNetworkActionDialog != null) {
+            mWifiNetworkActionDialog.dismiss();
+            mWifiNetworkActionDialog = null;
         }
     }
 

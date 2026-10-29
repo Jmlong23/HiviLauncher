@@ -269,6 +269,15 @@
     <string name="settings_wifi_cancel">取消</string>
     <string name="settings_wifi_password_required">请输入 Wi-Fi 密码。</string>
     <string name="settings_wifi_unsupported_security">暂不支持企业级 Wi-Fi 网络。</string>
+    <string name="settings_wifi_network_actions_title">网络“%1$s”</string>
+    <string name="settings_wifi_disconnect">断开连接</string>
+    <string name="settings_wifi_forget">取消保存</string>
+    <string name="settings_wifi_disconnect_confirmation">确认断开网络吗？</string>
+    <string name="settings_wifi_forget_confirmation">确认取消保存该网络吗？</string>
+    <string name="settings_wifi_action_yes">是</string>
+    <string name="settings_wifi_action_no">否</string>
+    <string name="settings_wifi_disconnect_failed">断开连接失败，请重试。</string>
+    <string name="settings_wifi_forget_failed">取消保存失败，请重试。</string>
     <string name="system_update_confirm_title">系统升级</string>
     <string name="system_update_confirm_message">是否确认升级到 %1$s 版本？</string>
     <string name="system_update_confirm_warning">升级过程中请勿断电、拔出电源或操作设备</string>

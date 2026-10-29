@@ -199,6 +199,15 @@
     <string name="settings_wifi_cancel">Cancel</string>
     <string name="settings_wifi_password_required">Enter the Wi-Fi password.</string>
     <string name="settings_wifi_unsupported_security">Enterprise Wi-Fi networks are not supported.</string>
+    <string name="settings_wifi_network_actions_title">Network “%1$s”</string>
+    <string name="settings_wifi_disconnect">Disconnect</string>
+    <string name="settings_wifi_forget">Forget</string>
+    <string name="settings_wifi_disconnect_confirmation">Disconnect from this network?</string>
+    <string name="settings_wifi_forget_confirmation">Forget this network?</string>
+    <string name="settings_wifi_action_yes">Yes</string>
+    <string name="settings_wifi_action_no">No</string>
+    <string name="settings_wifi_disconnect_failed">Unable to disconnect. Please try again.</string>
+    <string name="settings_wifi_forget_failed">Unable to forget this network. Please try again.</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_value">Simplified Chinese</string>
     <string name="settings_language_chinese">中文</string>
