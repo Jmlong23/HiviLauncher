@@ -230,7 +230,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return false;
         }
-        Fragment currentFragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        Fragment currentFragment = getCurrentPageFragment();
         if (currentFragment instanceof AiFragment) {
             // AI 页已可见：对话直接渲染在页面内，不再弹悬浮条。
             return true;
@@ -952,8 +952,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (mInputModeAdapter != null && mInputModeAdapter.selectMode(page)) {
             scrollToSelectedMode();
         }
-        Fragment currentFragment = getFragmentManager()
-                .findFragmentById(R.id.fragment_container);
+        Fragment currentFragment = getCurrentPageFragment();
         if (currentFragment instanceof AiFragment && page != MainPage.AI) {
             removeAiPageBeforeNavigating();
         }
@@ -999,9 +998,11 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     private void showInputModePage(MainPage page) {
         FragmentManager fragmentManager = getFragmentManager();
-        Fragment currentFragment = fragmentManager.findFragmentById(R.id.fragment_container);
+        Fragment currentFragment = getCurrentPageFragment();
         if (isFragmentForPage(currentFragment, page)
                 && fragmentManager.getBackStackEntryCount() == 1) {
+            ++mPageTransitionGeneration;
+            cancelPageAnimations();
             syncPageUiWithCurrentFragment();
             return;
         }
@@ -1015,9 +1016,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     private void showStackedPage(MainPage page) {
-        Fragment currentFragment = getFragmentManager()
-                .findFragmentById(R.id.fragment_container);
+        Fragment currentFragment = getCurrentPageFragment();
         if (isFragmentForPage(currentFragment, page)) {
+            ++mPageTransitionGeneration;
+            cancelPageAnimations();
             syncPageUiWithCurrentFragment();
             return;
         }
@@ -1110,7 +1112,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         final int transitionGeneration = ++mPageTransitionGeneration;
         final View fragmentContainer = binding.fragmentContainer;
-        Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        Fragment fragment = getCurrentPageFragment();
         releaseAiConversationIfVisible();
         cancelPageAnimations();
         updateLauncherBackground(false);
@@ -1207,14 +1209,14 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     private void refreshSystemUpdateVersion() {
-        Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        Fragment fragment = getCurrentPageFragment();
         if (fragment instanceof SettingsFragment) {
             ((SettingsFragment) fragment).onSystemUpdatePackageReplaced();
         }
     }
 
     private void dismissSystemUpdateProgress() {
-        Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        Fragment fragment = getCurrentPageFragment();
         if (fragment instanceof SettingsFragment) {
             ((SettingsFragment) fragment).dismissSystemUpdateProgress();
         }
@@ -1555,7 +1557,11 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     private void cancelPageAnimations() {
         binding.pageBody.animate().cancel();
+        binding.pageBody.setTranslationX(0f);
+        binding.pageBody.setAlpha(1f);
         binding.fragmentContainer.animate().cancel();
+        binding.fragmentContainer.setTranslationX(0f);
+        binding.fragmentContainer.setAlpha(1f);
         ++mAiChatEntryTransitionGeneration;
         binding.aiChatEntry.animate().cancel();
     }
@@ -1581,7 +1587,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     private void releaseAiConversationIfVisible() {
-        Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        Fragment fragment = getCurrentPageFragment();
         if (fragment instanceof AiFragment) {
             ((AiFragment) fragment).releaseForNavigation();
         }
@@ -1610,7 +1616,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (isVolumeDialogShowing()) {
             return;
         }
-        Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        Fragment fragment = getCurrentPageFragment();
         if (fragment == null) {
             boolean keepHomeTransition = mHomeNavigationPending;
             applyHomePageUi(!keepHomeTransition);
@@ -1767,6 +1773,13 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             default:
                 return false;
         }
+    }
+
+    @Nullable
+    private Fragment getCurrentPageFragment() {
+        Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        return fragment != null && fragment.isAdded() && !fragment.isRemoving()
+                ? fragment : null;
     }
 
     private boolean isFragmentForPage(Fragment fragment, MainPage page) {
