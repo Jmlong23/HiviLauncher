@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="microphone_volume_label_width">72sp</dimen>
+    <dimen name="hdmi_info_panel_width">212dp</dimen>
+    <dimen name="hdmi_info_label_width">62dp</dimen>
+    <dimen name="hdmi_info_label_spacing">0dp</dimen>
+</resources>

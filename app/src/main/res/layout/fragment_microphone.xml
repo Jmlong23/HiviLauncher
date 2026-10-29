@@ -70,8 +70,9 @@
             android:paddingEnd="22dp">
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="@dimen/microphone_volume_label_width"
                 android:layout_height="wrap_content"
+                android:maxLines="1"
                 android:text="@string/main_amplifier_volume"
                 android:textColor="@color/text_color"
                 android:textSize="15sp" />
@@ -145,8 +146,9 @@
             android:layout_marginTop="16dp">
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="@dimen/microphone_volume_label_width"
                 android:layout_height="wrap_content"
+                android:maxLines="1"
                 android:text="@string/microphone_volume"
                 android:textColor="@color/text_color"
                 android:textSize="15sp" />
@@ -220,8 +222,9 @@
             android:layout_marginTop="16dp">
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="@dimen/microphone_volume_label_width"
                 android:layout_height="wrap_content"
+                android:maxLines="1"
                 android:text="@string/microphone_effect_volume"
                 android:textColor="@color/text_color"
                 android:textSize="15sp" />

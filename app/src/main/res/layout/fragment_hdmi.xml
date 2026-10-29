@@ -57,7 +57,7 @@
 
         <LinearLayout
             android:id="@+id/hdmi_info_panel"
-            android:layout_width="212dp"
+            android:layout_width="@dimen/hdmi_info_panel_width"
             android:layout_height="match_parent"
             android:background="@drawable/mode_detail_bg"
             android:orientation="vertical"
@@ -87,8 +87,10 @@
                     android:orientation="horizontal">
 
                     <TextView
-                        android:layout_width="62dp"
+                        android:layout_width="@dimen/hdmi_info_label_width"
                         android:layout_height="wrap_content"
+                        android:layout_marginEnd="@dimen/hdmi_info_label_spacing"
+                        android:maxLines="1"
                         android:text="@string/hdmi_device_label"
                         android:textColor="@color/text_color"
                         android:textSize="13sp" />
@@ -113,8 +115,10 @@
                     android:layout_marginTop="6dp">
 
                     <TextView
-                        android:layout_width="62dp"
+                        android:layout_width="@dimen/hdmi_info_label_width"
                         android:layout_height="wrap_content"
+                        android:layout_marginEnd="@dimen/hdmi_info_label_spacing"
+                        android:maxLines="1"
                         android:text="@string/hdmi_connection_status_label"
                         android:textColor="@color/text_color"
                         android:textSize="13sp" />
@@ -124,6 +128,8 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="1"
                         android:text="@string/input_mode_status_connected"
                         android:textColor="@color/text_color"
                         android:textSize="13sp" />
@@ -137,8 +143,10 @@
                     android:layout_marginTop="6dp">
 
                     <TextView
-                        android:layout_width="62dp"
+                        android:layout_width="@dimen/hdmi_info_label_width"
                         android:layout_height="wrap_content"
+                        android:layout_marginEnd="@dimen/hdmi_info_label_spacing"
+                        android:maxLines="1"
                         android:text="@string/hdmi_audio_format_label"
                         android:textColor="@color/text_color"
                         android:textSize="13sp" />
@@ -148,6 +156,8 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="1"
                         android:text="@string/hdmi_audio_format_default"
                         android:textColor="@color/text_color"
                         android:textSize="13sp" />
@@ -161,8 +171,10 @@
                     android:layout_marginTop="6dp">
 
                     <TextView
-                        android:layout_width="62dp"
+                        android:layout_width="@dimen/hdmi_info_label_width"
                         android:layout_height="wrap_content"
+                        android:layout_marginEnd="@dimen/hdmi_info_label_spacing"
+                        android:maxLines="1"
                         android:text="@string/hdmi_sample_rate_label"
                         android:textColor="@color/text_color"
                         android:textSize="13sp" />
@@ -172,6 +184,8 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="1"
                         android:text="@string/hdmi_sample_rate_default"
                         android:textColor="@color/text_color"
                         android:textSize="13sp" />
@@ -185,8 +199,10 @@
                     android:layout_marginTop="6dp">
 
                     <TextView
-                        android:layout_width="62dp"
+                        android:layout_width="@dimen/hdmi_info_label_width"
                         android:layout_height="wrap_content"
+                        android:layout_marginEnd="@dimen/hdmi_info_label_spacing"
+                        android:maxLines="1"
                         android:text="@string/hdmi_latency_label"
                         android:textColor="@color/text_color"
                         android:textSize="13sp" />
@@ -196,6 +212,8 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="1"
                         android:text="@string/hdmi_latency_normal"
                         android:textColor="@color/text_color"
                         android:textSize="13sp" />
@@ -205,9 +223,10 @@
 
         <com.hivi.launcher.customview.AudioSpectrumView
             android:id="@+id/hdmi_visualizer_panel"
-            android:layout_width="469dp"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_marginStart="28dp"
+            android:layout_weight="1"
             android:background="@drawable/mode_rhythm_bg" />
 
     </LinearLayout>
