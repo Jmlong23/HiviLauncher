@@ -361,16 +361,14 @@ public final class FirstUseGuideActivity
             return;
         }
         String currentLanguage = LocaleHelper.getLanguage(this);
-        if (TextUtils.equals(currentLanguage, mSelectedLanguage)) {
-            showPage(Page.WIFI);
-            return;
-        }
+        boolean languageChanged = !TextUtils.equals(currentLanguage, mSelectedLanguage);
 
         if (mLanguageSwitchExecutor == null) {
             return;
         }
         mLanguageSwitchInProgress = true;
         setLanguageSelectionEnabled(false);
+        mCurrentPage = Page.WIFI;
         final String targetLanguage = mSelectedLanguage;
         final Application application = getApplication();
         mLanguageSwitchExecutor.execute(() -> {
@@ -380,8 +378,13 @@ public final class FirstUseGuideActivity
                 if (isFinishing() || isDestroyed()) {
                     return;
                 }
+                if (!languageChanged) {
+                    mLanguageSwitchInProgress = false;
+                    setLanguageSelectionEnabled(true);
+                    showPage(Page.WIFI);
+                    return;
+                }
                 LocaleHelper.applyLocale(application);
-                mCurrentPage = Page.WIFI;
                 recreate();
             });
         });
