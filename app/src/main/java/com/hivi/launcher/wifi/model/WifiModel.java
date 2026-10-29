@@ -9,6 +9,7 @@ import android.content.pm.PackageManager;
 import android.net.NetworkInfo;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiInfo;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -48,7 +49,9 @@ public final class WifiModel {
     public enum Error {
         LOCATION_PERMISSION_REQUIRED,
         WIFI_ENABLE_FAILED,
-        CONNECTION_START_FAILED
+        CONNECTION_START_FAILED,
+        DISCONNECT_FAILED,
+        FORGET_FAILED
     }
 
     public interface Callback {
@@ -244,6 +247,52 @@ public final class WifiModel {
         }
         mHandler.postDelayed(mConnectionStatePollRunnable, 750L);
         mHandler.postDelayed(mConnectionTimeoutRunnable, CONNECTION_TIMEOUT_MS);
+    }
+
+    public void disconnect(WifiNetwork network) {
+        if (mDestroyed || mWifiManager == null || network == null
+                || TextUtils.isEmpty(network.getSsid())) {
+            return;
+        }
+        String ssid = network.getSsid();
+        try {
+            WifiInfo connectionInfo = mWifiManager.getConnectionInfo();
+            if (connectionInfo == null || connectionInfo.getNetworkId() < 0
+                    || !TextUtils.equals(ssid, normalizeSsid(connectionInfo.getSSID()))) {
+                publishNetworks();
+                return;
+            }
+            if (!mWifiManager.disableNetwork(connectionInfo.getNetworkId())) {
+                mCallback.onWifiError(Error.DISCONNECT_FAILED);
+                return;
+            }
+        } catch (SecurityException ignored) {
+            mCallback.onWifiError(Error.DISCONNECT_FAILED);
+            return;
+        }
+        if (TextUtils.equals(ssid, mConnectingSsid)) {
+            cancelConnection();
+        } else {
+            publishNetworks();
+        }
+    }
+
+    public void forget(WifiNetwork network) {
+        if (mDestroyed || mWifiManager == null || network == null
+                || TextUtils.isEmpty(network.getSsid())) {
+            return;
+        }
+        String ssid = network.getSsid();
+        if (!removeSavedNetwork(ssid)) {
+            publishNetworks();
+            mCallback.onWifiError(Error.FORGET_FAILED);
+            return;
+        }
+        if (TextUtils.equals(ssid, mConnectingSsid)) {
+            cancelConnection();
+        } else {
+            publishNetworks();
+        }
     }
 
     /**
@@ -483,15 +532,29 @@ public final class WifiModel {
         return -1;
     }
 
-    private void removeSavedNetwork(String ssid) {
+    private boolean removeSavedNetwork(String ssid) {
         try {
-            int networkId = findConfiguredNetworkId(ssid);
-            if (networkId >= 0) {
-                mWifiManager.removeNetwork(networkId);
+            List<WifiConfiguration> configurations = mWifiManager.getConfiguredNetworks();
+            boolean removed = false;
+            boolean success = true;
+            if (configurations != null) {
+                for (WifiConfiguration configuration : configurations) {
+                    if (configuration != null
+                            && TextUtils.equals(ssid, normalizeSsid(configuration.SSID))) {
+                        if (mWifiManager.removeNetwork(configuration.networkId)) {
+                            removed = true;
+                        } else {
+                            success = false;
+                        }
+                    }
+                }
+            }
+            if (removed) {
                 mWifiManager.saveConfiguration();
             }
+            return success;
         } catch (SecurityException ignored) {
-            // The failure is still surfaced to the user and they can re-enter the password.
+            return false;
         }
     }
 
