@@ -1,98 +1,186 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:gravity="center_horizontal"
-    android:orientation="vertical">
+    android:layout_height="match_parent">
 
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="37dp"
-        android:gravity="center"
-        android:orientation="horizontal">
+        android:layout_height="match_parent">
 
-        <View
-            android:layout_width="139dp"
-            android:layout_height="0.5dp"
-            android:layout_marginEnd="14dp"
-            android:background="@color/line_color" />
-
-        <TextView
-            android:id="@+id/page_title"
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/music_row_start"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="@color/text_color"
-            android:textSize="20sp"
-            android:textStyle="bold" />
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.142" />
 
-        <View
-            android:layout_width="139dp"
-            android:layout_height="0.5dp"
-            android:layout_marginStart="14dp"
-            android:background="@color/line_color" />
-    </LinearLayout>
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/music_row_end"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.858" />
 
-    <LinearLayout
-        android:layout_width="500dp"
-        android:layout_height="278dp"
-        android:layout_marginTop="30dp"
-        android:orientation="vertical"
-        android:gravity="center_horizontal">
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/music_row_top"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layout_constraintGuide_percent="0.2633" />
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/home_divider_top"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layout_constraintGuide_percent="0.6667" />
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/home_actions_top"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layout_constraintGuide_percent="0.7667" />
 
         <LinearLayout
-            android:layout_width="474dp"
-            android:layout_height="140dp"
-            android:orientation="horizontal">
-            <TextView
-                android:id="@+id/btn_qq_music"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="@drawable/wifi_music_qq_background"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="bottom|center_horizontal"
-                android:text="@string/wifi_music_app_qq"
-                android:textColor="@color/text_color"
-                android:textSize="13sp"
-                android:layout_marginRight="27dp"
-                android:paddingBottom="12dp"/>
+            android:id="@+id/btn_qq_music"
+            style="@style/MainMusicShortcut"
+            android:contentDescription="@string/wifi_music_app_qq"
+            app:layout_constraintEnd_toStartOf="@id/btn_wyy_music"
+            app:layout_constraintHorizontal_chainStyle="spread_inside"
+            app:layout_constraintStart_toStartOf="@id/music_row_start"
+            app:layout_constraintTop_toTopOf="@id/music_row_top">
 
+            <FrameLayout style="@style/MainMusicTile">
+                <ImageView
+                    style="@style/MainMusicIcon"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_qq" />
+            </FrameLayout>
 
             <TextView
-                android:id="@+id/btn_wyy_music"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="@drawable/wifi_music_wyy_background"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="bottom|center_horizontal"
-                android:text="@string/wifi_music_app_wyy"
-                android:textColor="@color/text_color"
-                android:textSize="13sp"
-                android:layout_marginRight="27dp"
-                android:paddingBottom="12dp"/>
-
-            <TextView
-                android:id="@+id/btn_kugou_music"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="@drawable/wifi_music_kugou_background"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="bottom|center_horizontal"
-                android:text="@string/wifi_music_app_kugou"
-                android:textColor="@color/text_color"
-                android:textSize="13sp"
-                android:paddingBottom="12dp" />
+                style="@style/MainMusicLabel"
+                android:text="@string/wifi_music_app_qq" />
         </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btn_wyy_music"
+            style="@style/MainMusicShortcut"
+            android:contentDescription="@string/wifi_music_app_wyy"
+            app:layout_constraintEnd_toStartOf="@id/btn_kugou_music"
+            app:layout_constraintStart_toEndOf="@id/btn_qq_music"
+            app:layout_constraintTop_toTopOf="@id/music_row_top">
+
+            <FrameLayout style="@style/MainMusicTile">
+                <ImageView
+                    style="@style/MainMusicIcon"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_wyy" />
+            </FrameLayout>
+
+            <TextView
+                style="@style/MainMusicLabel"
+                android:text="@string/main_music_app_wyy" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btn_kugou_music"
+            style="@style/MainMusicShortcut"
+            android:contentDescription="@string/wifi_music_app_kugou"
+            app:layout_constraintEnd_toStartOf="@id/btn_we_sing"
+            app:layout_constraintStart_toEndOf="@id/btn_wyy_music"
+            app:layout_constraintTop_toTopOf="@id/music_row_top">
+
+            <FrameLayout style="@style/MainMusicTile">
+                <ImageView
+                    style="@style/MainMusicIcon"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_kugou" />
+            </FrameLayout>
+
+            <TextView
+                style="@style/MainMusicLabel"
+                android:text="@string/wifi_music_app_kugou" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btn_we_sing"
+            style="@style/MainMusicShortcut"
+            android:contentDescription="@string/preset_app_we_sing"
+            app:layout_constraintEnd_toStartOf="@id/music_row_end"
+            app:layout_constraintStart_toEndOf="@id/btn_kugou_music"
+            app:layout_constraintTop_toTopOf="@id/music_row_top">
+
+            <FrameLayout style="@style/MainMusicTile">
+                <ImageView
+                    style="@style/MainMusicIcon"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_kge" />
+            </FrameLayout>
+
+            <TextView
+                style="@style/MainMusicLabel"
+                android:text="@string/preset_app_we_sing" />
+        </LinearLayout>
+
+        <ImageView
+            android:layout_width="0dp"
+            android:layout_height="5dp"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/line"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@id/home_divider_top"
+            app:layout_constraintWidth_percent="0.602" />
+
+        <LinearLayout
+            android:id="@+id/home_actions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@id/home_actions_top">
+
+            <LinearLayout
+                android:id="@+id/btn_home_settings"
+                style="@style/MainHomeAction">
+
+                <ImageView
+                    android:layout_width="38dp"
+                    android:layout_height="32dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_settings" />
+
+                <TextView
+                    style="@style/MainHomeActionLabel"
+                    android:text="@string/settings_title" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btn_home_apps"
+                style="@style/MainHomeAction"
+                android:layout_marginStart="26dp">
+
+                <ImageView
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_app" />
+
+                <TextView
+                    style="@style/MainHomeActionLabel"
+                    android:text="@string/main_bottom_navigation_apps" />
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="106dp"
-            android:layout_marginTop="29dp">
+            android:visibility="gone">
             <LinearLayout
                 android:id="@+id/player_card"
                 android:layout_width="match_parent"
@@ -180,5 +268,4 @@
 
         </RelativeLayout>
 
-    </LinearLayout>
-</LinearLayout>
+</FrameLayout>

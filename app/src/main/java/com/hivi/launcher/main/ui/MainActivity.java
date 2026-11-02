@@ -45,6 +45,7 @@ import com.hivi.launcher.ai.wakeup.AiWakeupController;
 import com.hivi.launcher.base.BaseActivity;
 import com.hivi.launcher.customview.FrostedTextView;
 import com.hivi.launcher.customview.FlipLayout;
+import com.hivi.launcher.customview.TextPopupView;
 import com.hivi.launcher.databinding.ActivityMainBinding;
 import com.hivi.launcher.main.model.MainPage;
 import com.hivi.launcher.main.presenter.MainPresenter;
@@ -61,6 +62,7 @@ import com.hivi.launcher.settings.ui.SystemUpdateSuccessDialog;
 import com.hivi.launcher.systemapps.ui.SystemAppsFragment;
 import com.hivi.launcher.update.SystemUpdateInstallReceiver;
 import com.hivi.launcher.utils.LocaleHelper;
+import com.hivi.launcher.utils.UiUtils;
 import com.hivi.launcher.utils.network.AuthorizationStore;
 import com.hivi.launcher.wifi.ui.WifiFragment;
 import com.nlf.calendar.Lunar;
@@ -89,6 +91,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private static final long SCREEN_SAVER_MINUTE_MS = 60_000L;
     private AuthorizationDialog mAuthorizationDialog;
     private VolumeDialog mVolumeDialog;
+    private TextPopupView mTextPopup;
     private final ExecutorService mAccountAvatarExecutor = Executors.newSingleThreadExecutor();
     private final Handler mSystemVolumeHandler = new Handler(Looper.getMainLooper());
     private final DecelerateInterpolator mPageTransitionInterpolator =
@@ -243,6 +246,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     @Override
     protected void onPause() {
         mActivityResumed = false;
+        dismissTextPopup();
         hideScreenSaver();
         super.onPause();
         unregisterReceiverQuietly();
@@ -266,6 +270,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     @Override
     public void onBackPressed() {
+        if (mTextPopup != null && mTextPopup.isShowing()) {
+            dismissTextPopup();
+            return;
+        }
         if (mScreenSaverOverlay != null) {
             hideScreenSaver();
             return;
@@ -785,6 +793,16 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             return;
         }
         binding.wifiText.setText(formatWifiStatus(wifiLabel));
+        boolean wifiConnected = !TextUtils.isEmpty(wifiLabel)
+                && !TextUtils.equals(wifiLabel, getString(R.string.main_disconnected));
+        String displayedWifiName = wifiConnected
+                ? wifiLabel : getString(R.string.main_disconnected);
+        if (!TextUtils.equals(binding.homeWifiText.getText(), displayedWifiName)) {
+            dismissTextPopup();
+        }
+        binding.homeWifiText.setText(displayedWifiName);
+        binding.homeWifiIndicator.setSelected(wifiConnected);
+        binding.homeWifiStatus.setContentDescription(formatWifiStatus(wifiLabel));
         binding.bluetoothText.setText(bluetoothConnected
                 ? (android.text.TextUtils.isEmpty(bluetoothDeviceName)
                         ? getString(R.string.main_bluetooth_default) : bluetoothDeviceName)
@@ -876,6 +894,11 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         int displayedVolume = mAmplifierMuted ? 0 : mAmplifierVolumePercent;
         binding.bottomNavigationVolume.setText(getString(
                 R.string.main_bottom_navigation_volume_format, displayedVolume));
+        binding.homeVolumeText.setText(String.valueOf(displayedVolume));
+        binding.homeVolumeIcon.setImageResource(mAmplifierMuted
+                ? R.drawable.ic_mute : R.drawable.ic_volume);
+        binding.homeVolumeStatus.setContentDescription(getString(
+                R.string.main_bottom_navigation_volume_format, displayedVolume));
         if (mVolumeDialog != null) {
             mVolumeDialog.updateVolume(mAmplifierVolumePercent, mAmplifierMuted);
         }
@@ -936,11 +959,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         resetBottomNavigationBackground();
         updateLauncherBackground(page == MainPage.AI);
-        if (page == MainPage.WIFI) {
-            showAiChatEntry();
-        } else {
-            hideAiChatEntry();
-        }
+        updatePageChrome(page == MainPage.WIFI);
         getFragmentManager().beginTransaction()
                 .replace(R.id.fragment_container, createPageFragment(page))
                 .addToBackStack(page.name())
@@ -1073,6 +1092,14 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     private void bindMainClickListeners() {
+        binding.homeWifiStatus.setOnClickListener(
+                view -> presenter.onBottomNavigationSettingsClicked());
+        binding.homeWifiStatus.setOnLongClickListener(view -> {
+            showWifiNamePopup();
+            return true;
+        });
+        binding.homeVolumeStatus.setOnClickListener(
+                view -> presenter.onBottomNavigationVolumeClicked());
         binding.authAccount.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -1125,6 +1152,19 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 presenter.onBottomNavigationSettingsClicked();
             }
         });
+    }
+
+    private void showWifiNamePopup() {
+        dismissTextPopup();
+        mTextPopup = new TextPopupView(this);
+        mTextPopup.show(binding.homeWifiStatus, binding.homeWifiText.getText());
+    }
+
+    private void dismissTextPopup() {
+        if (mTextPopup != null) {
+            mTextPopup.dismiss();
+            mTextPopup = null;
+        }
     }
 
     private void bindBottomNavigationTouchFeedback(View navigationItem,
@@ -1349,11 +1389,33 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.fragmentContainer.setVisibility(View.VISIBLE);
         boolean aiConversationVisible = fragment instanceof AiFragment;
         updateLauncherBackground(aiConversationVisible);
-        if (fragment instanceof WifiFragment) {
-            showAiChatEntry();
-        } else {
-            hideAiChatEntry();
+        updatePageChrome(fragment instanceof WifiFragment);
+    }
+
+    private void updatePageChrome(boolean homeVisible) {
+        if (!homeVisible) {
+            dismissTextPopup();
         }
+        binding.topBar.setVisibility(homeVisible ? View.GONE : View.VISIBLE);
+        binding.bottomNavigation.setVisibility(homeVisible ? View.GONE : View.VISIBLE);
+        binding.homeStatusBar.setVisibility(homeVisible ? View.VISIBLE : View.GONE);
+        binding.launcherContent.setPadding(homeVisible ? 0 : dp(33), homeVisible ? 0 : dp(16),
+                homeVisible ? 0 : dp(33), homeVisible ? 0 : dp(35));
+        FrameLayout.LayoutParams contentParams =
+                (FrameLayout.LayoutParams) binding.fragmentContainer.getLayoutParams();
+        contentParams.topMargin = homeVisible ? 0 : dp(48);
+        contentParams.bottomMargin = homeVisible ? 0 : dp(45);
+        binding.fragmentContainer.setLayoutParams(contentParams);
+        hideAiChatEntry();
+        enterFullscreen();
+    }
+
+    @Override
+    protected void enterFullscreen() {
+        boolean homeVisible = binding == null
+                || binding.homeStatusBar.getVisibility() == View.VISIBLE;
+        UiUtils.applyImmersiveVisibility(getWindow().getDecorView(),
+                homeVisible || UiUtils.isNavBarHidden());
     }
 
     private void hideAiChatEntry() {
@@ -1382,37 +1444,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                         aiChatEntry.setVisibility(View.GONE);
                         aiChatEntry.setAlpha(1f);
                         aiChatEntry.setTranslationX(0f);
-                    }
-                })
-                .start();
-    }
-
-    private void showAiChatEntry() {
-        final int transitionGeneration = ++mAiChatEntryTransitionGeneration;
-        final View aiChatEntry = binding.aiChatEntry;
-        aiChatEntry.animate().cancel();
-        if (aiChatEntry.getVisibility() != View.VISIBLE) {
-            aiChatEntry.setVisibility(View.VISIBLE);
-            aiChatEntry.setTranslationX(-dp(PAGE_TRANSITION_OFFSET_DP));
-            aiChatEntry.setAlpha(0f);
-        }
-        if (aiChatEntry.getAlpha() == 1f && aiChatEntry.getTranslationX() == 0f) {
-            aiChatEntry.setEnabled(true);
-            return;
-        }
-        aiChatEntry.animate()
-                .translationX(0f)
-                .alpha(1f)
-                .setDuration(PAGE_TRANSITION_DURATION_MS)
-                .setInterpolator(mPageTransitionInterpolator)
-                .withEndAction(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (binding == null
-                                || transitionGeneration != mAiChatEntryTransitionGeneration) {
-                            return;
-                        }
-                        aiChatEntry.setEnabled(true);
                     }
                 })
                 .start();

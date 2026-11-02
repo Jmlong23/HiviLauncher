@@ -14,7 +14,8 @@ import com.hivi.launcher.R;
 public enum WifiMusicApp {
     QQ_MUSIC(R.string.wifi_music_app_qq, "com.tencent.qqmusiccar"),
     NETEASE_CLOUD_MUSIC(R.string.wifi_music_app_wyy, "com.netease.cloudmusic.iot"),
-    KUGOU_MUSIC(R.string.wifi_music_app_kugou, "com.kugou.android.auto");
+    KUGOU_MUSIC(R.string.wifi_music_app_kugou, "com.kugou.android.auto"),
+    WE_SING(R.string.preset_app_we_sing, "com.tencent.karaoketv");
 
     private final int mLabelResId;
     private final String mPackageName;

@@ -291,6 +291,7 @@
     <string name="wifi_music_app_qq">QQ Music</string>
     <string name="wifi_music_app_wyy">NetEase Cloud Music</string>
     <string name="wifi_music_app_kugou">Kugou Music</string>
+    <string name="main_music_app_wyy">NetEase</string>
     <string name="wifi_music_no_playback">No music playing</string>
     <string name="wifi_music_unknown_artist">Unknown artist</string>
     <string name="wifi_music_album_art">Album art</string>

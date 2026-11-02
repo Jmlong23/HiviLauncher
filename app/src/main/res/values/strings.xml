@@ -294,6 +294,7 @@
     <string name="wifi_music_app_qq">QQ音乐</string>
     <string name="wifi_music_app_wyy">网易云音乐</string>
     <string name="wifi_music_app_kugou">酷狗音乐</string>
+    <string name="main_music_app_wyy">网易云</string>
     <string name="wifi_music_no_playback">暂无播放</string>
     <string name="wifi_music_unknown_artist">未知歌手</string>
     <string name="wifi_music_album_art">歌曲封面</string>

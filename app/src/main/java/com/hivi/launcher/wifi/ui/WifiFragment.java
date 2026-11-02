@@ -14,6 +14,8 @@ import androidx.annotation.Nullable;
 import com.hivi.launcher.R;
 import com.hivi.launcher.base.BaseFragment;
 import com.hivi.launcher.databinding.FragmentWifiBinding;
+import com.hivi.launcher.main.model.MainPage;
+import com.hivi.launcher.main.ui.MainActivity;
 import com.hivi.launcher.music.model.UpnpPlaybackState;
 import com.hivi.launcher.wifi.model.MediaSessionPlaybackState;
 import com.hivi.launcher.wifi.model.WifiMusicApp;
@@ -38,7 +40,7 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
     private FragmentWifiBinding mBinding;
     private ExecutorService mCoverExecutor;
     private ObjectAnimator mAlbumArtworkAnimator;
-    private WifiMusicApp mSelectedMusicApp;
+    private WifiMusicApp mSelectedMusicApp = WifiMusicApp.QQ_MUSIC;
     private String mCoverUrl;
     private Bitmap mBoundArtwork;
     private UpnpPlaybackState mUpnpState;
@@ -193,6 +195,7 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
         mBinding.btnQqMusic.setSelected(app == WifiMusicApp.QQ_MUSIC);
         mBinding.btnWyyMusic.setSelected(app == WifiMusicApp.NETEASE_CLOUD_MUSIC);
         mBinding.btnKugouMusic.setSelected(app == WifiMusicApp.KUGOU_MUSIC);
+        mBinding.btnWeSing.setSelected(app == WifiMusicApp.WE_SING);
     }
 
     private void bindClickListeners() {
@@ -201,6 +204,17 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
                 view -> selectMusicApp(WifiMusicApp.NETEASE_CLOUD_MUSIC));
         mBinding.btnKugouMusic.setOnClickListener(
                 view -> selectMusicApp(WifiMusicApp.KUGOU_MUSIC));
+        mBinding.btnWeSing.setOnClickListener(view -> selectMusicApp(WifiMusicApp.WE_SING));
+        mBinding.btnHomeSettings.setOnClickListener(view -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).showPage(MainPage.SETTINGS);
+            }
+        });
+        mBinding.btnHomeApps.setOnClickListener(view -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).showPage(MainPage.SYSTEM_APPS);
+            }
+        });
         mBinding.btnPlayOrPause.setOnClickListener(view -> {
             WifiMusicPresenter presenter = getPresenter();
             if (presenter != null) {
