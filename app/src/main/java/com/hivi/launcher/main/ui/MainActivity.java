@@ -3,6 +3,7 @@ package com.hivi.launcher.main.ui;
 import android.app.Dialog;
 import android.app.Fragment;
 import android.app.FragmentManager;
+import android.app.FragmentTransaction;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -205,7 +206,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return false;
         }
-        Fragment currentFragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        Fragment currentFragment = findCurrentPageFragment();
         if (currentFragment instanceof AiFragment) {
             // AI 页已可见：对话直接渲染在页面内，不再弹悬浮条。
             return true;
@@ -903,8 +904,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
-        Fragment currentFragment = getFragmentManager()
-                .findFragmentById(R.id.fragment_container);
+        Fragment currentFragment = findCurrentPageFragment();
         if (currentFragment instanceof AiFragment && page != MainPage.AI) {
             removeAiPageBeforeNavigating();
         }
@@ -945,19 +945,39 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     private void showStackedPage(MainPage page) {
-        Fragment currentFragment = getFragmentManager()
-                .findFragmentById(R.id.fragment_container);
+        Fragment currentFragment = findCurrentPageFragment();
         if (isFragmentForPage(currentFragment, page)) {
             syncPageUiWithCurrentFragment();
             return;
         }
         resetBottomNavigationBackground();
-        updateLauncherBackground(page == MainPage.AI);
-        updatePageChrome(page == MainPage.WIFI);
-        getFragmentManager().beginTransaction()
-                .replace(R.id.fragment_container, createPageFragment(page))
-                .addToBackStack(page.name())
-                .commitAllowingStateLoss();
+        FragmentManager fragmentManager = getFragmentManager();
+        FragmentTransaction transaction = fragmentManager.beginTransaction();
+        if (currentFragment instanceof WifiFragment && page == MainPage.SETTINGS) {
+            Fragment settingsFragment = fragmentManager.findFragmentByTag(MainPage.SETTINGS.name());
+            if (settingsFragment == null || !settingsFragment.isAdded()) {
+                settingsFragment = createPageFragment(page);
+                fragmentManager.beginTransaction()
+                        .add(R.id.fragment_container, settingsFragment, page.name())
+                        .hide(settingsFragment)
+                        .commitNowAllowingStateLoss();
+            }
+            transaction.hide(currentFragment).show(settingsFragment);
+        } else {
+            transaction.replace(R.id.fragment_container, createPageFragment(page), page.name());
+        }
+        transaction.addToBackStack(page.name()).commitAllowingStateLoss();
+    }
+
+    private Fragment findCurrentPageFragment() {
+        FragmentManager fragmentManager = getFragmentManager();
+        Fragment fragment = fragmentManager.findFragmentById(R.id.fragment_container);
+        if (fragment != null && fragment.isAdded() && !fragment.isHidden()) {
+            return fragment;
+        }
+        Fragment homeFragment = fragmentManager.findFragmentByTag(MainPage.WIFI.name());
+        return homeFragment != null && homeFragment.isAdded() && !homeFragment.isHidden()
+                ? homeFragment : null;
     }
 
     @Override
@@ -969,7 +989,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         int backStackEntryCount = fragmentManager.getBackStackEntryCount();
         if (backStackEntryCount <= 1) {
             // 已到返回栈底：底部即 WiFi 音乐首页，停留即可。
-            Fragment currentFragment = fragmentManager.findFragmentById(R.id.fragment_container);
+            Fragment currentFragment = findCurrentPageFragment();
             if (!(currentFragment instanceof WifiFragment)) {
                 navigateToHome();
             }
@@ -986,7 +1006,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             return;
         }
         FragmentManager fragmentManager = getFragmentManager();
-        Fragment currentFragment = fragmentManager.findFragmentById(R.id.fragment_container);
+        Fragment currentFragment = findCurrentPageFragment();
         if (currentFragment instanceof WifiFragment
                 && fragmentManager.getBackStackEntryCount() == 1) {
             syncPageUiWithCurrentFragment();
@@ -996,8 +1016,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     /**
-     * 首页即 WiFi 音乐页：清空返回栈后重新装入首页 Fragment，
-     * 保证 WiFi 页始终位于返回栈底。
+     * 首页即 WiFi 音乐页：优先退回返回栈底的已有首页，缺失时重新装入。
      */
     private void navigateToHome() {
         if (binding == null) {
@@ -1007,6 +1026,13 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         ++mPageTransitionGeneration;
         cancelPageAnimations();
         updateLauncherBackground(false);
+        FragmentManager fragmentManager = getFragmentManager();
+        if (fragmentManager.getBackStackEntryCount() > 0
+                && MainPage.WIFI.name().equals(fragmentManager.getBackStackEntryAt(0).getName())) {
+            fragmentManager.popBackStackImmediate(MainPage.WIFI.name(), 0);
+            syncPageUiWithCurrentFragment();
+            return;
+        }
         popBackStackImmediately(true);
         showStackedPage(MainPage.WIFI);
         getFragmentManager().executePendingTransactions();
@@ -1066,14 +1092,14 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     private void refreshSystemUpdateVersion() {
-        Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        Fragment fragment = findCurrentPageFragment();
         if (fragment instanceof SettingsFragment) {
             ((SettingsFragment) fragment).onSystemUpdatePackageReplaced();
         }
     }
 
     private void dismissSystemUpdateProgress() {
-        Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        Fragment fragment = findCurrentPageFragment();
         if (fragment instanceof SettingsFragment) {
             ((SettingsFragment) fragment).dismissSystemUpdateProgress();
         }
@@ -1086,6 +1112,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     private void bindMainClickListeners() {
+        binding.homeBackStatus.setOnClickListener(
+                view -> presenter.onBottomNavigationBackClicked());
         binding.homeWifiStatus.setOnClickListener(
                 view -> presenter.onBottomNavigationSettingsClicked());
         binding.homeWifiStatus.setOnLongClickListener(view -> {
@@ -1344,7 +1372,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     private void releaseAiConversationIfVisible() {
-        Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        Fragment fragment = findCurrentPageFragment();
         if (fragment instanceof AiFragment) {
             ((AiFragment) fragment).releaseForNavigation();
         }
@@ -1373,7 +1401,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (isVolumeDialogShowing()) {
             return;
         }
-        Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
+        Fragment fragment = findCurrentPageFragment();
         if (fragment == null) {
             // 容器必须始终有页面：首页即 WiFi 音乐页，缺失时立即装入。
             showPage(MainPage.WIFI);
@@ -1383,22 +1411,32 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.fragmentContainer.setVisibility(View.VISIBLE);
         boolean aiConversationVisible = fragment instanceof AiFragment;
         updateLauncherBackground(aiConversationVisible);
-        updatePageChrome(fragment instanceof WifiFragment);
+        updatePageChrome(fragment);
     }
 
-    private void updatePageChrome(boolean homeVisible) {
+    private void updatePageChrome(Fragment fragment) {
+        boolean homeVisible = fragment instanceof WifiFragment;
+        boolean settingsVisible = fragment instanceof SettingsFragment;
+        boolean appsVisible = fragment instanceof SystemAppsFragment;
+        boolean homeStatusBarVisible = homeVisible || settingsVisible || appsVisible;
         if (!homeVisible) {
             dismissTextPopup();
         }
-        binding.topBar.setVisibility(homeVisible ? View.GONE : View.VISIBLE);
-        binding.bottomNavigation.setVisibility(homeVisible ? View.GONE : View.VISIBLE);
-        binding.homeStatusBar.setVisibility(homeVisible ? View.VISIBLE : View.GONE);
-        binding.launcherContent.setPadding(homeVisible ? 0 : dp(33), homeVisible ? 0 : dp(16),
-                homeVisible ? 0 : dp(33), homeVisible ? 0 : dp(35));
+        binding.topBar.setVisibility(homeStatusBarVisible ? View.GONE : View.VISIBLE);
+        binding.bottomNavigation.setVisibility(homeStatusBarVisible ? View.GONE : View.VISIBLE);
+        binding.homeStatusBar.setVisibility(homeStatusBarVisible ? View.VISIBLE : View.GONE);
+        binding.homeBackStatus.setVisibility(appsVisible ? View.VISIBLE : View.GONE);
+        binding.homeWifiStatus.setVisibility(appsVisible ? View.GONE : View.VISIBLE);
+        binding.launcherContent.setPadding(homeStatusBarVisible ? 0 : dp(33),
+                homeStatusBarVisible ? 0 : dp(16), homeStatusBarVisible ? 0 : dp(33),
+                homeStatusBarVisible ? 0 : dp(35));
         FrameLayout.LayoutParams contentParams =
                 (FrameLayout.LayoutParams) binding.fragmentContainer.getLayoutParams();
-        contentParams.topMargin = homeVisible ? 0 : dp(48);
-        contentParams.bottomMargin = homeVisible ? 0 : dp(45);
+        contentParams.leftMargin = settingsVisible ? dp(33) : 0;
+        contentParams.rightMargin = settingsVisible ? dp(33) : 0;
+        contentParams.topMargin = homeVisible ? 0 : dp(homeStatusBarVisible ? 100 : 48);
+        contentParams.bottomMargin = homeVisible || appsVisible ? 0
+                : dp(settingsVisible ? 35 : 45);
         binding.fragmentContainer.setLayoutParams(contentParams);
         hideAiChatEntry();
         enterFullscreen();

@@ -11,7 +11,6 @@ import androidx.annotation.Nullable;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.base.BaseFragment;
-import com.hivi.launcher.customview.RoundRectDrawable;
 import com.hivi.launcher.databinding.FragmentSystemAppsBinding;
 import com.hivi.launcher.databinding.ItemAppGridBinding;
 import com.hivi.launcher.main.ui.MainActivity;
@@ -23,6 +22,7 @@ import java.util.List;
 
 public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
         implements SystemAppsView {
+    private static final int APP_GRID_COLUMN_COUNT = 5;
     /** 未安装预置应用占位图标的置灰透明度。 */
     private static final float NOT_INSTALLED_ICON_ALPHA = 0.4f;
 
@@ -51,9 +51,6 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         mBinding = FragmentSystemAppsBinding.bind(view);
-        mBinding.appsDialogRoot.setBackground(new RoundRectDrawable(0xee303030, dp(8)));
-        mBinding.appsCloseButton.setBackground(new RoundRectDrawable(0x66454545, dp(20)));
-        mBinding.appsCloseButton.setOnClickListener(ignored -> closePage());
         mBinding.appsProgressOverlay.setOnClickListener(ignored -> {
             // 下载安装进行中拦截点击，避免误触底部网格
         });
@@ -74,22 +71,22 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
         if (mBinding == null) {
             return;
         }
-        int contentWidth = getAppsPageWidth() - dp(52);
-        int columnCount = Math.max(3, Math.min(6, contentWidth / dp(142)));
-        int itemWidth = Math.max(dp(112), (contentWidth - columnCount * dp(16)) / columnCount);
-        mBinding.appsGrid.setColumnCount(columnCount);
         mBinding.appsGrid.removeAllViews();
+        mBinding.appsGrid.setColumnCount(APP_GRID_COLUMN_COUNT);
+        mBinding.appsGrid.setRowCount(
+                (apps.size() + APP_GRID_COLUMN_COUNT - 1) / APP_GRID_COLUMN_COUNT);
 
-        for (final AppEntry app : apps) {
+        for (int index = 0; index < apps.size(); index++) {
+            AppEntry app = apps.get(index);
             View item = createAppGridItem(app, mBinding.appsGrid);
-            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
-            params.width = itemWidth;
-            params.height = dp(116);
-            params.setMargins(dp(8), dp(8), dp(8), dp(8));
+            GridLayout.LayoutParams params = new GridLayout.LayoutParams(
+                    GridLayout.spec(index / APP_GRID_COLUMN_COUNT, GridLayout.TOP),
+                    GridLayout.spec(index % APP_GRID_COLUMN_COUNT, GridLayout.FILL, 1f));
+            params.width = 0;
+            params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            params.topMargin = index >= APP_GRID_COLUMN_COUNT ? dp(64) : 0;
             mBinding.appsGrid.addView(item, params);
         }
-        mBinding.appsCountText.setText(getResources().getQuantityString(
-                R.plurals.system_apps_count, apps.size(), apps.size()));
     }
 
     @Override
@@ -120,7 +117,6 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
     private View createAppGridItem(final AppEntry app, ViewGroup parent) {
         ItemAppGridBinding itemBinding = ItemAppGridBinding.inflate(
                 LayoutInflater.from(getActivity()), parent, false);
-        itemBinding.appGridItem.setBackground(new RoundRectDrawable(0x24454545, dp(8)));
         itemBinding.appGridItem.setOnClickListener(ignored -> {
             SystemAppsPresenter presenter = getPresenter();
             if (presenter != null) {
@@ -169,10 +165,6 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
                     }
                 })
                 .show();
-    }
-
-    private int getAppsPageWidth() {
-        return Math.min(getResources().getDisplayMetrics().widthPixels - dp(72), dp(980));
     }
 
     private int dp(int value) {

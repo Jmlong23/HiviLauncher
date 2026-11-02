@@ -42,6 +42,7 @@ import com.hivi.launcher.databinding.DialogSystemUpdateProgressBinding;
 import com.hivi.launcher.databinding.DialogWifiNetworkActionBinding;
 import com.hivi.launcher.databinding.DialogWifiPasswordBinding;
 import com.hivi.launcher.databinding.LayoutSettingsContentBinding;
+import com.hivi.launcher.databinding.LayoutSettingsDisplayBinding;
 import com.hivi.launcher.databinding.PopupSettingsLanguageBinding;
 import com.hivi.launcher.databinding.PopupSettingsScreenSaverBinding;
 import com.hivi.launcher.main.ui.MainActivity;
@@ -76,11 +77,11 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private static final int DEFAULT_SCREEN_BRIGHTNESS = 128;
     private static final int NO_PENDING_SCREEN_BRIGHTNESS = -1;
     private static final long BRIGHTNESS_SETTINGS_WRITE_THROTTLE_MS = 120L;
-    private static final long INITIAL_WIFI_SETUP_DELAY_MS = 500L;
     private static final long LOG_UPLOAD_SUCCESS_DISMISS_DELAY_MS = 1_500L;
     private static final long FACTORY_RESET_SUCCESS_TRANSITION_DELAY_MS = 1_200L;
 
     private LayoutSettingsContentBinding mBinding;
+    private LayoutSettingsDisplayBinding mDisplayBinding;
     private View[] mSectionTabs;
     private View[] mSectionPanels;
     private WifiPresenter mWifiPresenter;
@@ -103,8 +104,6 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private final Handler mBrightnessSettingsHandler = new Handler(Looper.getMainLooper());
     private final Runnable mPendingBrightnessSettingsWriteRunnable =
             this::flushPendingScreenBrightnessWrite;
-    private final Runnable mDeferredWifiSettingsInitialization =
-            this::initializeWifiSettingsIfNeeded;
     private final Runnable mLogUploadSuccessDismissRunnable = this::dismissLogUploadDialog;
     private final Runnable mFactoryResetSuccessTransitionRunnable =
             this::restartLauncherAfterFactoryReset;
@@ -113,7 +112,6 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private int mSelectedSettingsSection = SettingsPresenter.SECTION_NETWORK;
     private boolean mWifiRefreshing;
     private boolean mWifiSettingsInitialized;
-    private boolean mInitialSectionRendered;
     private boolean mScreenSaverThumbnailsInitialized;
     private boolean mLanguageSwitchInProgress;
 
@@ -136,7 +134,6 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         mBinding = LayoutSettingsContentBinding.bind(view);
-        mLanguageSwitchExecutor = Executors.newSingleThreadExecutor();
         mSectionTabs = new View[] {
                 mBinding.settingsTabNetwork,
                 mBinding.settingsTabDisplay,
@@ -146,7 +143,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         };
         mSectionPanels = new View[] {
                 mBinding.settingsPanelNetwork,
-                mBinding.settingsPanelDisplay,
+                mBinding.settingsDisplayStub,
                 mBinding.settingsPanelSystem,
                 mBinding.settingsPanelAbout,
                 mBinding.settingsPanelMaintenance
@@ -161,9 +158,6 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             mSectionTabs[i].setOnClickListener(v -> presenter.onSectionSelected(section));
         }
         setupWifiRefreshAction();
-        showWifiInitializationPending();
-        scheduleWifiSettingsInitialization();
-        setupDisplaySettings();
         setupSystemUpdateSettings();
         setupAboutSettings();
         presenter.init();
@@ -172,7 +166,6 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     @Override
     public void onDestroyView() {
         mBrightnessSettingsHandler.removeCallbacks(mPendingBrightnessSettingsWriteRunnable);
-        mBrightnessSettingsHandler.removeCallbacks(mDeferredWifiSettingsInitialization);
         mBrightnessSettingsHandler.removeCallbacks(mLogUploadSuccessDismissRunnable);
         mBrightnessSettingsHandler.removeCallbacks(mFactoryResetSuccessTransitionRunnable);
         flushPendingScreenBrightnessWrite();
@@ -200,13 +193,38 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             mWifiPresenter = null;
         }
         mWifiSettingsInitialized = false;
-        mInitialSectionRendered = false;
         mScreenSaverThumbnailsInitialized = false;
         mWifiNetworkAdapter = null;
         mSectionTabs = null;
         mSectionPanels = null;
+        mDisplayBinding = null;
         mBinding = null;
         super.onDestroyView();
+    }
+
+    @Override
+    public void onHiddenChanged(boolean hidden) {
+        super.onHiddenChanged(hidden);
+        if (mBinding == null) {
+            return;
+        }
+        if (hidden) {
+            dismissDisplayOptionsPopup();
+            dismissWifiPasswordDialog();
+            dismissWifiNetworkActionDialog();
+            if (mWifiPresenter != null) {
+                mWifiPresenter.destroy();
+                mWifiPresenter = null;
+            }
+            mWifiSettingsInitialized = false;
+            setWifiRefreshing(false);
+        } else {
+            SettingsPresenter presenter = getPresenter();
+            if (presenter != null) {
+                presenter.onSectionSelected(SettingsPresenter.SECTION_NETWORK);
+            }
+            initializeWifiSettingsIfNeeded();
+        }
     }
 
     @Override
@@ -215,22 +233,25 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             return;
         }
         mSelectedSettingsSection = section;
+        if (section == SettingsPresenter.SECTION_DISPLAY && mDisplayBinding == null) {
+            mDisplayBinding = LayoutSettingsDisplayBinding.bind(
+                    mBinding.settingsDisplayStub.inflate());
+            mSectionPanels[SettingsPresenter.SECTION_DISPLAY] = mDisplayBinding.getRoot();
+            setupDisplaySettings();
+        }
         for (int i = 0; i < mSectionTabs.length; i++) {
             boolean selected = i == section;
             mSectionTabs[i].setSelected(selected);
             mSectionPanels[i].setVisibility(selected ? View.VISIBLE : View.GONE);
         }
-        if (section == SettingsPresenter.SECTION_NETWORK && !mWifiSettingsInitialized) {
+        if (section == SettingsPresenter.SECTION_NETWORK && !mWifiSettingsInitialized
+                && !isHidden()) {
             showWifiInitializationPending();
-        }
-        if (section == SettingsPresenter.SECTION_NETWORK && mInitialSectionRendered) {
-            mBrightnessSettingsHandler.removeCallbacks(mDeferredWifiSettingsInitialization);
             initializeWifiSettingsIfNeeded();
         }
         if (section == SettingsPresenter.SECTION_DISPLAY) {
             initializeScreenSaverThumbnailsIfNeeded();
         }
-        mInitialSectionRendered = true;
     }
 
     @Override
@@ -244,6 +265,8 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         if (hasNetworks) {
             mBinding.settingsWifiEmptyState.setVisibility(View.GONE);
         }
+        mBinding.settingsWifiLoading.setVisibility(mWifiRefreshing && !hasNetworks
+                ? View.VISIBLE : View.GONE);
         if (TextUtils.isEmpty(connectedSsid)) {
             mBinding.settingsNetworkSummary.setText(R.string.main_disconnected);
         } else {
@@ -261,7 +284,9 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         mBinding.settingsWifiRefresh.setEnabled(!refreshing);
         if (refreshing) {
             mBinding.settingsWifiEmptyState.setVisibility(View.GONE);
-            mBinding.settingsWifiLoading.setVisibility(View.GONE);
+            boolean hasNetworks = mWifiNetworkAdapter != null
+                    && mWifiNetworkAdapter.getItemCount() > 0;
+            mBinding.settingsWifiLoading.setVisibility(hasNetworks ? View.GONE : View.VISIBLE);
             if (mWifiRefreshAnimator == null) {
                 mWifiRefreshAnimator = ObjectAnimator.ofFloat(mBinding.settingsWifiRefresh,
                         View.ROTATION, 0f, 360f);
@@ -438,11 +463,14 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         int languageText = language == SettingsModel.LANGUAGE_ENGLISH
                 ? R.string.settings_language_english
                 : R.string.settings_language_chinese;
-        mBinding.settingsLanguageValue.setText(languageText);
         mBinding.settingsDisplaySummary.setText(languageText);
+        if (mDisplayBinding == null) {
+            return;
+        }
+        mDisplayBinding.settingsLanguageValue.setText(languageText);
 
         updateScreenSaverStyles(screenSaverStyle);
-        mBinding.settingsTimeScreenSaverValue.setText(
+        mDisplayBinding.settingsTimeScreenSaverValue.setText(
                 getScreenSaverTimeoutText(screenSaverTimeout));
 
         if (languageOptionsExpanded) {
@@ -686,70 +714,68 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         });
     }
 
-    private void scheduleWifiSettingsInitialization() {
-        mBrightnessSettingsHandler.removeCallbacks(mDeferredWifiSettingsInitialization);
-        mBrightnessSettingsHandler.postDelayed(mDeferredWifiSettingsInitialization,
-                INITIAL_WIFI_SETUP_DELAY_MS);
-    }
-
     private void showWifiInitializationPending() {
         if (mBinding == null) {
             return;
         }
         mBinding.settingsWifiList.setVisibility(View.GONE);
         mBinding.settingsWifiEmptyState.setVisibility(View.GONE);
-        mBinding.settingsWifiLoading.setVisibility(View.GONE);
+        mBinding.settingsWifiLoading.setVisibility(View.VISIBLE);
     }
 
     private boolean initializeWifiSettingsIfNeeded() {
-        if (mWifiSettingsInitialized || mBinding == null || !isAdded()) {
+        if (mWifiSettingsInitialized || mBinding == null || !isAdded() || isHidden()) {
             return false;
         }
         if (mSelectedSettingsSection != SettingsPresenter.SECTION_NETWORK) {
             return false;
         }
         mWifiSettingsInitialized = true;
-        mBinding.settingsNetworkSummary.setText(R.string.main_disconnected);
-        mWifiNetworkAdapter = new WifiNetworkAdapter(getHostActivity(),
-                network -> {
-                    if (mWifiPresenter != null) {
-                        mWifiPresenter.onWifiNetworkSelected(network);
-                    }
-                });
-        mBinding.settingsWifiList.setLayoutManager(new LinearLayoutManager(getHostActivity()));
-        mBinding.settingsWifiList.setAdapter(mWifiNetworkAdapter);
+        if (mWifiNetworkAdapter == null) {
+            mBinding.settingsNetworkSummary.setText(R.string.main_disconnected);
+            mWifiNetworkAdapter = new WifiNetworkAdapter(getHostActivity(),
+                    network -> {
+                        if (mWifiPresenter != null) {
+                            mWifiPresenter.onWifiNetworkSelected(network);
+                        }
+                    });
+            mBinding.settingsWifiList.setLayoutManager(new LinearLayoutManager(getHostActivity()));
+            mBinding.settingsWifiList.setAdapter(mWifiNetworkAdapter);
+        }
         mWifiPresenter = new WifiPresenter(this);
         mWifiPresenter.init(getHostActivity());
         return true;
     }
 
     private void setupDisplaySettings() {
+        mLanguageSwitchExecutor = Executors.newSingleThreadExecutor();
         setupBrightnessSettings();
-        mBinding.settingsLanguage.setOnClickListener(view -> {
+        mDisplayBinding.settingsLanguage.setOnClickListener(view -> {
             SettingsPresenter presenter = getPresenter();
             if (presenter != null) {
                 presenter.onLanguageSelected();
             }
         });
-        mBinding.settingsTimeScreenSaver.setOnClickListener(view -> {
+        mDisplayBinding.settingsTimeScreenSaver.setOnClickListener(view -> {
             SettingsPresenter presenter = getPresenter();
             if (presenter != null) {
                 presenter.onScreenSaverTimeoutSelected();
             }
         });
-        mBinding.screensaverItemSimple.setOnClickListener(view -> {
+        mDisplayBinding.screensaverItemSimple.setOnClickListener(view -> {
             selectScreenSaverStyle(SettingsModel.SCREEN_SAVER_STYLE_SIMPLE);
             showSimpleClockWallpaperDialog();
         });
-        mBinding.screensaverItemFlip.setOnClickListener(view -> selectScreenSaverStyle(
+        mDisplayBinding.screensaverItemFlip.setOnClickListener(view -> selectScreenSaverStyle(
                 SettingsModel.SCREEN_SAVER_STYLE_FLIP));
-        mBinding.screensaverItemBlack.setOnClickListener(view -> selectScreenSaverStyle(
+        mDisplayBinding.screensaverItemBlack.setOnClickListener(view -> selectScreenSaverStyle(
                 SettingsModel.SCREEN_SAVER_STYLE_BLACK));
     }
 
     private void setupRoundedScreenSaverThumbnails() {
-        ImageView[] thumbnails = {mBinding.screensaverThumbnailSimple,
-                mBinding.screensaverThumbnailSimpleClock, mBinding.screensaverThumbnailFlip};
+        ImageView[] thumbnails = {mDisplayBinding.screensaverThumbnailSimple,
+                mDisplayBinding.screensaverThumbnailSimpleClock,
+                mDisplayBinding.screensaverThumbnailFlip};
         for (ImageView thumbnail : thumbnails) {
             thumbnail.setOutlineProvider(new ViewOutlineProvider() {
                 @Override
@@ -760,11 +786,11 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             thumbnail.setClipToOutline(true);
         }
         updateSimpleScreenSaverThumbnail();
-        mBinding.screensaverThumbnailFlip.setImageResource(R.drawable.clock_flip);
+        mDisplayBinding.screensaverThumbnailFlip.setImageResource(R.drawable.clock_flip);
     }
 
     private void initializeScreenSaverThumbnailsIfNeeded() {
-        if (mScreenSaverThumbnailsInitialized || mBinding == null || !isAdded()) {
+        if (mScreenSaverThumbnailsInitialized || mDisplayBinding == null || !isAdded()) {
             return;
         }
         mScreenSaverThumbnailsInitialized = true;
@@ -772,15 +798,15 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     }
 
     private void updateSimpleScreenSaverThumbnail() {
-        if (mBinding == null || !isAdded()) {
+        if (mDisplayBinding == null || !isAdded()) {
             return;
         }
         int wallpaper = ScreenSaverSettings.getSimpleWallpaper(getHostActivity());
-        mBinding.screensaverThumbnailSimple.setImageResource(
+        mDisplayBinding.screensaverThumbnailSimple.setImageResource(
                 ScreenSaverSettings.getSimpleWallpaperResource(wallpaper));
         boolean english = LocaleHelper.LANGUAGE_EN.equals(
                 LocaleHelper.getLanguage(getHostActivity()));
-        mBinding.screensaverThumbnailSimpleClock.setImageResource(english
+        mDisplayBinding.screensaverThumbnailSimpleClock.setImageResource(english
                 ? R.drawable.clock_simple_en : R.drawable.clock_simple_cn);
     }
 
@@ -829,10 +855,10 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     }
 
     private void updateScreenSaverStyles(int selectedStyle) {
-        View[] items = {mBinding.screensaverItemSimple, mBinding.screensaverItemFlip,
-                mBinding.screensaverItemBlack};
-        View[] checks = {mBinding.screensaverCheckSimple, mBinding.screensaverCheckFlip,
-                mBinding.screensaverCheckBlack};
+        View[] items = {mDisplayBinding.screensaverItemSimple, mDisplayBinding.screensaverItemFlip,
+                mDisplayBinding.screensaverItemBlack};
+        View[] checks = {mDisplayBinding.screensaverCheckSimple, mDisplayBinding.screensaverCheckFlip,
+                mDisplayBinding.screensaverCheckBlack};
         int[] styles = {SettingsModel.SCREEN_SAVER_STYLE_SIMPLE,
                 SettingsModel.SCREEN_SAVER_STYLE_FLIP, SettingsModel.SCREEN_SAVER_STYLE_BLACK};
         for (int index = 0; index < items.length; index++) {
@@ -915,8 +941,8 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     }
 
     private void setupBrightnessSettings() {
-        mBinding.settingsBrightness.setProgress(getCurrentScreenBrightness());
-        mBinding.settingsBrightness.setOnSeekBarChangeListener(
+        mDisplayBinding.settingsBrightness.setProgress(getCurrentScreenBrightness());
+        mDisplayBinding.settingsBrightness.setOnSeekBarChangeListener(
                 new SeekBar.OnSeekBarChangeListener() {
                     @Override
                     public void onProgressChanged(SeekBar seekBar, int progress,
@@ -1023,7 +1049,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
                 selectLanguage(SettingsModel.LANGUAGE_ENGLISH));
         showDisplayOptionsPopup(createDisplayOptionsPopup(popupBinding.getRoot(),
                         LANGUAGE_POPUP_WIDTH_DP, LANGUAGE_POPUP_HEIGHT_DP),
-                mBinding.settingsLanguage, DISPLAY_POPUP_LANGUAGE,
+                mDisplayBinding.settingsLanguage, DISPLAY_POPUP_LANGUAGE,
                 LANGUAGE_POPUP_WIDTH_DP, 9);
     }
 
@@ -1061,7 +1087,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
                 selectScreenSaverTimeout(SettingsModel.SCREEN_SAVER_TIMEOUT_NEVER));
         showDisplayOptionsPopup(createDisplayOptionsPopup(popupBinding.getRoot(),
                         SCREEN_SAVER_POPUP_WIDTH_DP, SCREEN_SAVER_POPUP_HEIGHT_DP),
-                mBinding.settingsTimeScreenSaver, DISPLAY_POPUP_SCREEN_SAVER_TIMEOUT,
+                mDisplayBinding.settingsTimeScreenSaver, DISPLAY_POPUP_SCREEN_SAVER_TIMEOUT,
                 SCREEN_SAVER_POPUP_WIDTH_DP, 22);
     }
 
@@ -1172,8 +1198,8 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     }
 
     private void setLanguageSwitchLoading(boolean loading) {
-        if (mBinding != null) {
-            mBinding.settingsLanguage.setEnabled(!loading);
+        if (mDisplayBinding != null) {
+            mDisplayBinding.settingsLanguage.setEnabled(!loading);
         }
         Activity activity = getActivity();
         if (activity instanceof MainActivity) {

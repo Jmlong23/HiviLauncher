@@ -116,7 +116,7 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
      * 沿用原偏好（QQ会话优先于投歌暂停曲目），两者都没有则显示占位文案。
      */
     private void renderCurrentPlayback() {
-        if (mBinding == null) {
+        if (mBinding == null || isHidden()) {
             return;
         }
 
@@ -269,7 +269,7 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
     }
 
     private void setAlbumArtworkRotation(boolean rotating) {
-        if (!rotating) {
+        if (!rotating || isHidden()) {
             stopAlbumArtworkRotation();
             return;
         }
@@ -281,6 +281,16 @@ public final class WifiFragment extends BaseFragment<WifiMusicPresenter>
         }
         if (!mAlbumArtworkAnimator.isStarted()) {
             mAlbumArtworkAnimator.start();
+        }
+    }
+
+    @Override
+    public void onHiddenChanged(boolean hidden) {
+        super.onHiddenChanged(hidden);
+        if (hidden) {
+            stopAlbumArtworkRotation();
+        } else {
+            renderCurrentPlayback();
         }
     }
 

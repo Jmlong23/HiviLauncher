@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/settings_panel_display"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/settings_content_background"
+    android:fillViewport="true"
+    android:paddingLeft="26dp"
+    android:paddingTop="19dp"
+    android:paddingRight="33dp"
+    android:paddingBottom="31dp"
+    android:scrollbars="vertical"
+    android:visibility="gone">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/settings_language"
+            android:textColor="@color/text_color"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/settings_language"
+            android:layout_width="match_parent"
+            android:layout_height="42dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/item_medium_long_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="21dp"
+            android:paddingRight="21dp">
+
+            <TextView
+                android:id="@+id/settings_language_value"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:includeFontPadding="false"
+                android:text="@string/settings_language_value"
+                android:textColor="@color/text_color"
+                android:textSize="13sp" />
+
+            <ImageView
+                android:id="@+id/settings_language_arrow"
+                android:layout_width="13dp"
+                android:layout_height="7dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_dropdown" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="19dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_screensaver"
+                android:textColor="@color/text_color"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/settings_time_screen_saver"
+            android:layout_width="match_parent"
+            android:layout_height="42dp"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/item_medium_long_bg"
+            android:clickable="true"
+            android:enabled="false"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="21dp"
+            android:paddingRight="21dp">
+
+            <TextView
+                android:id="@+id/settings_time_screen_saver_value"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/settings_screensaver_timeout_value"
+                android:textColor="@color/text_color"
+                android:textSize="13sp" />
+
+            <ImageView
+                android:layout_width="13dp"
+                android:layout_height="7dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_dropdown" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/settings_screensaver_style"
+            android:textColor="@color/text_color"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="17dp"
+            android:orientation="vertical">
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="170dp"
+                android:scrollbars="none"
+                android:overScrollMode="never">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal">
+
+                <!-- Item 1: Simple Clock -->
+                <FrameLayout
+                    android:id="@+id/screensaver_item_simple"
+                    android:layout_width="220dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginEnd="21dp"
+                    android:background="@drawable/bg_screensaver_item"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="8dp">
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1">
+
+                        <ImageView
+                            android:id="@+id/screensaver_thumbnail_simple"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:background="@drawable/bg_screensaver_thumbnail"
+                            android:scaleType="centerCrop" />
+
+                        <ImageView
+                            android:id="@+id/screensaver_thumbnail_simple_clock"
+                            android:layout_width="97dp"
+                            android:layout_height="54dp"
+                            android:contentDescription="@null"
+                            android:layout_gravity="center_horizontal"/>
+                    </FrameLayout>
+
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/settings_screensaver_style_simple"
+                            android:textColor="@color/text_color"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <ImageView
+                        android:id="@+id/screensaver_check_simple"
+                        android:layout_width="23dp"
+                        android:layout_height="23dp"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="15dp"
+                        android:layout_marginEnd="15dp"
+                        android:src="@drawable/ic_screensaver_check"
+                        android:visibility="gone" />
+                </FrameLayout>
+
+                <FrameLayout
+                    android:id="@+id/screensaver_item_flip"
+                    android:layout_width="220dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginEnd="21dp"
+                    android:background="@drawable/bg_screensaver_item"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="8dp">
+
+                        <ImageView
+                            android:id="@+id/screensaver_thumbnail_flip"
+                            android:layout_width="match_parent"
+                            android:layout_height="0dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/bg_screensaver_thumbnail"
+                            android:scaleType="centerCrop" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/settings_screensaver_style_flip"
+                            android:textColor="@color/text_color"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <ImageView
+                        android:id="@+id/screensaver_check_flip"
+                        android:layout_width="23dp"
+                        android:layout_height="23dp"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="15dp"
+                        android:layout_marginEnd="15dp"
+                        android:src="@drawable/ic_screensaver_check"
+                        android:visibility="gone" />
+                </FrameLayout>
+
+                <FrameLayout
+                    android:id="@+id/screensaver_item_black"
+                    android:layout_width="220dp"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_screensaver_item"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="8dp">
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="0dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/bg_screensaver_black" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/settings_screensaver_style_black"
+                            android:textColor="@color/text_color"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <ImageView
+                        android:id="@+id/screensaver_check_black"
+                        android:layout_width="23dp"
+                        android:layout_height="23dp"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="15dp"
+                        android:layout_marginEnd="15dp"
+                        android:src="@drawable/ic_screensaver_check"
+                        android:visibility="gone" />
+                </FrameLayout>
+                </LinearLayout>
+            </HorizontalScrollView>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:includeFontPadding="false"
+            android:text="@string/settings_brightness"
+            android:textColor="@color/text_color"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="81dp"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/item_medium_long_bg"
+            android:paddingRight="30dp"
+            android:paddingLeft="30dp">
+
+            <SeekBar
+                android:id="@+id/settings_brightness"
+                android:layout_width="match_parent"
+                android:layout_height="42dp"
+                android:layout_gravity="center_vertical"
+                android:contentDescription="@string/settings_brightness"
+                android:focusable="true"
+                android:max="255"
+                android:paddingLeft="0dp"
+                android:paddingRight="0dp"
+                android:progressDrawable="@drawable/settings_slider_progress"
+                android:splitTrack="false"
+                android:thumb="@drawable/settings_slider_thumb"
+                android:thumbOffset="0dp" />
+        </FrameLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+</ScrollView>
