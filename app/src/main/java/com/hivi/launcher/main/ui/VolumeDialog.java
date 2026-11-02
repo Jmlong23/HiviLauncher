@@ -55,8 +55,8 @@ public final class VolumeDialog {
         });
         bindListeners();
         updateVolume(volumePercent, muted);
-        mDialog.show();
         configureWindow();
+        mDialog.show();
     }
 
     public void updateVolume(int volumePercent, boolean muted) {

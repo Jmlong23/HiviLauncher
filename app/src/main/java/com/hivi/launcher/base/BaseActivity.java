@@ -78,7 +78,7 @@ public abstract class BaseActivity<B extends ViewBinding, P extends BasePresente
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
-    /** 沉浸式设置统一走 UiUtils：状态栏常隐，底部导航栏默认显示、可由底部栏按钮切换隐藏。 */
+    /** 沉浸式设置统一走 UiUtils：状态栏常隐，系统底部导航栏常显。 */
     protected void enterFullscreen() {
         UiUtils.applyImmersiveVisibility(getWindow().getDecorView());
     }

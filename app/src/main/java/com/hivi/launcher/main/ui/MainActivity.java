@@ -737,13 +737,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         mScreenSaverDialog = dialog;
         window = dialog.getWindow();
         if (window != null) {
-            window.getDecorView().setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                            | View.SYSTEM_UI_FLAG_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+            UiUtils.applyImmersiveVisibility(window.getDecorView());
             window.setLayout(WindowManager.LayoutParams.MATCH_PARENT,
                     WindowManager.LayoutParams.MATCH_PARENT);
         }
@@ -895,8 +889,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.bottomNavigationVolume.setText(getString(
                 R.string.main_bottom_navigation_volume_format, displayedVolume));
         binding.homeVolumeText.setText(String.valueOf(displayedVolume));
-        binding.homeVolumeIcon.setImageResource(mAmplifierMuted
-                ? R.drawable.ic_mute : R.drawable.ic_volume);
+        binding.homeVolumeIcon.setImageResource(displayedVolume == 0
+                ? R.drawable.ic_volume_mute : R.drawable.ic_volume);
         binding.homeVolumeStatus.setContentDescription(getString(
                 R.string.main_bottom_navigation_volume_format, displayedVolume));
         if (mVolumeDialog != null) {
@@ -1408,14 +1402,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.fragmentContainer.setLayoutParams(contentParams);
         hideAiChatEntry();
         enterFullscreen();
-    }
-
-    @Override
-    protected void enterFullscreen() {
-        boolean homeVisible = binding == null
-                || binding.homeStatusBar.getVisibility() == View.VISIBLE;
-        UiUtils.applyImmersiveVisibility(getWindow().getDecorView(),
-                homeVisible || UiUtils.isNavBarHidden());
     }
 
     private void hideAiChatEntry() {

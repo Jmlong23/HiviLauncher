@@ -24,6 +24,7 @@
     <uses-permission android:name="android.permission.DELETE_PACKAGES" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+    <uses-permission android:name="com.android.systemui.permission.SELF" />
 
     <application
         android:name=".HiviLauncherApplication"
