@@ -790,7 +790,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         boolean wifiConnected = !TextUtils.isEmpty(wifiLabel)
                 && !TextUtils.equals(wifiLabel, getString(R.string.main_disconnected));
         String displayedWifiName = wifiConnected
-                ? wifiLabel : getString(R.string.main_disconnected);
+                ? wifiLabel : getString(R.string.main_wifi_disconnected);
         if (!TextUtils.equals(binding.homeWifiText.getText(), displayedWifiName)) {
             dismissTextPopup();
         }
@@ -1521,7 +1521,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (android.text.TextUtils.isEmpty(wifiLabel)
                 || android.text.TextUtils.equals(wifiLabel,
                 getString(R.string.main_disconnected))) {
-            return getString(R.string.main_disconnected);
+            return getString(R.string.main_wifi_disconnected);
         }
         return getString(R.string.main_wifi_connected_format, wifiLabel);
     }

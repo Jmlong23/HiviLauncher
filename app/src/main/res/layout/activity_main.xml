@@ -273,7 +273,7 @@
                 android:ellipsize="end"
                 android:includeFontPadding="false"
                 android:maxLines="1"
-                android:text="@string/main_disconnected"
+                android:text="@string/main_wifi_disconnected"
                 android:textColor="@color/text_color"
                 android:textSize="20sp" />
 

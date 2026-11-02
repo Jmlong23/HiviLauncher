@@ -4,6 +4,7 @@
 
     <!-- Main screen -->
     <string name="main_wifi_default">WiFi</string>
+    <string name="main_wifi_disconnected">网络未连接</string>
     <string name="main_bluetooth_default">蓝牙</string>
     <string name="main_wifi_connected_format">%1$s·连接</string>
     <string name="main_current_mode_wifi">WiFi模式</string>

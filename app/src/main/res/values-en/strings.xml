@@ -3,6 +3,7 @@
     <string name="app_name">Hivi Launcher</string>
 
     <string name="main_wifi_default">WiFi</string>
+    <string name="main_wifi_disconnected">No network</string>
     <string name="main_bluetooth_default">Bluetooth</string>
     <string name="main_wifi_connected_format">%1$s · Connected</string>
     <string name="main_current_mode_wifi">WiFi Mode</string>
