@@ -26,7 +26,10 @@ public class AppDownloadTaskTest {
         assertTrue(task.beginInstalling(generation));
         assertEquals(AppDownloadState.INSTALLING, task.getState());
         assertFalse(task.pause());
-        task.complete(generation);
+        assertTrue(task.complete(generation));
+        assertEquals(AppDownloadState.INSTALLED, task.getState());
+        assertFalse(task.complete(generation));
+        task.fail(generation);
         assertEquals(AppDownloadState.INSTALLED, task.getState());
     }
 
@@ -119,5 +122,48 @@ public class AppDownloadTaskTest {
         task.reconcileInstalled(false);
         assertEquals(AppDownloadState.NOT_INSTALLED, task.getState());
         assertEquals(-1, task.getProgress());
+    }
+
+    @Test
+    public void packageBroadcastDoesNotInvalidateAnActiveInstallation() {
+        AppDownloadTask task = new AppDownloadTask();
+        int generation = task.enqueue();
+        task.start(generation);
+        task.beginInstalling(generation);
+        task.reconcileInstalled(true);
+        assertEquals(AppDownloadState.INSTALLING, task.getState());
+        assertTrue(task.isCurrent(generation));
+        assertTrue(task.complete(generation));
+        assertEquals(AppDownloadState.INSTALLED, task.getState());
+    }
+
+    @Test
+    public void installationFailureIsDistinctAndCanBeRetried() {
+        AppDownloadTask task = new AppDownloadTask();
+        int generation = task.enqueue();
+        task.start(generation);
+        task.beginInstalling(generation);
+        task.fail(generation);
+        assertEquals(AppDownloadState.INSTALL_FAILED, task.getState());
+        int retryGeneration = task.enqueue();
+        assertTrue(retryGeneration > generation);
+        assertTrue(task.start(retryGeneration));
+        assertEquals(AppDownloadState.DOWNLOADING, task.getState());
+    }
+
+    @Test
+    public void resumedTaskStaysWaitingUntilTheExecutorStartsItsNewGeneration() {
+        AppDownloadTask task = new AppDownloadTask();
+        int firstGeneration = task.enqueue();
+        task.start(firstGeneration);
+        task.updateProgress(firstGeneration, 40L, 100L);
+        task.pause();
+        int resumedGeneration = task.enqueue();
+        assertEquals(AppDownloadState.WAITING, task.getState());
+        assertEquals(40, task.getProgress());
+        assertFalse(task.start(firstGeneration));
+        assertFalse(task.updateProgress(firstGeneration, 100L, 100L));
+        assertTrue(task.start(resumedGeneration));
+        assertEquals(AppDownloadState.DOWNLOADING, task.getState());
     }
 }

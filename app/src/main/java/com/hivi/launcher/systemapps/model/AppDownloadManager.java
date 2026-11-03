@@ -6,6 +6,7 @@ import android.content.pm.PackageInfo;
 import android.os.Handler;
 import android.os.Looper;
 
+import com.hivi.launcher.utils.Constants;
 import com.hivi.launcher.utils.log.AppLog;
 
 import java.io.BufferedReader;
@@ -30,11 +31,14 @@ import okhttp3.ResponseBody;
 
 public final class AppDownloadManager {
     private static final String TAG = "AppDownloadManager";
-    private static final long MAX_PACKAGE_BYTES = 1024L * 1024L * 1024L;
+    private static final long MAX_PACKAGE_BYTES = 512L * 1024L * 1024L;
     private static AppDownloadManager sInstance;
 
     public interface Listener {
         void onAppDownloadChanged(SupportedApp app);
+
+        default void onAppInstalled(SupportedApp app) {
+        }
     }
 
     private final Context mContext;
@@ -54,9 +58,11 @@ public final class AppDownloadManager {
         for (SupportedApp app : SupportedApp.values()) {
             AppDownloadTask task = new AppDownloadTask();
             String key = app.name();
-            if (getPartialFile(app).length() > 0L && getDownloadUrl(app).equals(
-                    mPreferences.getString(key + ".url", ""))) {
-                task.restorePaused(getPartialFile(app).length(),
+            long downloadedBytes = getPartialFile(app).length();
+            if (downloadedBytes > 0L && downloadedBytes <= MAX_PACKAGE_BYTES
+                    && getDownloadUrl(app).equals(mPreferences.getString(key + ".source",
+                            mPreferences.getString(key + ".url", "")))) {
+                task.restorePaused(downloadedBytes,
                         mPreferences.getLong(key + ".total", -1L));
             }
             mTasks.put(app, task);
@@ -117,7 +123,10 @@ public final class AppDownloadManager {
             if (!mDirectory.isDirectory() && !mDirectory.mkdirs()) {
                 throw new IOException("Unable to create app download directory.");
             }
-            File packageFile = downloadPackage(app, task, generation, url);
+            String apkUrl = AppDownloadSource.resolve(url,
+                    request -> executeRequest(app, task, generation, request));
+            ensureCurrent(task, generation);
+            File packageFile = downloadPackage(app, task, generation, url, apkUrl);
             ensureCurrent(task, generation);
             PackageInfo info = mContext.getPackageManager().getPackageArchiveInfo(
                     packageFile.getAbsolutePath(), 0);
@@ -133,8 +142,15 @@ public final class AppDownloadManager {
             if (mContext.getPackageManager().getLaunchIntentForPackage(info.packageName) == null) {
                 throw new IOException("Installed app has no launcher activity.");
             }
-            task.complete(generation);
-            deleteFile(packageFile);
+            if (task.complete(generation)) {
+                try {
+                    deleteFile(packageFile);
+                    clearDownloadMetadata(app);
+                } catch (IOException exception) {
+                    AppLog.w(TAG, "Unable to remove installed app package.", exception);
+                }
+                publishInstalled(app, task, generation);
+            }
         } catch (Exception exception) {
             if (task.isCurrent(generation)) {
                 task.fail(generation);
@@ -149,35 +165,40 @@ public final class AppDownloadManager {
     }
 
     private File downloadPackage(SupportedApp app, AppDownloadTask task, int generation,
-            String url) throws IOException {
+            String source, String url) throws IOException {
+        ensureCurrent(task, generation);
         File partialFile = getPartialFile(app);
         String key = app.name();
         String validator = mPreferences.getString(key + ".validator", "");
         long offset = partialFile.length();
-        if (offset > 0L && offset == mPreferences.getLong(key + ".total", -1L)
+        boolean sameSource = source.equals(mPreferences.getString(key + ".source",
+                mPreferences.getString(key + ".url", "")));
+        if (sameSource && offset > 0L && offset <= MAX_PACKAGE_BYTES
+                && offset == mPreferences.getLong(key + ".total", -1L)
                 && url.equals(mPreferences.getString(key + ".url", ""))) {
             ensureCurrent(task, generation);
             task.updateProgress(generation, offset, offset);
             return partialFile;
         }
-        if (!url.equals(mPreferences.getString(key + ".url", "")) || validator.isEmpty()) {
+        if (!sameSource || !url.equals(mPreferences.getString(key + ".url", ""))
+                || validator.isEmpty()
+                || offset > MAX_PACKAGE_BYTES) {
+            deleteFile(partialFile);
             offset = 0L;
         }
         Request.Builder request = new Request.Builder().url(url).header("Accept-Encoding", "identity");
         if (offset > 0L) {
             request.header("Range", "bytes=" + offset + "-").header("If-Range", validator);
         }
-        Call call = mClient.newCall(request.build());
-        synchronized (mCalls) {
-            ensureCurrent(task, generation);
-            mCalls.put(app, call);
-        }
-        try (Response response = call.execute()) {
+        try (Response response = executeRequest(app, task, generation, request.build())) {
             ResponseBody body = response.body();
+            if (response.code() == 416 && offset > 0L) {
+                deleteFile(partialFile);
+                clearDownloadMetadata(app);
+                response.close();
+                return downloadPackage(app, task, generation, source, url);
+            }
             if ((response.code() != 200 && response.code() != 206) || body == null) {
-                if (response.code() == 416) {
-                    deleteFile(partialFile);
-                }
                 throw new IOException("APK request failed. HTTP " + response.code());
             }
             long total;
@@ -200,10 +221,12 @@ public final class AppDownloadManager {
             if (nextValidator.isEmpty() || nextValidator.startsWith("W/")) {
                 nextValidator = response.header("Last-Modified", "");
             }
-            mPreferences.edit().putString(key + ".url", url)
+            mPreferences.edit().putString(key + ".source", source).putString(key + ".url", url)
                     .putString(key + ".validator", nextValidator)
                     .putLong(key + ".total", total).apply();
             long downloaded = offset;
+            task.updateProgress(generation, downloaded, total);
+            publish(app);
             int lastProgress = -2;
             long lastPublish = 0L;
             try (InputStream input = body.byteStream();
@@ -238,7 +261,8 @@ public final class AppDownloadManager {
     }
 
     private void installPackage(File packageFile) throws IOException, InterruptedException {
-        Process process = new ProcessBuilder("pm", "install", "-r", packageFile.getAbsolutePath())
+        Process process = new ProcessBuilder("pm", "install", "-i", mContext.getPackageName(),
+                "-r", packageFile.getAbsolutePath())
                 .redirectErrorStream(true).start();
         try {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -265,7 +289,25 @@ public final class AppDownloadManager {
     }
 
     private String getDownloadUrl(SupportedApp app) {
-        return mContext.getString(app.getDownloadUrlResId()).trim();
+        String override = mContext.getString(app.getDownloadUrlResId()).trim();
+        return override.isEmpty() ? AppDownloadSource.versionUrl(
+                Constants.getCurrentBaseUrl(mContext), app.getServerType()) : override;
+    }
+
+    private Response executeRequest(SupportedApp app, AppDownloadTask task, int generation,
+            Request request) throws IOException {
+        Call call = mClient.newCall(request);
+        synchronized (mCalls) {
+            ensureCurrent(task, generation);
+            mCalls.put(app, call);
+        }
+        return call.execute();
+    }
+
+    private void clearDownloadMetadata(SupportedApp app) {
+        String key = app.name();
+        mPreferences.edit().remove(key + ".source").remove(key + ".url")
+                .remove(key + ".validator").remove(key + ".total").apply();
     }
 
     private File getPartialFile(SupportedApp app) {
@@ -276,6 +318,16 @@ public final class AppDownloadManager {
         mMainHandler.post(() -> {
             for (Listener listener : mListeners) {
                 listener.onAppDownloadChanged(app);
+            }
+        });
+    }
+
+    private void publishInstalled(SupportedApp app, AppDownloadTask task, int generation) {
+        mMainHandler.post(() -> {
+            if (task.isCurrent(generation) && task.getState() == AppDownloadState.INSTALLED) {
+                for (Listener listener : mListeners) {
+                    listener.onAppInstalled(app);
+                }
             }
         });
     }

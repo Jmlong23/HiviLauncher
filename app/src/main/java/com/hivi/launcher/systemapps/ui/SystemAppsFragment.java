@@ -205,7 +205,7 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
                 || state == AppDownloadState.DOWNLOADING || state == AppDownloadState.PAUSED
                 || state == AppDownloadState.INSTALLING;
         boolean showDownloadIcon = state == AppDownloadState.NOT_INSTALLED
-                || state == AppDownloadState.FAILED;
+                || state == AppDownloadState.FAILED || state == AppDownloadState.INSTALL_FAILED;
         itemBinding.appIcon.setImageDrawable(app.getIcon());
         itemBinding.appIcon.setAlpha(showDownloadIcon ? 0.35f : 1f);
         itemBinding.appLabel.setText(app.getLabel());
@@ -216,7 +216,9 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
         String status = getAppStatus(app);
         itemBinding.appStatus.setText(status);
         itemBinding.appStatus.setVisibility(active || state == AppDownloadState.FAILED
+                || state == AppDownloadState.INSTALL_FAILED
                 ? View.VISIBLE : View.GONE);
+        itemBinding.appGridItem.setEnabled(state != AppDownloadState.INSTALLING);
         itemBinding.appGridItem.setContentDescription(getString(R.string.system_app_accessibility,
                 app.getLabel(), status, getString(getAppAction(state))));
         itemBinding.appGridItem.setOnClickListener(ignored -> {
@@ -242,6 +244,8 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
                 return getString(R.string.system_app_installing);
             case FAILED:
                 return getString(R.string.system_app_failed);
+            case INSTALL_FAILED:
+                return getString(R.string.system_app_install_failed);
             case INSTALLED:
                 return getString(R.string.system_app_action_open);
             default:
@@ -257,6 +261,7 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
             case PAUSED:
                 return R.string.system_app_action_resume;
             case FAILED:
+            case INSTALL_FAILED:
                 return R.string.system_app_action_retry;
             case INSTALLED:
                 return R.string.system_app_action_open;

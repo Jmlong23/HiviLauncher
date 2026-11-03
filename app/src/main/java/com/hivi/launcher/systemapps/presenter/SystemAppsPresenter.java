@@ -22,7 +22,20 @@ import java.util.List;
 public class SystemAppsPresenter extends BasePresenter<SystemAppsView> {
     private final Context mContext;
     private final AppDownloadManager mDownloadManager;
-    private final AppDownloadManager.Listener mDownloadListener = this::updateApp;
+    private final AppDownloadManager.Listener mDownloadListener = new AppDownloadManager.Listener() {
+        @Override
+        public void onAppDownloadChanged(SupportedApp app) {
+            updateApp(app);
+        }
+
+        @Override
+        public void onAppInstalled(SupportedApp app) {
+            if (getView() != null) {
+                loadApps();
+                launchApp(createEntry(app));
+            }
+        }
+    };
 
     public SystemAppsPresenter(Context context, SystemAppsView view) {
         super(view);
@@ -50,6 +63,8 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView> {
     }
 
     public void onAppClicked(AppEntry app) {
+        BootAutoPlaySuppressor.getInstance().markUserInteraction();
+        app = createEntry(app.getSupportedApp());
         AppDownloadState state = mDownloadManager.getTask(app.getSupportedApp()).getState();
         if (state == AppDownloadState.INSTALLED) {
             launchApp(createEntry(app.getSupportedApp()));

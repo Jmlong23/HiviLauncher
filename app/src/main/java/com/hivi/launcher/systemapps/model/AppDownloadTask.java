@@ -58,15 +58,19 @@ public final class AppDownloadTask {
         return true;
     }
 
-    public synchronized void complete(int generation) {
+    public synchronized boolean complete(int generation) {
         if (isCurrent(generation) && mState == AppDownloadState.INSTALLING) {
             mState = AppDownloadState.INSTALLED;
+            return true;
         }
+        return false;
     }
 
     public synchronized void fail(int generation) {
-        if (isCurrent(generation)) {
-            mState = AppDownloadState.FAILED;
+        if (isCurrent(generation) && (mState == AppDownloadState.DOWNLOADING
+                || mState == AppDownloadState.INSTALLING)) {
+            mState = mState == AppDownloadState.INSTALLING
+                    ? AppDownloadState.INSTALL_FAILED : AppDownloadState.FAILED;
         }
     }
 
@@ -82,7 +86,8 @@ public final class AppDownloadTask {
     }
 
     public synchronized void reconcileInstalled(boolean installed) {
-        if (installed && mState != AppDownloadState.INSTALLED) {
+        if (installed && mState != AppDownloadState.INSTALLED
+                && mState != AppDownloadState.INSTALLING) {
             mState = AppDownloadState.INSTALLED;
             ++mGeneration;
         } else if (!installed && mState == AppDownloadState.INSTALLED) {

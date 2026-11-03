@@ -241,7 +241,7 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
                 AppDownloadState.DOWNLOADING, AppDownloadState.PAUSED,
                 AppDownloadState.INSTALLING, AppDownloadState.FAILED,
                 AppDownloadState.INSTALLED, AppDownloadState.DOWNLOADING,
-                AppDownloadState.PAUSED
+                AppDownloadState.INSTALL_FAILED
         };
         List<AppEntry> apps = new ArrayList<>();
         for (int index = 0; index < SupportedApp.values().length; index++) {
@@ -259,7 +259,8 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
             View progress = item.findViewById(R.id.app_download_progress);
             TextView status = item.findViewById(R.id.app_status);
             boolean hasCloud = states[index] == AppDownloadState.NOT_INSTALLED
-                    || states[index] == AppDownloadState.FAILED;
+                    || states[index] == AppDownloadState.FAILED
+                    || states[index] == AppDownloadState.INSTALL_FAILED;
             boolean hasProgress = states[index] == AppDownloadState.WAITING
                     || states[index] == AppDownloadState.DOWNLOADING
                     || states[index] == AppDownloadState.PAUSED
@@ -269,8 +270,16 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
             require((progress.getVisibility() == View.VISIBLE) == hasProgress,
                     "Progress overlay does not match download state");
             require((status.getVisibility() == View.VISIBLE)
-                    == (hasProgress || states[index] == AppDownloadState.FAILED),
+                    == (hasProgress || states[index] == AppDownloadState.FAILED
+                    || states[index] == AppDownloadState.INSTALL_FAILED),
                     "Status label does not match download state");
+            require(item.isEnabled() == (states[index] != AppDownloadState.INSTALLING),
+                    "Installing apps must not accept repeated clicks");
+            if (states[index] == AppDownloadState.INSTALL_FAILED) {
+                require(status.getText().toString().equals(activity.getString(
+                        R.string.system_app_install_failed)),
+                        "Installation failure must use its own status label");
+            }
         }
     }
 

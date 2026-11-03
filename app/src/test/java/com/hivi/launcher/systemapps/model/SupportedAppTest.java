@@ -41,6 +41,7 @@ public class SupportedAppTest {
             assertTrue(app.getLabelResId() != 0);
             assertTrue(app.getIconResId() != 0);
             assertTrue(app.getDownloadUrlResId() != 0);
+            assertFalse(app.getServerType().isEmpty());
             assertTrue(app.getPackageNames().length > 0);
             for (String packageName : app.getPackageNames()) {
                 assertTrue(packages.add(packageName));
@@ -64,8 +65,20 @@ public class SupportedAppTest {
         assertEquals("com.tencent.qqmusiccar", packages[0]);
         packages[0] = "other.package";
         assertTrue(SupportedApp.QQ_MUSIC.matchesPackage("com.tencent.qqmusiccar"));
+        assertTrue(SupportedApp.QQ_MUSIC.matchesPackage("com.tencent.qqmusicpad"));
+        assertTrue(SupportedApp.KARAOKE.matchesPackage("com.tencent.karaoketv"));
+        assertTrue(SupportedApp.KUWO_MUSIC.matchesPackage("cn.kuwo.kwauto"));
         assertTrue(SupportedApp.KUWO_MUSIC.matchesPackage("cn.kuwo.kwmusichd"));
         assertTrue(SupportedApp.XIMALAYA.matchesPackage("com.ximalaya.ting.android.car"));
         assertTrue(SupportedApp.LANREN_AUDIO.matchesPackage("bubei.tingshu.hd"));
+    }
+
+    @Test
+    public void serverTypesMatchTheStreamCatalog() {
+        String[] expectedTypes = {"QQ-MUSIC", "NETEASE-MUSIC", "KUGOU-MUSIC", "SODA-MUSIC",
+                "WE-SING", "KUWO-MUSIC", "XIMALAYA", "QINGTING-FM", "LAZY-AUDIO"};
+        for (int index = 0; index < SupportedApp.values().length; index++) {
+            assertEquals(expectedTypes[index], SupportedApp.values()[index].getServerType());
+        }
     }
 }

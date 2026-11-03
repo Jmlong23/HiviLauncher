@@ -16,6 +16,7 @@
     <string name="system_app_paused">Paused</string>
     <string name="system_app_installing">Installing…</string>
     <string name="system_app_failed">Download failed. Tap to retry</string>
+    <string name="system_app_install_failed">Installation failed. Tap to retry</string>
     <string name="system_app_download_unavailable">No download URL configured for %1$s</string>
     <string name="system_app_action_download">Download</string>
     <string name="system_app_action_pause">Pause download</string>
