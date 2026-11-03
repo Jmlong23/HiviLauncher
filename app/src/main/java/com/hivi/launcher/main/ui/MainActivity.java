@@ -119,6 +119,9 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private AiWakeupController mAiWakeupController;
     private AiHeadlessConversationView mAiHeadlessView;
     private boolean mHomeNavigationPending;
+    private boolean mSettingsEntryPending;
+    private boolean mSettingsExitPending;
+    private ViewTreeObserver.OnPreDrawListener mSettingsPreDrawListener;
     private boolean mPendingHomeIntent;
     private Boolean mDeferredHomeClearBackStack;
     private boolean mSystemAppsEntryPending;
@@ -1064,7 +1067,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     private void showStackedPage(MainPage page) {
-        if (page == MainPage.SYSTEM_APPS && mSystemAppsEntryPending) {
+        if ((page == MainPage.SYSTEM_APPS && mSystemAppsEntryPending)
+                || (page == MainPage.SETTINGS && mSettingsEntryPending)) {
             return;
         }
         Fragment currentFragment = getCurrentPageFragment();
@@ -1077,6 +1081,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         if (page == MainPage.SYSTEM_APPS) {
             showSystemAppsPage();
+            return;
+        }
+        if (page == MainPage.SETTINGS) {
+            showSettingsPage();
             return;
         }
         mHomeNavigationPending = false;
@@ -1107,6 +1115,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (currentFragment instanceof SystemAppsFragment) {
             transaction.remove(currentFragment);
         }
+        Fragment settingsFragment = getFragmentManager().findFragmentById(R.id.settings_container);
+        if (settingsFragment != null && settingsFragment.isAdded()) {
+            transaction.remove(settingsFragment);
+        }
         transaction.replace(R.id.fragment_container, createPageFragment(page))
                 .addToBackStack(page.name())
                 .commitAllowingStateLoss();
@@ -1128,6 +1140,92 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                         }
                     })
                     .start();
+        }
+    }
+
+    private void showSettingsPage() {
+        int generation = ++mPageTransitionGeneration;
+        cancelPageAnimations();
+        mHomeNavigationPending = false;
+        mSettingsEntryPending = true;
+        View container = binding.settingsContainer;
+        binding.launcherContent.setVisibility(View.VISIBLE);
+        binding.bottomNavigation.setVisibility(View.VISIBLE);
+        container.setTranslationX(binding.launcherRoot.getWidth());
+        container.setVisibility(View.VISIBLE);
+        SettingsFragment fragment = new SettingsFragment();
+        FragmentTransaction transaction = getFragmentManager().beginTransaction();
+        Fragment appsFragment = getFragmentManager().findFragmentById(R.id.system_apps_container);
+        if (appsFragment != null && appsFragment.isAdded()) {
+            transaction.remove(appsFragment);
+        }
+        transaction.replace(R.id.settings_container, fragment)
+                .addToBackStack(MainPage.SETTINGS.name())
+                .commitAllowingStateLoss();
+        mSettingsPreDrawListener = () -> {
+            View pageView = fragment.getView();
+            if (generation != mPageTransitionGeneration) {
+                removeSettingsPreDrawListener();
+                return true;
+            }
+            if (!fragment.isAdded() || pageView == null || !pageView.isLaidOut()
+                    || pageView.isLayoutRequested()) {
+                return true;
+            }
+            removeSettingsPreDrawListener();
+            container.setTranslationX(container.getWidth());
+            container.animate().translationX(0f)
+                    .setDuration(PAGE_TRANSITION_DURATION_MS)
+                    .setInterpolator(mPageTransitionInterpolator)
+                    .withLayer()
+                    .withEndAction(() -> {
+                        if (binding == null || generation != mPageTransitionGeneration) {
+                            return;
+                        }
+                        mSettingsEntryPending = false;
+                        binding.bottomNavigation.setVisibility(View.INVISIBLE);
+                    }).start();
+            return true;
+        };
+        container.getViewTreeObserver().addOnPreDrawListener(mSettingsPreDrawListener);
+    }
+
+    private void dismissSettingsPage(boolean clearBackStack) {
+        int generation = ++mPageTransitionGeneration;
+        View container = binding.settingsContainer;
+        float translation = container.getTranslationX();
+        cancelPageAnimations();
+        mHomeNavigationPending = true;
+        mSettingsExitPending = true;
+        binding.bottomNavigation.setVisibility(View.VISIBLE);
+        if (clearBackStack) {
+            binding.fragmentContainer.setVisibility(View.GONE);
+            updateLauncherBackground(false);
+            showAiChatEntry();
+        }
+        container.setTranslationX(translation);
+        if (translation >= container.getWidth()) {
+            popBackStack(clearBackStack);
+            return;
+        }
+        container.animate().translationX(container.getWidth())
+                .setDuration(PAGE_TRANSITION_DURATION_MS)
+                .setInterpolator(mPageTransitionInterpolator)
+                .withLayer()
+                .withEndAction(() -> {
+                    if (binding != null && generation == mPageTransitionGeneration) {
+                        popBackStack(clearBackStack);
+                    }
+                }).start();
+    }
+
+    private void removeSettingsPreDrawListener() {
+        if (mSettingsPreDrawListener != null) {
+            ViewTreeObserver observer = binding.settingsContainer.getViewTreeObserver();
+            if (observer.isAlive()) {
+                observer.removeOnPreDrawListener(mSettingsPreDrawListener);
+            }
+            mSettingsPreDrawListener = null;
         }
     }
 
@@ -1181,6 +1279,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         mHomeNavigationPending = true;
         binding.launcherContent.setVisibility(View.VISIBLE);
         if (clearBackStack) {
+            binding.settingsContainer.setVisibility(View.GONE);
+            binding.bottomNavigation.setVisibility(View.VISIBLE);
             binding.fragmentContainer.setVisibility(View.GONE);
             updateLauncherBackground(false);
             showAiChatEntry();
@@ -1226,6 +1326,14 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             dismissSystemAppsPage(false);
             return;
         }
+        if (getCurrentPageFragment() instanceof SystemAppsFragment) {
+            dismissSystemAppsPage(false);
+            return;
+        }
+        if (getCurrentPageFragment() instanceof SettingsFragment) {
+            dismissSettingsPage(false);
+            return;
+        }
         if (backStackEntryCount == 1) {
             navigateToHome(false);
             return;
@@ -1254,6 +1362,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         if (getCurrentPageFragment() instanceof SystemAppsFragment) {
             dismissSystemAppsPage(clearBackStack);
+            return;
+        }
+        if (getCurrentPageFragment() instanceof SettingsFragment) {
+            dismissSettingsPage(clearBackStack);
             return;
         }
         final int transitionGeneration = ++mPageTransitionGeneration;
@@ -1670,6 +1782,12 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.systemAppsContainer.animate().cancel();
         binding.systemAppsContainer.setTranslationX(0f);
         binding.systemAppsContainer.setAlpha(1f);
+        removeSettingsPreDrawListener();
+        mSettingsEntryPending = false;
+        mSettingsExitPending = false;
+        binding.settingsContainer.animate().cancel();
+        binding.settingsContainer.setTranslationX(0f);
+        binding.settingsContainer.setAlpha(1f);
         binding.pageBody.animate().cancel();
         binding.pageBody.setTranslationX(0f);
         binding.pageBody.setAlpha(1f);
@@ -1732,10 +1850,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
+        Fragment fragment = getCurrentPageFragment();
         if (isVolumeDialogShowing()) {
             return;
         }
-        Fragment fragment = getCurrentPageFragment();
         if (fragment == null) {
             boolean keepHomeTransition = mHomeNavigationPending;
             applyHomePageUi(!keepHomeTransition);
@@ -1748,9 +1866,20 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                     ? View.VISIBLE : View.INVISIBLE);
             return;
         }
-        mHomeNavigationPending = false;
         binding.systemAppsContainer.setVisibility(View.GONE);
         binding.launcherContent.setVisibility(View.VISIBLE);
+        if (fragment instanceof SettingsFragment) {
+            if (!mSettingsExitPending) {
+                mHomeNavigationPending = false;
+            }
+            binding.settingsContainer.setVisibility(View.VISIBLE);
+            binding.bottomNavigation.setVisibility(mSettingsEntryPending || mSettingsExitPending
+                    ? View.VISIBLE : View.INVISIBLE);
+            return;
+        }
+        mHomeNavigationPending = false;
+        binding.settingsContainer.setVisibility(View.GONE);
+        binding.bottomNavigation.setVisibility(View.VISIBLE);
         binding.fragmentContainer.setVisibility(View.VISIBLE);
         boolean aiConversationVisible = fragment instanceof AiFragment;
         updateLauncherBackground(aiConversationVisible);
@@ -1758,6 +1887,11 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     private void applyHomePageUi(boolean resetPageBody) {
+        mSettingsExitPending = false;
+        binding.bottomNavigation.setVisibility(View.VISIBLE);
+        binding.settingsContainer.setVisibility(View.GONE);
+        binding.settingsContainer.setTranslationX(0f);
+        binding.settingsContainer.setAlpha(1f);
         binding.systemAppsContainer.setVisibility(View.GONE);
         binding.systemAppsContainer.setTranslationX(0f);
         binding.systemAppsContainer.setAlpha(1f);
@@ -1866,6 +2000,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         Fragment appsFragment = getFragmentManager().findFragmentById(R.id.system_apps_container);
         if (appsFragment != null && appsFragment.isAdded() && !appsFragment.isRemoving()) {
             return appsFragment;
+        }
+        Fragment settingsFragment = getFragmentManager().findFragmentById(R.id.settings_container);
+        if (settingsFragment != null && settingsFragment.isAdded() && !settingsFragment.isRemoving()) {
+            return settingsFragment;
         }
         Fragment fragment = getFragmentManager().findFragmentById(R.id.fragment_container);
         return fragment != null && fragment.isAdded() && !fragment.isRemoving()

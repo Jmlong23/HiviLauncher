@@ -2,8 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:paddingBottom="60dp">
+    android:orientation="vertical">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -85,7 +84,7 @@
                 android:id="@+id/settings_tab_display"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="15dp"
                 android:background="@drawable/settings_menu_item_background"
                 android:clickable="true"
                 android:elevation="8dp"
@@ -119,7 +118,7 @@
                 android:id="@+id/settings_tab_system"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="15dp"
                 android:background="@drawable/settings_menu_item_background"
                 android:clickable="true"
                 android:elevation="8dp"
@@ -153,7 +152,7 @@
                 android:id="@+id/settings_tab_about"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="15dp"
                 android:background="@drawable/settings_menu_item_background"
                 android:clickable="true"
                 android:elevation="8dp"
@@ -186,7 +185,7 @@
                 android:id="@+id/settings_tab_maintenance"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="15dp"
                 android:background="@drawable/settings_menu_item_background"
                 android:clickable="true"
                 android:elevation="8dp"
@@ -219,7 +218,8 @@
         <FrameLayout
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_weight="1">
+            android:layout_weight="1"
+            android:layout_marginBottom="25dp">
 
             <LinearLayout
                 android:id="@+id/settings_panel_network"

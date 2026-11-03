@@ -306,11 +306,20 @@
         android:layout_width="75dp"
         android:layout_height="70dp"
         android:layout_gravity="end|bottom"
-        android:layout_marginBottom="94dp"
+        android:layout_marginBottom="44dp"
         android:background="@drawable/ic_ai"
         android:contentDescription="AI"
         android:focusable="true"
         android:scaleType="fitCenter" />
+
+    <FrameLayout
+        android:id="@+id/settings_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="48dp"
+        android:background="#363636"
+        android:clickable="true"
+        android:visibility="gone" />
 
     </FrameLayout>
 

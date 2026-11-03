@@ -9,6 +9,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.SystemClock;
@@ -83,6 +84,11 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
                 activity.navigateBack();
             });
             awaitPage(false);
+            for (int iteration = 0; iteration < 3; iteration++) {
+                verifySettingsTransition(true);
+                verifySettingsTransition(false);
+            }
+            verifyInterruptedSettingsTransition();
             verifyPageStackAcrossContainers();
             verifyHomeTransition(true);
             runOnMainSync(() -> {
@@ -119,6 +125,7 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
                     + "for back and volume, unchanged alpha contours and outer shadows, design parameters and "
                     + "all download state layouts passed. Repeated page transitions keep home geometry, "
                     + "opaque page layers and app item identities stable. "
+                    + "Settings transitions preserve the stationary home and reveal navigation by sliding. "
                     + "Screenshots: files/system-app-ui-tests\n");
             finish(Activity.RESULT_OK, result);
         } catch (Throwable throwable) {
@@ -199,6 +206,7 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
                     && container.getTranslationX() == 0f
                     && home.getVisibility() == View.INVISIBLE
                     : container.getVisibility() == View.GONE
+                    && mActivity.findViewById(R.id.settings_container).getVisibility() == View.GONE
                     && mActivity.findViewById(R.id.fragment_container).getVisibility() == View.GONE
                     && home.getVisibility() == View.VISIBLE;
         });
@@ -224,6 +232,115 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
 
     private Rect bounds(View view) {
         return new Rect(view.getLeft(), view.getTop(), view.getRight(), view.getBottom());
+    }
+
+    private void verifySettingsTransition(boolean entering) throws Exception {
+        View decor = mActivity.getWindow().getDecorView();
+        View home = decor.findViewById(R.id.launcher_content);
+        View cards = decor.findViewById(R.id.cards_row);
+        View body = decor.findViewById(R.id.page_body);
+        View navigation = decor.findViewById(R.id.bottom_navigation);
+        View container = decor.findViewById(R.id.settings_container);
+        Rect[] originalBounds = new Rect[2];
+        int[] originalPadding = new int[4];
+        runOnMainSync(() -> {
+            originalBounds[0] = bounds(cards);
+            originalBounds[1] = bounds(navigation);
+            originalPadding[0] = home.getPaddingLeft();
+            originalPadding[1] = home.getPaddingTop();
+            originalPadding[2] = home.getPaddingRight();
+            originalPadding[3] = home.getPaddingBottom();
+            if (entering) {
+                mActivity.showPage(MainPage.SETTINGS);
+            } else {
+                mActivity.navigateBack();
+            }
+            require(navigation.getVisibility() == View.VISIBLE,
+                    "Navigation must stay behind the sliding settings page instead of flashing away");
+        });
+        CountDownLatch finished = new CountDownLatch(1);
+        Throwable[] failure = new Throwable[1];
+        boolean[] sawSlidingFrame = new boolean[1];
+        long deadline = SystemClock.uptimeMillis() + 5000L;
+        runOnMainSync(() -> decor.postOnAnimation(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    require(originalBounds[0].equals(bounds(cards))
+                            && originalBounds[1].equals(bounds(navigation)),
+                            "Settings transitions must not resize or move home cards and navigation");
+                    require(home.getPaddingLeft() == originalPadding[0]
+                            && home.getPaddingTop() == originalPadding[1]
+                            && home.getPaddingRight() == originalPadding[2]
+                            && home.getPaddingBottom() == originalPadding[3],
+                            "Settings must not mutate shared home padding");
+                    require(body.getTranslationX() == 0f && body.getAlpha() == 1f,
+                            "Home must remain stationary and opaque behind settings");
+                    require(container.getAlpha() == 1f
+                            && container.getBackground() instanceof ColorDrawable
+                            && Color.alpha(((ColorDrawable) container.getBackground()).getColor()) == 255,
+                            "Settings must use an opaque page rather than cross-fading with home");
+                    if (container.getVisibility() == View.VISIBLE
+                            && container.getTranslationX() > 0f) {
+                        require(navigation.getVisibility() == View.VISIBLE,
+                                "Navigation must remain visible until the settings page covers it");
+                        if (container.getTranslationX() < container.getWidth()) {
+                            sawSlidingFrame[0] = true;
+                        }
+                    }
+                    boolean complete = entering
+                            ? container.getVisibility() == View.VISIBLE
+                            && container.getTranslationX() == 0f
+                            && navigation.getVisibility() == View.INVISIBLE
+                            : container.getVisibility() == View.GONE
+                            && navigation.getVisibility() == View.VISIBLE;
+                    if (complete) {
+                        require(sawSlidingFrame[0], "Settings must visibly slide instead of switching instantly");
+                        finished.countDown();
+                    } else if (SystemClock.uptimeMillis() < deadline) {
+                        decor.postOnAnimation(this);
+                    }
+                } catch (Throwable throwable) {
+                    failure[0] = throwable;
+                    finished.countDown();
+                }
+            }
+        }));
+        require(finished.await(6L, TimeUnit.SECONDS), "Settings transition did not finish");
+        if (failure[0] != null) {
+            throw new AssertionError("Settings transition regression", failure[0]);
+        }
+        waitForIdleSync();
+    }
+
+    private void verifyInterruptedSettingsTransition() throws Exception {
+        runOnMainSync(() -> {
+            mActivity.showPage(MainPage.SETTINGS);
+            mActivity.showPage(MainPage.SETTINGS);
+            mActivity.getFragmentManager().executePendingTransactions();
+            require(mActivity.getFragmentManager().getBackStackEntryCount() == 1,
+                    "Repeated settings taps must not enqueue duplicate pages");
+            mActivity.navigateBack();
+        });
+        awaitPage(false);
+        runOnMainSync(() -> mActivity.showPage(MainPage.SETTINGS));
+        awaitSettingsPage();
+        runOnMainSync(() -> {
+            mActivity.navigateBack();
+            mActivity.showPage(MainPage.SETTINGS);
+        });
+        awaitSettingsPage();
+        runOnMainSync(mActivity::showHomePage);
+        awaitPage(false);
+    }
+
+    private void awaitSettingsPage() throws Exception {
+        awaitCondition(() -> mActivity.getFragmentManager()
+                .findFragmentById(R.id.settings_container) instanceof SettingsFragment
+                && mActivity.findViewById(R.id.settings_container).getVisibility() == View.VISIBLE
+                && mActivity.findViewById(R.id.settings_container).getAlpha() == 1f
+                && mActivity.findViewById(R.id.settings_container).getTranslationX() == 0f
+                && mActivity.findViewById(R.id.bottom_navigation).getVisibility() == View.INVISIBLE);
     }
 
     private void assertCatalogViewsAreReused() {
@@ -262,14 +379,17 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
     }
 
     private void verifyPageStackAcrossContainers() throws Exception {
-        runOnMainSync(() -> mActivity.showPage(MainPage.SETTINGS));
-        awaitCondition(() -> mActivity.getFragmentManager()
-                .findFragmentById(R.id.fragment_container) instanceof SettingsFragment
-                && mActivity.findViewById(R.id.fragment_container).getAlpha() == 1f
-                && mActivity.findViewById(R.id.fragment_container).getTranslationX() == 0f);
+        runOnMainSync(() -> {
+            mActivity.showPage(MainPage.SETTINGS);
+            require(mActivity.findViewById(R.id.bottom_navigation).getVisibility() == View.VISIBLE,
+                    "Navigation must remain behind settings during entry");
+        });
+        awaitSettingsPage();
         Fragment[] settings = new Fragment[1];
         runOnMainSync(() -> {
-            settings[0] = mActivity.getFragmentManager().findFragmentById(R.id.fragment_container);
+            settings[0] = mActivity.getFragmentManager().findFragmentById(R.id.settings_container);
+            require(mActivity.findViewById(R.id.bottom_navigation).getVisibility() == View.INVISIBLE,
+                    "The settings page must keep the app navigation buttons hidden");
             mActivity.showPage(MainPage.SYSTEM_APPS);
         });
         awaitPage(true);
@@ -277,14 +397,19 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
         awaitCondition(() -> mActivity.findViewById(R.id.system_apps_container)
                 .getVisibility() == View.GONE);
         runOnMainSync(() -> {
-            require(mActivity.getFragmentManager().findFragmentById(R.id.fragment_container)
+            require(mActivity.getFragmentManager().findFragmentById(R.id.settings_container)
                     == settings[0], "Returning from apps must preserve the previous settings page");
             require(settings[0].isAdded(), "The previous page must remain on the back stack");
+            require(mActivity.findViewById(R.id.bottom_navigation).getVisibility() == View.INVISIBLE,
+                    "Returning to settings must hide the app navigation buttons again");
             mActivity.showPage(MainPage.SYSTEM_APPS);
         });
         awaitPage(true);
         runOnMainSync(mActivity::showHomePage);
         awaitPage(false);
+        runOnMainSync(() -> require(mActivity.findViewById(R.id.bottom_navigation)
+                .getVisibility() == View.VISIBLE,
+                "Returning home must restore the app navigation buttons"));
     }
 
     private void assertHeaderDesignParameters() {
