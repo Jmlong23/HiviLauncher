@@ -116,6 +116,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private boolean mWifiConnected;
     private boolean mAmplifierMuted;
     private boolean mAiConversationBackgroundVisible;
+    private boolean mAiPageEntryPending;
     private AiWakeupController mAiWakeupController;
     private AiHeadlessConversationView mAiHeadlessView;
     private boolean mHomeNavigationPending;
@@ -1068,7 +1069,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     private void showStackedPage(MainPage page) {
         if ((page == MainPage.SYSTEM_APPS && mSystemAppsEntryPending)
-                || (page == MainPage.SETTINGS && mSettingsEntryPending)) {
+                || (page == MainPage.SETTINGS && mSettingsEntryPending)
+                || (page == MainPage.AI && mAiPageEntryPending)) {
             return;
         }
         Fragment currentFragment = getCurrentPageFragment();
@@ -1094,18 +1096,18 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         int transitionGeneration = ++mPageTransitionGeneration;
         cancelPageAnimations();
         binding.launcherContent.setVisibility(View.VISIBLE);
+        mAiPageEntryPending = homePageVisible && page == MainPage.AI;
+        updatePageLayerOrder(page == MainPage.AI);
+        setBottomNavigationVisibility(page == MainPage.AI && !mAiPageEntryPending
+                ? View.GONE : View.VISIBLE);
         hideAiChatEntry();
 
         if (homePageVisible) {
             int transitionOffset = dp(PAGE_TRANSITION_OFFSET_DP);
             binding.pageBody.setTranslationX(0f);
             binding.pageBody.setAlpha(1f);
-            binding.pageBody.animate()
-                    .translationX(-transitionOffset)
-                    .alpha(HOME_PAGE_DIMMED_ALPHA)
-                    .setDuration(PAGE_TRANSITION_DURATION_MS)
-                    .setInterpolator(mPageTransitionInterpolator)
-                    .start();
+            animateHomePageContent(-transitionOffset, HOME_PAGE_DIMMED_ALPHA,
+                    mAiPageEntryPending);
 
             fragmentContainer.setVisibility(View.VISIBLE);
             fragmentContainer.setTranslationX(transitionOffset);
@@ -1137,6 +1139,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                             }
                             fragmentContainer.setTranslationX(0f);
                             fragmentContainer.setAlpha(1f);
+                            if (mAiPageEntryPending) {
+                                mAiPageEntryPending = false;
+                                setBottomNavigationVisibility(View.GONE);
+                            }
                         }
                     })
                     .start();
@@ -1150,7 +1156,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         mSettingsEntryPending = true;
         View container = binding.settingsContainer;
         binding.launcherContent.setVisibility(View.VISIBLE);
-        binding.bottomNavigation.setVisibility(View.VISIBLE);
+        setBottomNavigationVisibility(View.VISIBLE);
         container.setTranslationX(binding.launcherRoot.getWidth());
         container.setVisibility(View.VISIBLE);
         SettingsFragment fragment = new SettingsFragment();
@@ -1183,7 +1189,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                             return;
                         }
                         mSettingsEntryPending = false;
-                        binding.bottomNavigation.setVisibility(View.INVISIBLE);
+                        setBottomNavigationVisibility(View.INVISIBLE);
                     }).start();
             return true;
         };
@@ -1197,7 +1203,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         cancelPageAnimations();
         mHomeNavigationPending = true;
         mSettingsExitPending = true;
-        binding.bottomNavigation.setVisibility(View.VISIBLE);
+        setBottomNavigationVisibility(View.VISIBLE);
         if (clearBackStack) {
             binding.fragmentContainer.setVisibility(View.GONE);
             updateLauncherBackground(false);
@@ -1280,7 +1286,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.launcherContent.setVisibility(View.VISIBLE);
         if (clearBackStack) {
             binding.settingsContainer.setVisibility(View.GONE);
-            binding.bottomNavigation.setVisibility(View.VISIBLE);
+            setBottomNavigationVisibility(View.VISIBLE);
             binding.fragmentContainer.setVisibility(View.GONE);
             updateLauncherBackground(false);
             showAiChatEntry();
@@ -1385,12 +1391,12 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         int transitionOffset = dp(PAGE_TRANSITION_OFFSET_DP);
         binding.pageBody.setTranslationX(-transitionOffset);
         binding.pageBody.setAlpha(HOME_PAGE_DIMMED_ALPHA);
-        binding.pageBody.animate()
-                .translationX(0f)
-                .alpha(1f)
-                .setDuration(PAGE_TRANSITION_DURATION_MS)
-                .setInterpolator(mPageTransitionInterpolator)
-                .start();
+        boolean aiConversationVisible = fragment instanceof AiFragment;
+        if (aiConversationVisible) {
+            setBottomNavigationTransitionState(-transitionOffset, HOME_PAGE_DIMMED_ALPHA);
+            setBottomNavigationVisibility(View.VISIBLE);
+        }
+        animateHomePageContent(0f, 1f, aiConversationVisible);
 
         fragmentContainer.animate()
                 .translationX(transitionOffset)
@@ -1407,12 +1413,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                     }
                 })
                 .start();
-    }
-
-    public void onAiChatBackRequested() {
-        if (presenter != null) {
-            presenter.onBottomNavigationBackClicked();
-        }
     }
 
     @Override
@@ -1777,6 +1777,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     private void cancelPageAnimations() {
+        mAiPageEntryPending = false;
         removeSystemAppsPreDrawListener();
         mSystemAppsEntryPending = false;
         binding.systemAppsContainer.animate().cancel();
@@ -1789,8 +1790,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.settingsContainer.setTranslationX(0f);
         binding.settingsContainer.setAlpha(1f);
         binding.pageBody.animate().cancel();
+        binding.pageBody.animate().setUpdateListener(null);
         binding.pageBody.setTranslationX(0f);
         binding.pageBody.setAlpha(1f);
+        setBottomNavigationTransitionState(0f, 1f);
         binding.fragmentContainer.animate().cancel();
         binding.fragmentContainer.setTranslationX(0f);
         binding.fragmentContainer.setAlpha(1f);
@@ -1860,6 +1863,9 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             mHomeNavigationPending = false;
             return;
         }
+        if (!(fragment instanceof AiFragment)) {
+            updatePageLayerOrder(false);
+        }
         if (fragment instanceof SystemAppsFragment) {
             binding.systemAppsContainer.setVisibility(View.VISIBLE);
             binding.launcherContent.setVisibility(mSystemAppsEntryPending || mHomeNavigationPending
@@ -1873,22 +1879,68 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 mHomeNavigationPending = false;
             }
             binding.settingsContainer.setVisibility(View.VISIBLE);
-            binding.bottomNavigation.setVisibility(mSettingsEntryPending || mSettingsExitPending
+            setBottomNavigationVisibility(mSettingsEntryPending || mSettingsExitPending
                     ? View.VISIBLE : View.INVISIBLE);
             return;
         }
-        mHomeNavigationPending = false;
         binding.settingsContainer.setVisibility(View.GONE);
-        binding.bottomNavigation.setVisibility(View.VISIBLE);
         binding.fragmentContainer.setVisibility(View.VISIBLE);
         boolean aiConversationVisible = fragment instanceof AiFragment;
+        boolean aiHomeTransitionPending = aiConversationVisible
+                && (mAiPageEntryPending || mHomeNavigationPending);
+        if (!aiHomeTransitionPending) {
+            mHomeNavigationPending = false;
+        }
+        updatePageLayerOrder(aiConversationVisible);
+        setBottomNavigationVisibility(aiConversationVisible && !aiHomeTransitionPending
+                ? View.GONE : View.VISIBLE);
         updateLauncherBackground(aiConversationVisible);
         hideAiChatEntry();
     }
 
+    private void setBottomNavigationVisibility(int visibility) {
+        binding.bottomNavigation.setVisibility(visibility);
+        binding.bottomNavigationDivider.setVisibility(visibility);
+    }
+
+    private void updatePageLayerOrder(boolean aiConversationVisible) {
+        if (aiConversationVisible) {
+            binding.fragmentContainer.bringToFront();
+        } else {
+            binding.bottomNavigationDivider.bringToFront();
+            binding.bottomNavigation.bringToFront();
+            binding.aiChatEntry.bringToFront();
+        }
+        binding.settingsContainer.bringToFront();
+    }
+
+    private void setBottomNavigationTransitionState(float translationX, float alpha) {
+        binding.bottomNavigation.setTranslationX(translationX);
+        binding.bottomNavigation.setAlpha(alpha);
+        binding.bottomNavigationDivider.setTranslationX(translationX);
+        binding.bottomNavigationDivider.setAlpha(alpha);
+    }
+
+    private void animateHomePageContent(float translationX, float alpha,
+            boolean includeBottomNavigation) {
+        binding.pageBody.animate()
+                .translationX(translationX)
+                .alpha(alpha)
+                .setDuration(PAGE_TRANSITION_DURATION_MS)
+                .setInterpolator(mPageTransitionInterpolator)
+                .setUpdateListener(animation -> {
+                    if (includeBottomNavigation) {
+                        setBottomNavigationTransitionState(binding.pageBody.getTranslationX(),
+                                binding.pageBody.getAlpha());
+                    }
+                })
+                .start();
+    }
+
     private void applyHomePageUi(boolean resetPageBody) {
         mSettingsExitPending = false;
-        binding.bottomNavigation.setVisibility(View.VISIBLE);
+        updatePageLayerOrder(false);
+        setBottomNavigationVisibility(View.VISIBLE);
         binding.settingsContainer.setVisibility(View.GONE);
         binding.settingsContainer.setTranslationX(0f);
         binding.settingsContainer.setAlpha(1f);
@@ -1904,6 +1956,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (resetPageBody) {
             binding.pageBody.setTranslationX(0f);
             binding.pageBody.setAlpha(1f);
+            setBottomNavigationTransitionState(0f, 1f);
         }
         showAiChatEntry();
     }
