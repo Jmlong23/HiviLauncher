@@ -21,6 +21,7 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
 
@@ -72,6 +73,11 @@
             android:exported="false"
             android:screenOrientation="landscape"
             android:theme="@style/AppTheme" />
+
+        <service
+            android:name=".main.ui.VolumeOverlayService"
+            android:exported="true"
+            android:permission="android.permission.STATUS_BAR_SERVICE" />
 
         <service
             android:name="com.ljm.audiotoollib.upnpserver.DLNARendererService"

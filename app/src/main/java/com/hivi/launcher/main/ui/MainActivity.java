@@ -85,6 +85,8 @@ import java.util.Locale;
 public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresenter>
         implements MainView, AiWakeupController.Navigator {
     private static final String TAG = "MainActivity";
+    public static final String EXTRA_SHOW_VOLUME_DIALOG =
+            "com.hivi.launcher.extra.SHOW_VOLUME_DIALOG";
     public static final String EXTRA_INITIAL_MODE =
             "com.hivi.launcher.main.ui.MainActivity.initial_mode";
     private static final int AVATAR_CONNECT_TIMEOUT_MS = 8_000;
@@ -98,7 +100,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private static final long SYSTEM_MUSIC_VOLUME_CHECK_INTERVAL_MS = 10_000L;
     private static final long SCREEN_SAVER_MINUTE_MS = 60_000L;
     private AuthorizationDialog mAuthorizationDialog;
-    private VolumeDialog mVolumeDialog;
     private InputModeDialog mInputModeDialog;
     private InputModeAdapter mInputModeAdapter;
     private final ExecutorService mAccountAvatarExecutor = Executors.newSingleThreadExecutor();
@@ -116,6 +117,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private AiWakeupController mAiWakeupController;
     private AiHeadlessConversationView mAiHeadlessView;
     private boolean mHomeNavigationPending;
+    private boolean mPendingHomeIntent;
+    private Boolean mDeferredHomeClearBackStack;
     private boolean mSuppressBackStackUiSync;
     private boolean mActivityResumed;
     private boolean mPendingSystemUpdateSuccess;
@@ -182,6 +185,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             finish();
         } else {
             mPendingInitialMode = consumeInitialModeIntent(getIntent());
+            handleHomeIntent(getIntent());
         }
     }
 
@@ -258,6 +262,12 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     protected void onResume() {
         super.onResume();
         mActivityResumed = true;
+        applyPendingHomeIntent();
+        if (mDeferredHomeClearBackStack != null) {
+            boolean clearBackStack = mDeferredHomeClearBackStack;
+            mDeferredHomeClearBackStack = null;
+            popBackStackImmediately(clearBackStack);
+        }
         resetScreenSaverTimer();
         applyLocalizedTexts();
         registerSystemReceiver();
@@ -267,6 +277,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         applyPendingInitialMode();
         applyPendingPageToShow();
         handleSystemUpdateInstallResult(getIntent());
+        handleVolumeDialogIntent(getIntent());
     }
 
     @Override
@@ -316,6 +327,53 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 applyPendingInitialMode();
             }
         }
+        handleHomeIntent(intent);
+        if (mActivityResumed) {
+            handleVolumeDialogIntent(intent);
+        }
+    }
+
+    private void handleHomeIntent(Intent intent) {
+        if (intent != null && Intent.ACTION_MAIN.equals(intent.getAction())
+                && intent.hasCategory(Intent.CATEGORY_HOME)) {
+            mPendingHomeIntent = true;
+            applyPendingHomeIntent();
+        }
+    }
+
+    private void applyPendingHomeIntent() {
+        if (!mPendingHomeIntent || !mActivityResumed || binding == null
+                || isFinishing() || getFragmentManager().isStateSaved()) {
+            return;
+        }
+        mPendingHomeIntent = false;
+        mPendingPageToShow = null;
+        mDeferredHomeClearBackStack = null;
+        hideScreenSaver();
+        if (mAuthorizationDialog != null) {
+            mAuthorizationDialog.dismiss();
+        }
+        if (mInputModeDialog != null) {
+            mInputModeDialog.dismiss();
+        }
+        // HOME can arrive while stopped; clear pages only after Fragment state is writable.
+        ++mPageTransitionGeneration;
+        cancelPageAnimations();
+        releaseAiConversationIfVisible();
+        popBackStackImmediately(true);
+        mHomeNavigationPending = false;
+        applyHomePageUi(true);
+    }
+
+    private void handleVolumeDialogIntent(Intent intent) {
+        if (intent == null || !intent.getBooleanExtra(EXTRA_SHOW_VOLUME_DIALOG, false)
+                || isFinishing() || !FirstUseGuideStore.isCompleted(this)) {
+            return;
+        }
+        // Consume once so resuming the launcher does not reopen a dismissed dialog.
+        intent.removeExtra(EXTRA_SHOW_VOLUME_DIALOG);
+        hideScreenSaver();
+        presenter.onVolumeClicked();
     }
 
     @Override
@@ -903,30 +961,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         mAmplifierVolumePercent = volumePercent;
         mAmplifierMuted = muted;
         renderAmplifierVolume();
-        if (mVolumeDialog == null) {
-            mVolumeDialog = new VolumeDialog(this, new VolumeDialog.Listener() {
-                @Override
-                public void onVolumeAdjusted(int direction) {
-                    presenter.adjustVolume(direction);
-                }
-
-                @Override
-                public void onVolumeChanged(int volumePercent) {
-                    presenter.setVolumePercent(volumePercent);
-                }
-
-                @Override
-                public void onMuteToggleRequested() {
-                    presenter.toggleVolumeMute();
-                }
-
-                @Override
-                public void onDialogDismissed() {
-                    syncPageUiWithCurrentFragment();
-                }
-            });
-        }
-        mVolumeDialog.show(volumePercent, muted);
+        VolumeOverlayService.show(this);
     }
 
     private void renderAmplifierVolume() {
@@ -940,9 +975,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.volumeText.setText(String.valueOf(displayedVolume));
         binding.volumeStatusPill.setContentDescription(
                 getString(R.string.main_bottom_navigation_volume_format, displayedVolume));
-        if (mVolumeDialog != null) {
-            mVolumeDialog.updateVolume(mAmplifierVolumePercent, mAmplifierMuted);
-        }
     }
 
     @Override
@@ -1166,10 +1198,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         mAiHeadlessView = null;
         getFragmentManager().removeOnBackStackChangedListener(mBackStackChangedListener);
         mSystemVolumeHandler.removeCallbacks(mSystemMusicVolumeCheck);
-        if (mVolumeDialog != null) {
-            mVolumeDialog.dismiss();
-            mVolumeDialog = null;
-        }
         if (mAuthorizationDialog != null) {
             mAuthorizationDialog.release();
             mAuthorizationDialog = null;
@@ -1530,6 +1558,12 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     private void popBackStack(boolean clearBackStack) {
         FragmentManager fragmentManager = getFragmentManager();
+        // A page animation can finish after another app has taken the foreground.
+        if (!mActivityResumed || fragmentManager.isStateSaved()) {
+            mDeferredHomeClearBackStack = clearBackStack
+                    || Boolean.TRUE.equals(mDeferredHomeClearBackStack);
+            return;
+        }
         if (clearBackStack) {
             fragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
         } else {
@@ -1667,7 +1701,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     private boolean isVolumeDialogShowing() {
-        return mVolumeDialog != null && mVolumeDialog.isShowing();
+        return VolumeOverlayService.isShowing();
     }
 
     private boolean isInputModePage(MainPage page) {

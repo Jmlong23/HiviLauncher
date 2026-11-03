@@ -1,18 +1,17 @@
 package com.hivi.launcher.main.ui;
 
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
-import android.view.View;
+import android.view.LayoutInflater;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.SeekBar;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.databinding.DialogVolumeBinding;
-import com.hivi.launcher.utils.UiUtils;
 
 public final class VolumeDialog {
     private static final int VOLUME_ADJUST_LOWER = -1;
@@ -30,7 +29,7 @@ public final class VolumeDialog {
         void onDialogDismissed();
     }
 
-    private final Activity mActivity;
+    private final Context mContext;
     private final Listener mListener;
     private Dialog mDialog;
     private DialogVolumeBinding mBinding;
@@ -38,8 +37,8 @@ public final class VolumeDialog {
     /** Last volume actually applied to the amplifier; values beyond it need confirmation. */
     private int mAppliedVolume = -1;
 
-    public VolumeDialog(Activity activity, Listener listener) {
-        mActivity = activity;
+    public VolumeDialog(Context context, Listener listener) {
+        mContext = context;
         mListener = listener;
     }
 
@@ -49,20 +48,21 @@ public final class VolumeDialog {
             return;
         }
 
-        mDialog = new Dialog(mActivity);
+        mDialog = new Dialog(mContext);
         mDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        mBinding = DialogVolumeBinding.inflate(mActivity.getLayoutInflater());
+        mBinding = DialogVolumeBinding.inflate(LayoutInflater.from(mContext));
         mDialog.setContentView(mBinding.getRoot());
         mDialog.setCanceledOnTouchOutside(true);
         mDialog.setOnDismissListener(dialog -> {
+            dismissOverLimitDialog();
             mBinding = null;
             mDialog = null;
             mListener.onDialogDismissed();
         });
         bindListeners();
         updateVolume(volumePercent, muted);
-        mDialog.show();
         configureWindow();
+        mDialog.show();
     }
 
     public void updateVolume(int volumePercent, boolean muted) {
@@ -80,11 +80,12 @@ public final class VolumeDialog {
         mBinding.volumeDownButton.setEnabled(displayedVolume > 0);
         mBinding.volumeUpButton.setEnabled(displayedVolume < 100);
         mBinding.volumeMuteButton.setSelected(muted);
-        mBinding.volumeMuteButton.setContentDescription(mActivity.getString(
+        mBinding.volumeMuteButton.setContentDescription(mContext.getString(
                 muted ? R.string.main_volume_unmute : R.string.main_volume_mute));
     }
 
     public void dismiss() {
+        dismissOverLimitDialog();
         if (mDialog != null) {
             mDialog.dismiss();
         }
@@ -151,7 +152,7 @@ public final class VolumeDialog {
         if (mOverLimitDialog != null && mOverLimitDialog.isShowing()) {
             return;
         }
-        mOverLimitDialog = new AlertDialog.Builder(mActivity)
+        mOverLimitDialog = new AlertDialog.Builder(mContext)
                 .setTitle(R.string.main_volume_over_limit_title)
                 .setMessage(R.string.main_volume_over_limit_message)
                 .setPositiveButton(R.string.main_volume_over_limit_ok, (dialog, which) -> {
@@ -164,7 +165,16 @@ public final class VolumeDialog {
                 .setNegativeButton(R.string.main_volume_over_limit_cancel, null)
                 .create();
         mOverLimitDialog.setOnDismissListener(dialog -> mOverLimitDialog = null);
+        mOverLimitDialog.getWindow().setType(
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY);
+        mOverLimitDialog.setCanceledOnTouchOutside(true);
         mOverLimitDialog.show();
+    }
+
+    private void dismissOverLimitDialog() {
+        if (mOverLimitDialog != null) {
+            mOverLimitDialog.dismiss();
+        }
     }
 
     private void configureWindow() {
@@ -172,12 +182,17 @@ public final class VolumeDialog {
         if (window == null) {
             return;
         }
+        window.setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY);
         window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         WindowManager.LayoutParams attributes = window.getAttributes();
         attributes.dimAmount = 0.68f;
         window.setAttributes(attributes);
         window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-        UiUtils.applyImmersiveVisibility(window.getDecorView());
-        window.setLayout(UiUtils.dp(mActivity, 500), UiUtils.dp(mActivity, 120));
+        int availableWidth = mContext.getResources().getDisplayMetrics().widthPixels - dp(32);
+        window.setLayout(Math.min(dp(500), availableWidth), dp(120));
+    }
+
+    private int dp(int value) {
+        return Math.round(value * mContext.getResources().getDisplayMetrics().density);
     }
 }
