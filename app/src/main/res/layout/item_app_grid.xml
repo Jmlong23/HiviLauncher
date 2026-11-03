@@ -3,29 +3,82 @@
     android:id="@+id/app_grid_item"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:paddingLeft="8dp"
-    android:paddingTop="10dp"
-    android:paddingRight="8dp"
-    android:paddingBottom="8dp">
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_horizontal"
+    android:orientation="vertical">
 
-    <ImageView
-        android:id="@+id/app_icon"
-        android:layout_width="54dp"
-        android:layout_height="54dp"
-        android:scaleType="fitCenter" />
+    <FrameLayout
+        android:id="@+id/app_icon_frame"
+        android:layout_width="136dp"
+        android:layout_height="136dp"
+        android:background="@drawable/system_apps_tile_background"
+        android:duplicateParentState="true">
+
+        <FrameLayout
+            android:id="@+id/app_icon_content"
+            android:layout_width="84dp"
+            android:layout_height="84dp"
+            android:layout_gravity="center">
+
+            <ImageView
+                android:id="@+id/app_icon"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitCenter" />
+
+            <ImageView
+                android:id="@+id/app_download_icon"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_download"
+                android:visibility="gone" />
+
+            <com.hivi.launcher.systemapps.ui.AppDownloadProgressView
+                android:id="@+id/app_download_progress"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:visibility="gone" />
+        </FrameLayout>
+    </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/app_label_row"
+        android:layout_width="match_parent"
+        android:layout_height="42dp"
+        android:layout_marginTop="18dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingLeft="4dp"
+        android:paddingRight="4dp">
+
+        <TextView
+            android:id="@+id/app_label"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/text_color"
+            android:textSize="30sp" />
+
+    </LinearLayout>
 
     <TextView
-        android:id="@+id/app_label"
+        android:id="@+id/app_status"
         android:layout_width="match_parent"
-        android:layout_height="34dp"
-        android:layout_marginTop="10dp"
-        android:ellipsize="end"
+        android:layout_height="30dp"
         android:gravity="center"
+        android:ellipsize="end"
         android:includeFontPadding="false"
         android:singleLine="true"
-        android:textColor="#FFFFFFFF"
-        android:textSize="16sp"
-        android:textStyle="bold" />
+        android:textColor="#A8A8A8"
+        android:textSize="20sp"
+        android:visibility="gone" />
 </LinearLayout>

@@ -933,16 +933,27 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
-        int displayedVolume = mAmplifierMuted ? 0
-                : Math.max(0, Math.min(100, mAmplifierVolumePercent));
+        int displayedVolume = getDisplayedVolumePercent();
         binding.volumeIcon.setImageResource(displayedVolume == 0
                 ? R.drawable.ic_volume_mute : R.drawable.ic_volume);
         binding.volumeText.setText(String.valueOf(displayedVolume));
         binding.volumeStatusPill.setContentDescription(
                 getString(R.string.main_bottom_navigation_volume_format, displayedVolume));
+        Fragment fragment = getCurrentPageFragment();
+        if (fragment instanceof SystemAppsFragment) {
+            ((SystemAppsFragment) fragment).renderVolume(displayedVolume);
+        }
         if (mVolumeDialog != null) {
             mVolumeDialog.updateVolume(mAmplifierVolumePercent, mAmplifierMuted);
         }
+    }
+
+    public int getDisplayedVolumePercent() {
+        return mAmplifierMuted ? 0 : Math.max(0, Math.min(100, mAmplifierVolumePercent));
+    }
+
+    public void showVolumeControl() {
+        presenter.onVolumeClicked();
     }
 
     @Override
@@ -1026,6 +1037,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         mHomeNavigationPending = false;
         updateLauncherBackground(page == MainPage.AI);
+        setSystemAppsPageVisible(page == MainPage.SYSTEM_APPS);
         View fragmentContainer = binding.fragmentContainer;
         boolean homePageVisible = fragmentContainer.getVisibility() != View.VISIBLE;
         int transitionGeneration = ++mPageTransitionGeneration;
@@ -1586,12 +1598,14 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         mHomeNavigationPending = false;
         binding.fragmentContainer.setVisibility(View.VISIBLE);
+        setSystemAppsPageVisible(fragment instanceof SystemAppsFragment);
         boolean aiConversationVisible = fragment instanceof AiFragment;
         updateLauncherBackground(aiConversationVisible);
         hideAiChatEntry();
     }
 
     private void applyHomePageUi(boolean resetPageBody) {
+        setSystemAppsPageVisible(false);
         updateModeTextFromSelectedInputMode();
         updateLauncherBackground(false);
         binding.fragmentContainer.setVisibility(View.GONE);
@@ -1602,6 +1616,17 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             binding.pageBody.setAlpha(1f);
         }
         showAiChatEntry();
+    }
+
+    private void setSystemAppsPageVisible(boolean visible) {
+        binding.topBar.setVisibility(visible ? View.GONE : View.VISIBLE);
+        binding.bottomNavigation.setVisibility(visible ? View.GONE : View.VISIBLE);
+        binding.launcherContent.setPadding(visible ? 0 : dp(33), visible ? 0 : dp(16),
+                visible ? 0 : dp(33), visible ? 0 : dp(10));
+        FrameLayout.LayoutParams params =
+                (FrameLayout.LayoutParams) binding.fragmentContainer.getLayoutParams();
+        params.topMargin = visible ? 0 : dp(48);
+        binding.fragmentContainer.setLayoutParams(params);
     }
 
     private void hideAiChatEntry() {
