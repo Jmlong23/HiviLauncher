@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="system_apps_header_design_height">52dp</dimen>
+    <dimen name="system_apps_header_pressed_corner_radius">31dp</dimen>
+    <dimen name="system_apps_header_pressed_stroke_width">12dp</dimen>
+    <dimen name="system_apps_header_pressed_blur_radius">9dp</dimen>
+    <fraction name="system_apps_header_pressed_opacity">38%</fraction>
+</resources>

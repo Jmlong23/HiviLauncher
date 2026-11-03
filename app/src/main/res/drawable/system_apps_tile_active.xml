@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/system_apps_tile_normal" />
+    <item android:left="1dp" android:top="1dp" android:right="1dp" android:bottom="1dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="4dp" />
+            <gradient
+                android:type="radial"
+                android:centerX="0.5"
+                android:centerY="1.0"
+                android:gradientRadius="64dp"
+                android:startColor="#B34E83D8"
+                android:endColor="#004E83D8" />
+        </shape>
+    </item>
+</layer-list>

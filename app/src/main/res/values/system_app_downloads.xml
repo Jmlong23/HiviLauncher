@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="system_app_qq_download_url" translatable="false" />
+    <string name="system_app_netease_download_url" translatable="false" />
+    <string name="system_app_kugou_download_url" translatable="false" />
+    <string name="system_app_soda_download_url" translatable="false" />
+    <string name="system_app_karaoke_download_url" translatable="false" />
+    <string name="system_app_kuwo_download_url" translatable="false" />
+    <string name="system_app_ximalaya_download_url" translatable="false" />
+    <string name="system_app_qingting_download_url" translatable="false" />
+    <string name="system_app_lanren_download_url" translatable="false" />
+</resources>

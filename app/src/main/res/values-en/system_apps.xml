@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="system_app_qq">QQ Music</string>
+    <string name="system_app_netease">NetEase Music</string>
+    <string name="system_app_kugou">Kugou Music</string>
+    <string name="system_app_soda">Soda Music</string>
+    <string name="system_app_karaoke">WeSing</string>
+    <string name="system_app_kuwo">Kuwo Music</string>
+    <string name="system_app_ximalaya">Ximalaya</string>
+    <string name="system_app_qingting">Qingting FM</string>
+    <string name="system_app_lanren">Lanren Audio</string>
+    <string name="system_app_not_installed">Not downloaded</string>
+    <string name="system_app_waiting">Waiting…</string>
+    <string name="system_app_downloading">Downloading…</string>
+    <string name="system_app_download_progress">Downloading %1$d%%</string>
+    <string name="system_app_paused">Paused</string>
+    <string name="system_app_installing">Installing…</string>
+    <string name="system_app_failed">Download failed. Tap to retry</string>
+    <string name="system_app_install_failed">Installation failed. Tap to retry</string>
+    <string name="system_app_download_unavailable">No download URL configured for %1$s</string>
+    <string name="system_app_action_download">Download</string>
+    <string name="system_app_action_pause">Pause download</string>
+    <string name="system_app_action_resume">Resume download</string>
+    <string name="system_app_action_retry">Retry</string>
+    <string name="system_app_action_open">Open</string>
+    <string name="system_app_accessibility">%1$s, %2$s, %3$s</string>
+</resources>

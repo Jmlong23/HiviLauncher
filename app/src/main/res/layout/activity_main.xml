@@ -315,6 +315,14 @@
     </FrameLayout>
 
     <FrameLayout
+        android:id="@+id/system_apps_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#363636"
+        android:clickable="true"
+        android:visibility="gone" />
+
+    <FrameLayout
         android:id="@+id/settings_language_loading_overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

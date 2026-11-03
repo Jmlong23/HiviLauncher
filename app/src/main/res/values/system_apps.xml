@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="system_app_qq">QQ音乐</string>
+    <string name="system_app_netease">网易云音乐</string>
+    <string name="system_app_kugou">酷狗音乐</string>
+    <string name="system_app_soda">汽水音乐</string>
+    <string name="system_app_karaoke">全民K歌</string>
+    <string name="system_app_kuwo">酷我音乐</string>
+    <string name="system_app_ximalaya">喜马拉雅</string>
+    <string name="system_app_qingting">蜻蜓FM</string>
+    <string name="system_app_lanren">懒人听书</string>
+    <string name="system_app_not_installed">未下载</string>
+    <string name="system_app_waiting">等待中…</string>
+    <string name="system_app_downloading">下载中…</string>
+    <string name="system_app_download_progress">下载中 %1$d%%</string>
+    <string name="system_app_paused">已暂停</string>
+    <string name="system_app_installing">安装中…</string>
+    <string name="system_app_failed">下载失败，点按重试</string>
+    <string name="system_app_install_failed">安装失败，点按重试</string>
+    <string name="system_app_download_unavailable">暂未配置%1$s的下载地址</string>
+    <string name="system_app_action_download">下载</string>
+    <string name="system_app_action_pause">暂停下载</string>
+    <string name="system_app_action_resume">继续下载</string>
+    <string name="system_app_action_retry">重试</string>
+    <string name="system_app_action_open">打开</string>
+    <string name="system_app_accessibility">%1$s，%2$s，%3$s</string>
+</resources>

@@ -8,5 +8,7 @@ import java.util.List;
 public interface SystemAppsView extends BaseView {
     void showApps(List<AppEntry> apps);
 
+    void updateApp(AppEntry app);
+
     void closePage();
 }

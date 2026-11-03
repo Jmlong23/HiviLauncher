@@ -4,43 +4,87 @@ import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
-import android.text.TextUtils;
+import android.graphics.drawable.Drawable;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.base.BasePresenter;
 import com.hivi.launcher.systemapps.model.AppEntry;
+import com.hivi.launcher.systemapps.model.AppDownloadManager;
+import com.hivi.launcher.systemapps.model.AppDownloadState;
+import com.hivi.launcher.systemapps.model.AppDownloadTask;
+import com.hivi.launcher.systemapps.model.SupportedApp;
 import com.hivi.launcher.systemapps.ui.SystemAppsView;
 import com.hivi.launcher.wifi.model.BootAutoPlaySuppressor;
 
-import java.text.Collator;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 
 public class SystemAppsPresenter extends BasePresenter<SystemAppsView> {
     private final Context mContext;
+    private final AppDownloadManager mDownloadManager;
+    private final AppDownloadManager.Listener mDownloadListener = new AppDownloadManager.Listener() {
+        @Override
+        public void onAppDownloadChanged(SupportedApp app) {
+            updateApp(app);
+        }
+
+        @Override
+        public void onAppInstalled(SupportedApp app) {
+            if (getView() != null) {
+                loadApps();
+                launchApp(createEntry(app));
+            }
+        }
+    };
 
     public SystemAppsPresenter(Context context, SystemAppsView view) {
         super(view);
         mContext = context.getApplicationContext();
+        mDownloadManager = AppDownloadManager.getInstance(mContext);
+        mDownloadManager.addListener(mDownloadListener);
     }
 
     public void loadApps() {
-        List<AppEntry> apps = loadLaunchableApps();
         SystemAppsView view = getView();
         if (view == null) {
             return;
         }
-        if (apps.isEmpty()) {
-            view.showToast(mContext.getString(R.string.system_apps_empty));
+        List<AppEntry> apps = new ArrayList<>();
+        for (SupportedApp app : SupportedApp.values()) {
+            apps.add(createEntry(app));
         }
         view.showApps(apps);
     }
 
+    @Override
+    public void detach() {
+        mDownloadManager.removeListener(mDownloadListener);
+        super.detach();
+    }
+
+    public void onAppClicked(AppEntry app) {
+        BootAutoPlaySuppressor.getInstance().markUserInteraction();
+        app = createEntry(app.getSupportedApp());
+        AppDownloadState state = mDownloadManager.getTask(app.getSupportedApp()).getState();
+        if (state == AppDownloadState.INSTALLED) {
+            launchApp(createEntry(app.getSupportedApp()));
+        } else if (state == AppDownloadState.DOWNLOADING || state == AppDownloadState.WAITING) {
+            mDownloadManager.pause(app.getSupportedApp());
+        } else if (state != AppDownloadState.INSTALLING
+                && !mDownloadManager.enqueue(app.getSupportedApp())) {
+            SystemAppsView view = getView();
+            if (view != null) {
+                view.showToast(mContext.getString(R.string.system_app_download_unavailable,
+                        app.getLabel()));
+            }
+        }
+    }
+
     public void launchApp(AppEntry app) {
+        if (app.getPackageName().isEmpty() || app.getActivityName().isEmpty()) {
+            loadApps();
+            return;
+        }
         BootAutoPlaySuppressor.getInstance().markUserInteraction();
         Intent intent = new Intent(Intent.ACTION_MAIN);
         intent.addCategory(Intent.CATEGORY_LAUNCHER);
@@ -52,41 +96,42 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView> {
             if (view != null) {
                 view.closePage();
             }
-        } catch (ActivityNotFoundException e) {
+        } catch (ActivityNotFoundException | SecurityException e) {
             SystemAppsView view = getView();
             if (view != null) {
                 view.showToast(mContext.getString(R.string.system_apps_launch_failed, app.getLabel()));
             }
+            loadApps();
         }
     }
 
-    private List<AppEntry> loadLaunchableApps() {
+    private AppEntry createEntry(SupportedApp app) {
         PackageManager pm = mContext.getPackageManager();
-        Intent intent = new Intent(Intent.ACTION_MAIN);
-        intent.addCategory(Intent.CATEGORY_LAUNCHER);
-        List<ResolveInfo> activities = pm.queryIntentActivities(intent, 0);
-        final Collator collator = Collator.getInstance(Locale.getDefault());
-        List<AppEntry> apps = new ArrayList<>();
-
-        for (ResolveInfo info : activities) {
-            if (info.activityInfo == null || TextUtils.isEmpty(info.activityInfo.packageName)
-                    || TextUtils.isEmpty(info.activityInfo.name)) {
-                continue;
+        Intent launchIntent = null;
+        for (String packageName : app.getPackageNames()) {
+            launchIntent = pm.getLaunchIntentForPackage(packageName);
+            if (launchIntent != null && launchIntent.getComponent() != null) {
+                break;
             }
-            String label = String.valueOf(info.loadLabel(pm));
-            if (TextUtils.isEmpty(label)) {
-                label = info.activityInfo.packageName;
-            }
-            apps.add(new AppEntry(label, info.activityInfo.packageName, info.activityInfo.name,
-                    info.loadIcon(pm)));
         }
+        boolean installed = launchIntent != null && launchIntent.getComponent() != null;
+        AppDownloadTask task = mDownloadManager.getTask(app);
+        task.reconcileInstalled(installed);
+        Drawable icon = mContext.getDrawable(app.getIconResId());
+        String packageName = "";
+        String activityName = "";
+        if (installed) {
+            packageName = launchIntent.getComponent().getPackageName();
+            activityName = launchIntent.getComponent().getClassName();
+        }
+        return new AppEntry(app, mContext.getString(app.getLabelResId()), packageName,
+                activityName, icon, task.getState(), task.getProgress());
+    }
 
-        Collections.sort(apps, new Comparator<AppEntry>() {
-            @Override
-            public int compare(AppEntry left, AppEntry right) {
-                return collator.compare(left.getLabel(), right.getLabel());
-            }
-        });
-        return apps;
+    private void updateApp(SupportedApp app) {
+        SystemAppsView view = getView();
+        if (view != null) {
+            view.updateApp(createEntry(app));
+        }
     }
 }
