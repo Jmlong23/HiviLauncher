@@ -21,7 +21,8 @@
             <LinearLayout
                 android:id="@+id/settings_tab_network"
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/settings_row_min_height"
                 android:background="@drawable/settings_menu_item_background"
                 android:clickable="true"
                 android:elevation="8dp"
@@ -32,29 +33,35 @@
                 android:paddingRight="21dp">
 
                 <TextView
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:includeFontPadding="false"
+                    android:maxLines="1"
                     android:text="@string/settings_network"
                     android:textColor="@color/white"
-                    android:textSize="13sp"
+                    android:textSize="@dimen/settings_text_body"
                     android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/settings_network_summary"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:gravity="end"
                     android:includeFontPadding="false"
+                    android:maxLines="1"
                     android:text="@string/settings_network_summary"
                     android:textColor="@color/text_color2"
-                    android:textSize="13sp" />
+                    android:textSize="@dimen/settings_text_secondary" />
             </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/settings_tab_display"
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/settings_row_min_height"
                 android:layout_marginTop="15dp"
                 android:background="@drawable/settings_menu_item_background"
                 android:clickable="true"
@@ -66,29 +73,35 @@
                 android:paddingRight="21dp">
 
                 <TextView
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:includeFontPadding="false"
+                    android:maxLines="1"
                     android:text="@string/settings_display"
                     android:textColor="@color/white"
-                    android:textSize="13sp"
+                    android:textSize="@dimen/settings_text_body"
                     android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/settings_display_summary"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:gravity="end"
                     android:includeFontPadding="false"
+                    android:maxLines="1"
                     android:text="@string/settings_display_summary"
                     android:textColor="@color/text_color2"
-                    android:textSize="13sp" />
+                    android:textSize="@dimen/settings_text_secondary" />
             </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/settings_tab_system"
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/settings_row_min_height"
                 android:layout_marginTop="15dp"
                 android:background="@drawable/settings_menu_item_background"
                 android:clickable="true"
@@ -100,29 +113,35 @@
                 android:paddingRight="21dp">
 
                 <TextView
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:includeFontPadding="false"
+                    android:maxLines="1"
                     android:text="@string/settings_system"
                     android:textColor="@color/white"
-                    android:textSize="13sp"
+                    android:textSize="@dimen/settings_text_body"
                     android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/settings_system_summary_value"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:gravity="end"
                     android:includeFontPadding="false"
+                    android:maxLines="1"
                     android:text="@string/settings_system_summary"
                     android:textColor="@color/text_color2"
-                    android:textSize="13sp" />
+                    android:textSize="@dimen/settings_text_secondary" />
             </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/settings_tab_about"
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/settings_row_min_height"
                 android:layout_marginTop="15dp"
                 android:background="@drawable/settings_menu_item_background"
                 android:clickable="true"
@@ -134,28 +153,34 @@
                 android:paddingRight="21dp">
 
                 <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:includeFontPadding="false"
-                    android:text="@string/settings_about"
-                    android:textColor="@color/white"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-
-                <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="@string/settings_about"
+                    android:textColor="@color/white"
+                    android:textSize="@dimen/settings_text_body"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:gravity="end"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
                     android:text="@string/settings_about_summary"
                     android:textColor="@color/text_color2"
-                    android:textSize="13sp" />
+                    android:textSize="@dimen/settings_text_secondary" />
             </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/settings_tab_maintenance"
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/settings_row_min_height"
                 android:layout_marginTop="15dp"
                 android:background="@drawable/settings_menu_item_background"
                 android:clickable="true"
@@ -167,22 +192,27 @@
                 android:paddingRight="21dp">
 
                 <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:includeFontPadding="false"
-                    android:text="@string/settings_maintenance"
-                    android:textColor="@color/white"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-
-                <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="@string/settings_maintenance"
+                    android:textColor="@color/white"
+                    android:textSize="@dimen/settings_text_body"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:gravity="end"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
                     android:text="@string/settings_maintenance_summary"
                     android:textColor="@color/text_color2"
-                    android:textSize="13sp" />
+                    android:textSize="@dimen/settings_text_secondary" />
             </LinearLayout>
         </LinearLayout>
 
@@ -205,7 +235,8 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="26dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="32dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
@@ -216,7 +247,7 @@
                         android:includeFontPadding="false"
                         android:text="@string/settings_wifi_network"
                         android:textColor="@color/text_color"
-                        android:textSize="15sp"
+                        android:textSize="@dimen/settings_text_title"
                         android:textStyle="bold" />
 
                     <FrameLayout
@@ -275,7 +306,7 @@
                             android:includeFontPadding="false"
                             android:text="@string/settings_no_network_message"
                             android:textColor="@color/text_color"
-                            android:textSize="15sp"
+                            android:textSize="@dimen/settings_text_title"
                             android:textStyle="bold" />
                     </LinearLayout>
 
@@ -314,12 +345,13 @@
                     android:layout_height="wrap_content"
                     android:text="@string/settings_system"
                     android:textColor="@color/text_color"
-                    android:textSize="15sp"
+                    android:textSize="@dimen/settings_text_title"
                     android:textStyle="bold" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="42dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/settings_row_min_height"
                     android:layout_marginTop="17dp"
                     android:background="@drawable/item_medium_long_bg"
                     android:gravity="center_vertical"
@@ -333,7 +365,7 @@
                         android:layout_weight="1"
                         android:text="@string/settings_system_update"
                         android:textColor="@color/text_color"
-                        android:textSize="13sp" />
+                        android:textSize="@dimen/settings_text_body" />
 
                     <TextView
                         android:id="@+id/settings_system_version_value"
@@ -341,12 +373,14 @@
                         android:layout_height="wrap_content"
                         android:text="@string/settings_system_version"
                         android:textColor="@color/text_color2"
-                        android:textSize="13sp" />
+                        android:textSize="@dimen/settings_text_secondary" />
 
                     <TextView
                         android:id="@+id/settings_system_update_action"
-                        android:layout_width="45dp"
-                        android:layout_height="23dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="64dp"
+                        android:minHeight="36dp"
                         android:layout_marginLeft="8dp"
                         android:background="@drawable/system_update_action_button"
                         android:clickable="true"
@@ -355,7 +389,7 @@
                         android:includeFontPadding="false"
                         android:text="@string/settings_system_update_action"
                         android:textColor="@color/text_color"
-                        android:textSize="12sp"
+                        android:textSize="@dimen/settings_text_secondary"
                         android:visibility="gone"
                         android:paddingLeft="3dp"
                         android:paddingRight="3dp" />
@@ -364,7 +398,8 @@
                 <LinearLayout
                     android:id="@+id/settings_log_upload"
                     android:layout_width="match_parent"
-                    android:layout_height="42dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/settings_row_min_height"
                     android:layout_marginTop="8dp"
                     android:background="@drawable/item_medium_long_bg"
                     android:clickable="true"
@@ -380,7 +415,7 @@
                         android:layout_weight="1"
                         android:text="@string/settings_log_upload"
                         android:textColor="@color/text_color"
-                        android:textSize="13sp" />
+                        android:textSize="@dimen/settings_text_body" />
 
                     <ImageView
                         android:layout_width="20dp"
@@ -409,13 +444,14 @@
                     android:includeFontPadding="false"
                     android:text="@string/settings_about"
                     android:textColor="@color/text_color"
-                    android:textSize="15sp"
+                    android:textSize="@dimen/settings_text_title"
                     android:textStyle="bold" />
 
                 <LinearLayout
                     android:id="@+id/settings_product_information"
                     android:layout_width="match_parent"
-                    android:layout_height="42dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/settings_row_min_height"
                     android:layout_marginTop="17dp"
                     android:background="@drawable/item_medium_long_bg"
                     android:clickable="true"
@@ -431,7 +467,7 @@
                         android:layout_weight="1"
                         android:text="@string/settings_product_information"
                         android:textColor="@color/text_color"
-                        android:textSize="13sp" />
+                        android:textSize="@dimen/settings_text_body" />
 
                     <ImageView
                         android:layout_width="23dp"
@@ -442,7 +478,8 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="42dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/settings_row_min_height"
                     android:layout_marginTop="8dp"
                     android:background="@drawable/item_medium_long_bg"
                     android:gravity="center_vertical"
@@ -456,7 +493,7 @@
                         android:layout_weight="1"
                         android:text="@string/settings_help"
                         android:textColor="@color/text_color"
-                        android:textSize="13sp" />
+                        android:textSize="@dimen/settings_text_body" />
 
                     <ImageView
                         android:layout_width="23dp"
@@ -466,7 +503,8 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="42dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/settings_row_min_height"
                     android:layout_marginTop="8dp"
                     android:background="@drawable/item_medium_long_bg"
                     android:gravity="center_vertical"
@@ -480,7 +518,7 @@
                         android:layout_weight="1"
                         android:text="@string/settings_privacy"
                         android:textColor="@color/text_color"
-                        android:textSize="13sp" />
+                        android:textSize="@dimen/settings_text_body" />
 
                     <ImageView
                         android:layout_width="23dp"
@@ -507,13 +545,14 @@
                     android:gravity="center_vertical"
                     android:text="@string/settings_maintenance"
                     android:textColor="@color/text_color"
-                    android:textSize="15sp"
+                    android:textSize="@dimen/settings_text_title"
                     android:textStyle="bold" />
 
                 <LinearLayout
                     android:id="@+id/settings_restore_factory"
                     android:layout_width="match_parent"
-                    android:layout_height="42dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/settings_row_min_height"
                     android:layout_marginTop="8dp"
                     android:background="@drawable/item_medium_long_bg"
                     android:clickable="true"
@@ -529,7 +568,7 @@
                         android:layout_weight="1"
                         android:text="@string/settings_restore_factory"
                         android:textColor="@color/text_color"
-                        android:textSize="13sp" />
+                        android:textSize="@dimen/settings_text_body" />
 
                     <ImageView
                         android:layout_width="23dp"

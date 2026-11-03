@@ -56,7 +56,7 @@
                 <ImageView
                     style="@style/MainMusicIcon"
                     android:contentDescription="@null"
-                    android:src="@drawable/ic_qq" />
+                    android:src="@drawable/ic_app_qq_music" />
             </FrameLayout>
 
             <TextView
@@ -76,7 +76,7 @@
                 <ImageView
                     style="@style/MainMusicIcon"
                     android:contentDescription="@null"
-                    android:src="@drawable/ic_wyy" />
+                    android:src="@drawable/ic_app_netease_music" />
             </FrameLayout>
 
             <TextView
@@ -96,7 +96,7 @@
                 <ImageView
                     style="@style/MainMusicIcon"
                     android:contentDescription="@null"
-                    android:src="@drawable/ic_kugou" />
+                    android:src="@drawable/ic_app_kugou_music" />
             </FrameLayout>
 
             <TextView
@@ -116,7 +116,7 @@
                 <ImageView
                     style="@style/MainMusicIcon"
                     android:contentDescription="@null"
-                    android:src="@drawable/ic_kge" />
+                    android:src="@drawable/ic_app_we_sing" />
             </FrameLayout>
 
             <TextView

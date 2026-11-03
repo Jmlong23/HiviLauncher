@@ -69,9 +69,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     private static final int DISPLAY_POPUP_LANGUAGE = 1;
     private static final int DISPLAY_POPUP_SCREEN_SAVER_TIMEOUT = 2;
     private static final int LANGUAGE_POPUP_WIDTH_DP = 253;
-    private static final int LANGUAGE_POPUP_HEIGHT_DP = 86;
     private static final int SCREEN_SAVER_POPUP_WIDTH_DP = 253;
-    private static final int SCREEN_SAVER_POPUP_HEIGHT_DP = 209;
     private static final int SCREEN_BRIGHTNESS_MIN = 0;
     private static final int SCREEN_BRIGHTNESS_MAX = 255;
     private static final int DEFAULT_SCREEN_BRIGHTNESS = 128;
@@ -1048,7 +1046,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         popupBinding.settingsLanguageOptionEnglish.setOnClickListener(view ->
                 selectLanguage(SettingsModel.LANGUAGE_ENGLISH));
         showDisplayOptionsPopup(createDisplayOptionsPopup(popupBinding.getRoot(),
-                        LANGUAGE_POPUP_WIDTH_DP, LANGUAGE_POPUP_HEIGHT_DP),
+                        LANGUAGE_POPUP_WIDTH_DP),
                 mDisplayBinding.settingsLanguage, DISPLAY_POPUP_LANGUAGE,
                 LANGUAGE_POPUP_WIDTH_DP, 9);
     }
@@ -1086,13 +1084,14 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         popupBinding.settingsScreenSaverTimeoutNever.setOnClickListener(view ->
                 selectScreenSaverTimeout(SettingsModel.SCREEN_SAVER_TIMEOUT_NEVER));
         showDisplayOptionsPopup(createDisplayOptionsPopup(popupBinding.getRoot(),
-                        SCREEN_SAVER_POPUP_WIDTH_DP, SCREEN_SAVER_POPUP_HEIGHT_DP),
+                        SCREEN_SAVER_POPUP_WIDTH_DP),
                 mDisplayBinding.settingsTimeScreenSaver, DISPLAY_POPUP_SCREEN_SAVER_TIMEOUT,
                 SCREEN_SAVER_POPUP_WIDTH_DP, 22);
     }
 
-    private PopupWindow createDisplayOptionsPopup(View content, int widthDp, int heightDp) {
-        PopupWindow popupWindow = new PopupWindow(content, dp(widthDp), dp(heightDp), true);
+    private PopupWindow createDisplayOptionsPopup(View content, int widthDp) {
+        PopupWindow popupWindow = new PopupWindow(content, dp(widthDp),
+                WindowManager.LayoutParams.WRAP_CONTENT, true);
         popupWindow.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         popupWindow.setOutsideTouchable(true);
         popupWindow.setTouchable(true);

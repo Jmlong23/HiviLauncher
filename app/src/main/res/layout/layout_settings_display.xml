@@ -22,13 +22,14 @@
             android:layout_height="wrap_content"
             android:text="@string/settings_language"
             android:textColor="@color/text_color"
-            android:textSize="15sp"
+            android:textSize="@dimen/settings_text_title"
             android:textStyle="bold" />
 
         <LinearLayout
             android:id="@+id/settings_language"
             android:layout_width="match_parent"
-            android:layout_height="42dp"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/settings_row_min_height"
             android:layout_marginTop="12dp"
             android:background="@drawable/item_medium_long_bg"
             android:clickable="true"
@@ -46,7 +47,7 @@
                 android:includeFontPadding="false"
                 android:text="@string/settings_language_value"
                 android:textColor="@color/text_color"
-                android:textSize="13sp" />
+                android:textSize="@dimen/settings_text_body" />
 
             <ImageView
                 android:id="@+id/settings_language_arrow"
@@ -68,7 +69,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/settings_screensaver"
                 android:textColor="@color/text_color"
-                android:textSize="15sp"
+                android:textSize="@dimen/settings_text_title"
                 android:textStyle="bold" />
 
         </LinearLayout>
@@ -76,7 +77,8 @@
         <LinearLayout
             android:id="@+id/settings_time_screen_saver"
             android:layout_width="match_parent"
-            android:layout_height="42dp"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/settings_row_min_height"
             android:layout_marginTop="16dp"
             android:background="@drawable/item_medium_long_bg"
             android:clickable="true"
@@ -94,7 +96,7 @@
                 android:layout_weight="1"
                 android:text="@string/settings_screensaver_timeout_value"
                 android:textColor="@color/text_color"
-                android:textSize="13sp" />
+                android:textSize="@dimen/settings_text_body" />
 
             <ImageView
                 android:layout_width="13dp"
@@ -109,7 +111,7 @@
             android:layout_marginTop="20dp"
             android:text="@string/settings_screensaver_style"
             android:textColor="@color/text_color"
-            android:textSize="15sp"
+            android:textSize="@dimen/settings_text_title"
             android:textStyle="bold" />
 
         <LinearLayout
@@ -120,7 +122,7 @@
 
             <HorizontalScrollView
                 android:layout_width="match_parent"
-                android:layout_height="170dp"
+                android:layout_height="180dp"
                 android:scrollbars="none"
                 android:overScrollMode="never">
 
@@ -173,7 +175,7 @@
                             android:layout_marginTop="8dp"
                             android:text="@string/settings_screensaver_style_simple"
                             android:textColor="@color/text_color"
-                            android:textSize="14sp" />
+                            android:textSize="@dimen/settings_text_body" />
                     </LinearLayout>
 
                     <ImageView
@@ -217,7 +219,7 @@
                             android:layout_marginTop="8dp"
                             android:text="@string/settings_screensaver_style_flip"
                             android:textColor="@color/text_color"
-                            android:textSize="14sp" />
+                            android:textSize="@dimen/settings_text_body" />
                     </LinearLayout>
 
                     <ImageView
@@ -258,7 +260,7 @@
                             android:layout_marginTop="8dp"
                             android:text="@string/settings_screensaver_style_black"
                             android:textColor="@color/text_color"
-                            android:textSize="14sp" />
+                            android:textSize="@dimen/settings_text_body" />
                     </LinearLayout>
 
                     <ImageView
@@ -281,7 +283,7 @@
             android:includeFontPadding="false"
             android:text="@string/settings_brightness"
             android:textColor="@color/text_color"
-            android:textSize="15sp"
+            android:textSize="@dimen/settings_text_title"
             android:textStyle="bold" />
 
         <FrameLayout

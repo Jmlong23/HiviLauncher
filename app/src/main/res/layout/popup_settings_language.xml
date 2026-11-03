@@ -2,7 +2,8 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/settings_language_popup"
     android:layout_width="253dp"
-    android:layout_height="86dp"
+    android:layout_height="wrap_content"
+    android:paddingBottom="5dp"
     android:background="@drawable/bg_settings_language_expand"
     android:orientation="vertical"
     android:paddingLeft="22dp"
@@ -11,7 +12,8 @@
     <LinearLayout
         android:id="@+id/settings_language_option_chinese"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/settings_popup_row_min_height"
         android:clickable="true"
         android:focusable="true"
         android:gravity="center_vertical"
@@ -23,7 +25,7 @@
             android:layout_weight="1"
             android:text="@string/settings_language_chinese"
             android:textColor="@color/text_color"
-            android:textSize="13sp" />
+            android:textSize="@dimen/settings_text_body" />
 
         <ImageView
             android:id="@+id/settings_language_chinese_check"
@@ -41,7 +43,8 @@
     <LinearLayout
         android:id="@+id/settings_language_option_english"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/settings_popup_row_min_height"
         android:clickable="true"
         android:focusable="true"
         android:gravity="center_vertical"
@@ -53,7 +56,7 @@
             android:layout_weight="1"
             android:text="@string/settings_language_english"
             android:textColor="@color/text_color"
-            android:textSize="13sp" />
+            android:textSize="@dimen/settings_text_body" />
 
         <ImageView
             android:id="@+id/settings_language_english_check"

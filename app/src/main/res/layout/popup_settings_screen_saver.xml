@@ -2,7 +2,8 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/settings_screen_saver_popup"
     android:layout_width="253dp"
-    android:layout_height="209dp"
+    android:layout_height="wrap_content"
+    android:paddingBottom="5dp"
     android:background="@drawable/bg_screen_saver_expand"
     android:orientation="vertical"
     android:paddingLeft="21dp"
@@ -11,7 +12,8 @@
     <LinearLayout
         android:id="@+id/settings_screen_saver_timeout_one_minute"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/settings_popup_row_min_height"
         android:clickable="true"
         android:focusable="true"
         android:gravity="center_vertical"
@@ -24,7 +26,7 @@
             android:includeFontPadding="false"
             android:text="@string/settings_screensaver_timeout_value"
             android:textColor="@color/text_color"
-            android:textSize="13sp" />
+            android:textSize="@dimen/settings_text_body" />
 
         <ImageView
             android:id="@+id/settings_screen_saver_timeout_one_minute_check"
@@ -42,7 +44,8 @@
     <LinearLayout
         android:id="@+id/settings_screen_saver_timeout_five_minutes"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/settings_popup_row_min_height"
         android:clickable="true"
         android:focusable="true"
         android:gravity="center_vertical"
@@ -54,7 +57,7 @@
             android:layout_weight="1"
             android:text="@string/settings_screensaver_timeout_five_minutes"
             android:textColor="@color/text_color"
-            android:textSize="13sp" />
+            android:textSize="@dimen/settings_text_body" />
 
         <ImageView
             android:id="@+id/settings_screen_saver_timeout_five_minutes_check"
@@ -73,7 +76,8 @@
     <LinearLayout
         android:id="@+id/settings_screen_saver_timeout_ten_minutes"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/settings_popup_row_min_height"
         android:clickable="true"
         android:focusable="true"
         android:gravity="center_vertical"
@@ -85,7 +89,7 @@
             android:layout_weight="1"
             android:text="@string/settings_screensaver_timeout_ten_minutes"
             android:textColor="@color/text_color"
-            android:textSize="13sp" />
+            android:textSize="@dimen/settings_text_body" />
 
         <ImageView
             android:id="@+id/settings_screen_saver_timeout_ten_minutes_check"
@@ -104,7 +108,8 @@
     <LinearLayout
         android:id="@+id/settings_screen_saver_timeout_thirty_minutes"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/settings_popup_row_min_height"
         android:clickable="true"
         android:focusable="true"
         android:gravity="center_vertical"
@@ -116,7 +121,7 @@
             android:layout_weight="1"
             android:text="@string/settings_screensaver_timeout_thirty_minutes"
             android:textColor="@color/text_color"
-            android:textSize="13sp" />
+            android:textSize="@dimen/settings_text_body" />
 
         <ImageView
             android:id="@+id/settings_screen_saver_timeout_thirty_minutes_check"
@@ -135,7 +140,8 @@
     <LinearLayout
         android:id="@+id/settings_screen_saver_timeout_never"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/settings_popup_row_min_height"
         android:clickable="true"
         android:focusable="true"
         android:gravity="center_vertical"
@@ -147,7 +153,7 @@
             android:layout_weight="1"
             android:text="@string/settings_screensaver_timeout_never"
             android:textColor="@color/text_color"
-            android:textSize="13sp" />
+            android:textSize="@dimen/settings_text_body" />
 
         <ImageView
             android:id="@+id/settings_screen_saver_timeout_never_check"

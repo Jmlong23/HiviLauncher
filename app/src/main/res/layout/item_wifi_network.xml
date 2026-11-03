@@ -2,7 +2,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/wifi_network_item"
     android:layout_width="match_parent"
-    android:layout_height="42dp"
+    android:layout_height="@dimen/settings_row_min_height"
     android:layout_marginBottom="8dp"
     android:background="@drawable/item_medium_long_bg"
     android:clickable="true"
@@ -48,7 +48,7 @@
             android:includeFontPadding="false"
             android:maxLines="1"
             android:textColor="@color/text_color"
-            android:textSize="13sp" />
+            android:textSize="@dimen/settings_text_body" />
 
         <ImageView
             android:id="@+id/wifi_network_signal"
