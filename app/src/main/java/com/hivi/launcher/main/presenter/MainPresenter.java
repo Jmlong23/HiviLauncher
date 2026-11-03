@@ -154,8 +154,8 @@ public class MainPresenter extends BasePresenter<MainView> {
         updateAudioStatus();
     }
 
-    public void onBottomNavigationVolumeClicked() {
-        AppLog.d(TAG, "Bottom navigation volume clicked");
+    public void onVolumeClicked() {
+        AppLog.d(TAG, "Volume clicked");
         MainView view = getView();
         if (view != null) {
             view.showVolumeDialog(mStatusRepository.getVolumePercent(),

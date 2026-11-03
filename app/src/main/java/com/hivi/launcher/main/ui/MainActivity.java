@@ -902,6 +902,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         mAmplifierVolumePercent = volumePercent;
         mAmplifierMuted = muted;
+        renderAmplifierVolume();
         if (mVolumeDialog == null) {
             mVolumeDialog = new VolumeDialog(this, new VolumeDialog.Listener() {
                 @Override
@@ -932,6 +933,13 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
+        int displayedVolume = mAmplifierMuted ? 0
+                : Math.max(0, Math.min(100, mAmplifierVolumePercent));
+        binding.volumeIcon.setImageResource(displayedVolume == 0
+                ? R.drawable.ic_volume_mute : R.drawable.ic_volume);
+        binding.volumeText.setText(String.valueOf(displayedVolume));
+        binding.volumeStatusPill.setContentDescription(
+                getString(R.string.main_bottom_navigation_volume_format, displayedVolume));
         if (mVolumeDialog != null) {
             mVolumeDialog.updateVolume(mAmplifierVolumePercent, mAmplifierMuted);
         }
@@ -1232,6 +1240,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.wifiStatusPill.setOnClickListener(view -> {
             com.hivi.launcher.utils.FeedbackSound.playClick();
             presenter.onBottomNavigationSettingsClicked();
+        });
+        binding.volumeStatusPill.setOnClickListener(view -> {
+            com.hivi.launcher.utils.FeedbackSound.playClick();
+            presenter.onVolumeClicked();
         });
         binding.modeText.setOnClickListener(view -> {
             com.hivi.launcher.utils.FeedbackSound.playClick();
