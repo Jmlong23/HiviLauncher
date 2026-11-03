@@ -1095,13 +1095,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         popupWindow.setTouchable(true);
         popupWindow.setElevation(dp(8));
         popupWindow.setTouchInterceptor((view, event) -> false);
-        content.setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                        | View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        UiUtils.applyImmersiveVisibility(content);
         return popupWindow;
     }
 
@@ -1429,13 +1423,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         if (dialogWindow == null) {
             return;
         }
-        dialogWindow.getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                        | View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        UiUtils.applyImmersiveVisibility(dialogWindow.getDecorView());
         dialogWindow.setLayout(WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT);
     }

@@ -925,7 +925,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 }
             });
         }
-        resetBottomNavigationBackground();
         mVolumeDialog.show(volumePercent, muted);
     }
 
@@ -933,12 +932,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
-        int displayedVolume = mAmplifierMuted ? 0 : mAmplifierVolumePercent;
-        binding.bottomNavigationVolume.setText(getString(
-                R.string.main_bottom_navigation_volume_format, displayedVolume));
-        // Volume zero doubles as the muted visual state (test issue #15).
-        binding.bottomNavigationVolume.setAlpha(displayedVolume == 0 ? 0.4f : 1f);
-        binding.bottomNavigationVolume.setSelected(displayedVolume == 0);
         if (mVolumeDialog != null) {
             mVolumeDialog.updateVolume(mAmplifierVolumePercent, mAmplifierMuted);
         }
@@ -1024,7 +1017,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             return;
         }
         mHomeNavigationPending = false;
-        resetBottomNavigationBackground();
         updateLauncherBackground(page == MainPage.AI);
         View fragmentContainer = binding.fragmentContainer;
         boolean homePageVisible = fragmentContainer.getVisibility() != View.VISIBLE;
@@ -1083,7 +1075,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             return;
         }
         releaseAiConversationIfVisible();
-        resetBottomNavigationBackground();
         if (backStackEntryCount == 1) {
             navigateToHome(false);
             return;
@@ -1250,39 +1241,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             com.hivi.launcher.utils.FeedbackSound.playClick();
             presenter.onAiChatEntryClicked();
         });
-        bindBottomNavigationTouchFeedback(binding.bottomNavigationBack, BottomNavigationItem.BACK);
-        bindBottomNavigationTouchFeedback(binding.bottomNavigationHome, BottomNavigationItem.HOME);
-        bindBottomNavigationTouchFeedback(binding.bottomNavigationBackground,
-                BottomNavigationItem.BACKGROUND);
-        bindBottomNavigationTouchFeedback(binding.bottomNavigationVolume,
-                BottomNavigationItem.VOLUME);
-        bindBottomNavigationTouchFeedback(binding.bottomNavigationApps, BottomNavigationItem.APPS);
-        bindBottomNavigationTouchFeedback(binding.bottomNavigationSettings,
-                BottomNavigationItem.SETTINGS);
-        binding.bottomNavigationBack.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                presenter.onBottomNavigationBackClicked();
-            }
-        });
-        binding.bottomNavigationHome.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                presenter.onBottomNavigationHomeClicked();
-            }
-        });
-        binding.bottomNavigationBackground.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                presenter.onBottomNavigationRecentsClicked();
-            }
-        });
-        binding.bottomNavigationVolume.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                presenter.onBottomNavigationVolumeClicked();
-            }
-        });
+        bindBottomNavigationTouchFeedback(binding.bottomNavigationSettings);
+        bindBottomNavigationTouchFeedback(binding.bottomNavigationApps);
         binding.bottomNavigationApps.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -1297,22 +1257,12 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         });
     }
 
-    private void bindBottomNavigationTouchFeedback(View navigationItem,
-            final BottomNavigationItem item) {
+    private void bindBottomNavigationTouchFeedback(View navigationItem) {
         navigationItem.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                switch (event.getActionMasked()) {
-                    case MotionEvent.ACTION_DOWN:
-                        com.hivi.launcher.utils.FeedbackSound.playClick();
-                        selectBottomNavigationItem(item);
-                        break;
-                    case MotionEvent.ACTION_UP:
-                    case MotionEvent.ACTION_CANCEL:
-                        resetBottomNavigationBackground();
-                        break;
-                    default:
-                        break;
+                if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                    com.hivi.launcher.utils.FeedbackSound.playClick();
                 }
                 return false;
             }
@@ -1612,7 +1562,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
-        resetBottomNavigationBackground();
         if (isVolumeDialogShowing()) {
             return;
         }
@@ -1641,7 +1590,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             binding.pageBody.setAlpha(1f);
         }
         showAiChatEntry();
-        resetBottomNavigationBackground();
     }
 
     private void hideAiChatEntry() {
@@ -1708,50 +1656,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     private boolean isVolumeDialogShowing() {
         return mVolumeDialog != null && mVolumeDialog.isShowing();
-    }
-
-    private void resetBottomNavigationBackground() {
-        if (binding != null) {
-            binding.bottomNavigation.setBackgroundResource(R.drawable.bg_navigation);
-        }
-    }
-
-    private void selectBottomNavigationItem(BottomNavigationItem selectedItem) {
-        if (binding == null) {
-            return;
-        }
-        switch (selectedItem) {
-            case BACK:
-                binding.bottomNavigation.setBackgroundResource(R.drawable.back_selected);
-                break;
-            case HOME:
-                binding.bottomNavigation.setBackgroundResource(R.drawable.home_selected);
-                break;
-            case BACKGROUND:
-                binding.bottomNavigation.setBackgroundResource(R.drawable.background_selected);
-                break;
-            case VOLUME:
-                binding.bottomNavigation.setBackgroundResource(R.drawable.volume_selected);
-                break;
-            case APPS:
-                binding.bottomNavigation.setBackgroundResource(R.drawable.apps_selected);
-                break;
-            case SETTINGS:
-                binding.bottomNavigation.setBackgroundResource(R.drawable.settings_selected);
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported bottom navigation item: "
-                        + selectedItem);
-        }
-    }
-
-    private enum BottomNavigationItem {
-        BACK,
-        HOME,
-        BACKGROUND,
-        VOLUME,
-        APPS,
-        SETTINGS
     }
 
     private boolean isInputModePage(MainPage page) {

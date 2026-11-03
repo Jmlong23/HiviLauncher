@@ -30,6 +30,7 @@ import com.hivi.launcher.main.ui.MainActivity;
 import com.hivi.launcher.onboarding.model.FirstUseGuideStore;
 import com.hivi.launcher.onboarding.presenter.OnboardingPresenter;
 import com.hivi.launcher.utils.LocaleHelper;
+import com.hivi.launcher.utils.UiUtils;
 import com.hivi.launcher.wifi.model.WifiConnectionStatus;
 import com.hivi.launcher.wifi.model.WifiNetwork;
 import com.hivi.launcher.wifi.ui.WifiNetworkAdapter;
@@ -462,13 +463,7 @@ public final class FirstUseGuideActivity
         dialog.show();
         if (dialog.getWindow() != null) {
             Window dialogWindow = dialog.getWindow();
-            dialogWindow.getDecorView().setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                            | View.SYSTEM_UI_FLAG_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+            UiUtils.applyImmersiveVisibility(dialogWindow.getDecorView());
             dialogWindow.setLayout(dp(690), WindowManager.LayoutParams.WRAP_CONTENT);
         }
     }
