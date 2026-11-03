@@ -22,29 +22,27 @@ import androidx.annotation.Nullable;
 import com.hivi.launcher.R;
 import com.hivi.launcher.base.BasePresenter;
 import com.hivi.launcher.systemapps.model.AppEntry;
-import com.hivi.launcher.systemapps.model.PresetAppInstaller;
+import com.hivi.launcher.systemapps.model.AppDownloadManager;
+import com.hivi.launcher.systemapps.model.AppDownloadQueue;
+import com.hivi.launcher.systemapps.model.AppDownloadStatus;
 import com.hivi.launcher.systemapps.model.PresetMusicApps;
 import com.hivi.launcher.systemapps.ui.SystemAppsView;
 import com.hivi.launcher.utils.log.AppLog;
 import com.hivi.launcher.wifi.model.BootAutoPlaySuppressor;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
- * 应用菜单固定展示 9 个音乐/音频应用：已安装的显示真实图标并可直接启动，
- * 未安装的显示占位图标与“未安装”角标，点击后按 APP类型 从公司服务器下载并静默安装。
+ * 应用菜单固定展示 9 个音乐/音频应用，统一品牌图标并提供卡片内下载与安装状态。
  */
 public class SystemAppsPresenter extends BasePresenter<SystemAppsView>
-        implements PresetAppInstaller.Listener {
+        implements AppDownloadQueue.Listener {
     private static final String TAG = "SystemAppsPresenter";
 
     private final Context mContext;
-    private final PresetAppInstaller mPresetAppInstaller;
+    private final AppDownloadManager mDownloadManager;
     private final Handler mMainHandler = new Handler(Looper.getMainLooper());
-    private AppEntry mInstallingApp;
-    private boolean mInstalling;
 
     /** 上一次长按弹菜单的应用，供卸载完成后刷新列表定位。 */
     private AppEntry mUninstallingApp;
@@ -52,7 +50,14 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView>
     public SystemAppsPresenter(Context context, SystemAppsView view) {
         super(view);
         mContext = context.getApplicationContext();
-        mPresetAppInstaller = new PresetAppInstaller(mContext);
+        mDownloadManager = AppDownloadManager.getInstance(mContext);
+        mDownloadManager.addListener(this);
+    }
+
+    @Override
+    public void detach() {
+        mDownloadManager.removeListener(this);
+        super.detach();
     }
 
     public void loadApps() {
@@ -70,7 +75,15 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView>
     public void launchApp(AppEntry app) {
         BootAutoPlaySuppressor.getInstance().markUserInteraction();
         if (!app.isInstalled()) {
-            downloadAndInstall(app);
+            if (TextUtils.isEmpty(app.getDownloadUrl())) {
+                SystemAppsView view = getView();
+                if (view != null) {
+                    view.showToast(mContext.getString(
+                            R.string.system_apps_download_unavailable, app.getLabel()));
+                }
+                return;
+            }
+            mDownloadManager.toggle(app);
             return;
         }
         Intent intent = new Intent(Intent.ACTION_MAIN);
@@ -93,7 +106,7 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView>
 
     /** 长按应用图标：已安装的弹出“卸载应用/应用信息”菜单（受保护应用仅有“应用信息”），其余不响应。 */
     public void onAppLongPressed(AppEntry app) {
-        if (mInstalling || !app.isInstalled()) {
+        if (!app.isInstalled()) {
             return;
         }
         SystemAppsView view = getView();
@@ -107,7 +120,7 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView>
      * 结果经广播异步回调；API 27 以下的老系统回退 pm 命令。完成后刷新列表。
      */
     public void uninstallApp(final AppEntry app) {
-        if (mInstalling || mUninstallingApp != null || !app.isUninstallable()) {
+        if (mUninstallingApp != null || !app.isUninstallable()) {
             return;
         }
         mUninstallingApp = app;
@@ -225,28 +238,6 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView>
         }
     }
 
-    private void downloadAndInstall(AppEntry app) {
-        SystemAppsView view = getView();
-        if (mInstalling) {
-            return;
-        }
-        if (TextUtils.isEmpty(app.getDownloadUrl())) {
-            if (view != null) {
-                view.showToast(mContext.getString(
-                        R.string.system_apps_download_unavailable, app.getLabel()));
-            }
-            return;
-        }
-        mInstalling = true;
-        mInstallingApp = app;
-        if (view != null) {
-            view.showInstallProgress(mContext.getString(
-                    R.string.system_apps_downloading_preparing, app.getLabel()));
-        }
-        mPresetAppInstaller.downloadAndInstall(app.getDownloadUrl(),
-                Arrays.asList(app.getCandidatePackages()), this);
-    }
-
     /** 按枚举声明顺序生成固定 9 个应用条目，展示顺序与预设顺序一致。 */
     private List<AppEntry> loadPresetApps(PackageManager pm) {
         List<AppEntry> apps = new ArrayList<>();
@@ -264,7 +255,7 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView>
         return apps;
     }
 
-    /** 查找候选包名中已安装且可启动的应用；命中则返回真实图标条目。 */
+    /** 查找候选包名中已安装且可启动的应用。 */
     @Nullable
     private AppEntry findInstalledEntry(PackageManager pm, PresetMusicApps preset) {
         for (String packageName : preset.getCandidatePackages()) {
@@ -273,66 +264,44 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView>
             if (component == null || TextUtils.isEmpty(component.getClassName())) {
                 continue;
             }
-            try {
-                Drawable icon = pm.getActivityIcon(component);
-                return new AppEntry(mContext.getString(preset.getLabelResId()),
-                        packageName, component.getClassName(), icon, preset.isUninstallable());
-            } catch (PackageManager.NameNotFoundException e) {
-                AppLog.w(TAG, "Installed preset app icon unavailable: " + packageName);
-            }
+            Drawable icon = mContext.getDrawable(preset.getIconResId());
+            return new AppEntry(mContext.getString(preset.getLabelResId()),
+                    packageName, component.getClassName(), icon, preset.isUninstallable());
         }
         return null;
     }
 
     @Override
-    public void onDownloadProgress(int percent) {
+    public void onChanged(AppEntry app, AppDownloadStatus status) {
         SystemAppsView view = getView();
-        if (view == null || mInstallingApp == null) {
+        if (view == null) {
             return;
         }
-        view.showInstallProgress(mContext.getString(
-                R.string.system_apps_downloading, mInstallingApp.getLabel(), percent));
+        view.showDownloadStatus(app, status);
+    }
+
+    public AppDownloadStatus getDownloadStatus(AppEntry app) {
+        return mDownloadManager.getStatus(app);
     }
 
     @Override
-    public void onInstallStarted() {
-        SystemAppsView view = getView();
-        if (view == null || mInstallingApp == null) {
-            return;
-        }
-        view.showInstallProgress(mContext.getString(
-                R.string.system_apps_installing, mInstallingApp.getLabel()));
+    public void onFailed(boolean installPhase) {
+        finishInstallWithError(installPhase ? R.string.system_apps_install_failed
+                : R.string.system_apps_download_failed);
     }
 
     @Override
     public void onInstalled(String packageName) {
         AppLog.i(TAG, "Preset app installed: " + packageName);
-        mInstalling = false;
-        SystemAppsView view = getView();
-        if (view != null) {
-            view.hideInstallProgress();
-        }
         loadApps();
         launchInstalledApp(packageName);
     }
 
-    @Override
-    public void onDownloadFailed() {
-        finishInstallWithError(R.string.system_apps_download_failed);
-    }
-
-    @Override
-    public void onInstallFailed() {
-        finishInstallWithError(R.string.system_apps_install_failed);
-    }
-
     private void finishInstallWithError(int messageResId) {
-        mInstalling = false;
         SystemAppsView view = getView();
         if (view == null) {
             return;
         }
-        view.hideInstallProgress();
         view.showToast(mContext.getString(messageResId));
     }
 

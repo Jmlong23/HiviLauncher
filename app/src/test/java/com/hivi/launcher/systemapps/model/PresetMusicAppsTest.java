@@ -1,5 +1,7 @@
 package com.hivi.launcher.systemapps.model;
 
+import com.hivi.launcher.R;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -18,5 +20,25 @@ public class PresetMusicAppsTest {
                 PresetMusicApps.QINGTING_FM,
                 PresetMusicApps.LAZY_AUDIO
         }, PresetMusicApps.values());
+    }
+
+    @Test
+    public void appsUseTheirMatchingBrandIcons() {
+        int[] actualIcons = new int[PresetMusicApps.values().length];
+        int index = 0;
+        for (PresetMusicApps app : PresetMusicApps.values()) {
+            actualIcons[index++] = app.getIconResId();
+        }
+        assertArrayEquals(new int[] {
+                R.drawable.ic_app_qq_music,
+                R.drawable.ic_app_netease_music,
+                R.drawable.ic_app_kugou_music,
+                R.drawable.ic_app_soda_music,
+                R.drawable.ic_app_we_sing,
+                R.drawable.ic_app_kuwo_music,
+                R.drawable.ic_app_ximalaya,
+                R.drawable.ic_app_qingting_fm,
+                R.drawable.ic_app_lazy_audio
+        }, actualIcons);
     }
 }

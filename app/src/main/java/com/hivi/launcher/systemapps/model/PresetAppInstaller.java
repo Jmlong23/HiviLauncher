@@ -13,13 +13,16 @@ import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.List;
+import java.util.Properties;
 
+import okhttp3.Call;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -31,7 +34,7 @@ import okhttp3.ResponseBody;
  * 的 {@code pm install} 方式 —— 本应用为 platform 签名 + system UID（sharedUserId
  * android.uid.system），无需用户确认，也不需要修改系统源码。
  */
-public final class PresetAppInstaller {
+public final class PresetAppInstaller implements AppDownloadQueue.Backend {
     private static final String TAG = "PresetAppInstaller";
     private static final long MAX_APK_BYTES = 512L * 1024L * 1024L;
 
@@ -47,36 +50,90 @@ public final class PresetAppInstaller {
         void onDownloadFailed();
 
         void onInstallFailed();
+
+        default void onPaused() {
+        }
     }
 
     private final Context mApplicationContext;
     private final OkHttpClient mHttpClient = new OkHttpClient.Builder().build();
     private final Handler mMainHandler = new Handler(Looper.getMainLooper());
+    private volatile DownloadTask mActiveTask;
 
     public PresetAppInstaller(Context context) {
         mApplicationContext = context.getApplicationContext();
     }
 
+    @Override
+    public void start(AppEntry app, final AppDownloadQueue.Callback callback) {
+        downloadAndInstall(app.getDownloadUrl(), java.util.Arrays.asList(app.getCandidatePackages()),
+                new Listener() {
+                    @Override
+                    public void onDownloadProgress(int percent) {
+                        callback.onDownloadProgress(percent);
+                    }
+
+                    @Override
+                    public void onInstallStarted() {
+                        callback.onInstallStarted();
+                    }
+
+                    @Override
+                    public void onInstalled(String packageName) {
+                        callback.onInstalled(packageName);
+                    }
+
+                    @Override
+                    public void onDownloadFailed() {
+                        callback.onFailed(false);
+                    }
+
+                    @Override
+                    public void onInstallFailed() {
+                        callback.onFailed(true);
+                    }
+
+                    @Override
+                    public void onPaused() {
+                        callback.onPaused();
+                    }
+                });
+    }
+
+    @Override
+    public boolean pause() {
+        DownloadTask task = mActiveTask;
+        return task != null && task.pause();
+    }
+
     public void downloadAndInstall(final String downloadUrl, final List<String> candidatePackages,
             final Listener listener) {
+        final DownloadTask task = new DownloadTask();
+        mActiveTask = task;
         new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    File apkFile = downloadApk(resolveRealApkUrl(downloadUrl), listener);
+                    File apkFile = downloadApk(resolveRealApkUrl(downloadUrl, task), listener, task);
+                    task.checkPaused();
                     String packageName = verifyApk(apkFile, candidatePackages);
+                    task.beginInstallation();
                     AppLog.i(TAG, "Preset app package is ready; installing: "
                             + apkFile.getAbsolutePath());
                     notifyInstallStarted(listener);
                     installApk(apkFile);
                     notifyInstalled(packageName, listener);
+                } catch (PauseException ignored) {
+                    notifyPaused(listener);
                 } catch (Throwable throwable) {
-                    AppLog.w(TAG, "Preset app download/install failed: " + throwable);
-                    if (throwable instanceof InstallException) {
-                        notifyFailure(true, listener);
-                    } else {
-                        notifyFailure(false, listener);
+                    if (task.isPaused()) {
+                        notifyPaused(listener);
+                        return;
                     }
+                    AppLog.w(TAG, "Preset app download/install failed", throwable);
+                    notifyFailure(task.isInstalling(), listener);
+                } finally {
+                    task.finish();
                 }
             }
         }, "PresetAppInstall").start();
@@ -86,12 +143,13 @@ public final class PresetAppInstaller {
      * 公司 Swan 后台按 APP类型 发布的版本接口（…/version/details?type=…）返回 JSON，
      * 解析其中的 updateUrl 得到最新 APK 的真实下载地址；其余直链原样返回。
      */
-    private String resolveRealApkUrl(String downloadUrl) throws IOException {
+    private String resolveRealApkUrl(String downloadUrl, DownloadTask task) throws IOException {
+        task.checkPaused();
         if (downloadUrl == null || !downloadUrl.contains("/api/version/details")) {
             return downloadUrl;
         }
         Request request = new Request.Builder().url(downloadUrl).get().build();
-        try (Response response = mHttpClient.newCall(request).execute()) {
+        try (Response response = task.execute(mHttpClient, request)) {
             if (!response.isSuccessful() || response.body() == null) {
                 throw new IOException("Unable to resolve preset app version. HTTP "
                         + response.code());
@@ -107,13 +165,45 @@ public final class PresetAppInstaller {
         }
     }
 
-    private File downloadApk(String downloadUrl, Listener listener) throws IOException {
+    private File downloadApk(String downloadUrl, Listener listener, DownloadTask task)
+            throws IOException {
+        task.checkPaused();
         if (TextUtils.isEmpty(downloadUrl)) {
             throw new IOException("Preset app download URL is empty.");
         }
 
-        Request request = new Request.Builder().url(downloadUrl).get().build();
-        try (Response response = mHttpClient.newCall(request).execute()) {
+        File downloadDirectory = getDownloadDirectory();
+        String fileName = safeFileName(Integer.toHexString(downloadUrl.hashCode())
+                + "-" + new File(downloadUrl).getName());
+        File temporaryFile = new File(downloadDirectory, fileName + ".download");
+        File apkFile = new File(downloadDirectory, fileName);
+        File resumeFile = new File(downloadDirectory, fileName + ".resume");
+        Properties resumeProperties = new Properties();
+        if (resumeFile.exists()) {
+            try (InputStream input = new FileInputStream(resumeFile)) {
+                resumeProperties.load(input);
+            }
+        }
+        String validator = resumeProperties.getProperty("validator", "");
+        long existingBytes = temporaryFile.exists() ? temporaryFile.length() : 0L;
+        if (existingBytes > MAX_APK_BYTES || validator.isEmpty()) {
+            deleteQuietly(temporaryFile);
+            existingBytes = 0L;
+        }
+        Request.Builder requestBuilder = new Request.Builder().url(downloadUrl).get()
+                .header("Accept-Encoding", "identity");
+        if (existingBytes > 0L) {
+            requestBuilder.header("Range", "bytes=" + existingBytes + "-");
+            requestBuilder.header("If-Range", validator);
+        }
+        Request request = requestBuilder.build();
+        try (Response response = task.execute(mHttpClient, request)) {
+            if (response.code() == 416 && existingBytes > 0L) {
+                deleteQuietly(temporaryFile);
+                deleteQuietly(resumeFile);
+                response.close();
+                return downloadApk(downloadUrl, listener, task);
+            }
             if (!response.isSuccessful()) {
                 throw new IOException("Unable to download preset app. HTTP " + response.code());
             }
@@ -121,25 +211,50 @@ public final class PresetAppInstaller {
             if (responseBody == null) {
                 throw new IOException("Preset app response is empty.");
             }
+            long totalBytes = existingBytes;
+            if (response.code() == 206) {
+                String contentRange = response.header("Content-Range", "");
+                String prefix = "bytes " + existingBytes + "-";
+                if (!contentRange.startsWith(prefix)) {
+                    deleteQuietly(temporaryFile);
+                    throw new IOException("Preset app range does not match saved download.");
+                }
+            }
+            if (existingBytes > 0L && response.code() != 206) {
+                deleteQuietly(temporaryFile);
+                totalBytes = 0L;
+            }
             long contentLength = responseBody.contentLength();
+            if (contentLength > 0L) {
+                contentLength += totalBytes;
+            }
             if (contentLength > MAX_APK_BYTES) {
                 throw new IOException("Preset app package is too large.");
             }
-
-            File downloadDirectory = getDownloadDirectory();
-            String fileName = safeFileName(new File(downloadUrl).getName());
-            File temporaryFile = new File(downloadDirectory, fileName + ".download");
-            File apkFile = new File(downloadDirectory, fileName);
-            deleteQuietly(temporaryFile);
-            deleteQuietly(apkFile);
-
-            long totalBytes = 0L;
+            if (totalBytes == 0L) {
+                deleteQuietly(apkFile);
+            }
+            validator = response.header("ETag", "");
+            if (validator.isEmpty() || validator.startsWith("W/")) {
+                validator = response.header("Last-Modified", "");
+            }
+            resumeProperties.setProperty("validator", validator);
+            try (OutputStream output = new FileOutputStream(resumeFile)) {
+                resumeProperties.store(output, null);
+            }
+            notifyProgress(contentLength > 0L ? (int) (totalBytes * 100L / contentLength) : -1,
+                    listener);
             int lastProgress = -1;
             try (InputStream input = responseBody.byteStream();
-                    OutputStream output = new FileOutputStream(temporaryFile)) {
+                    OutputStream output = new FileOutputStream(temporaryFile, totalBytes > 0L)) {
                 byte[] buffer = new byte[16 * 1024];
                 int read;
-                while ((read = input.read(buffer)) != -1) {
+                while (true) {
+                    task.checkPaused();
+                    read = input.read(buffer);
+                    if (read == -1) {
+                        break;
+                    }
                     totalBytes += read;
                     if (totalBytes > MAX_APK_BYTES) {
                         throw new IOException("Preset app package is too large.");
@@ -154,11 +269,19 @@ public final class PresetAppInstaller {
                     }
                 }
                 output.flush();
+            } catch (PauseException exception) {
+                throw exception;
             } catch (IOException exception) {
-                deleteQuietly(temporaryFile);
+                if (task.isPaused()) {
+                    throw new PauseException();
+                }
                 throw exception;
             }
 
+            task.checkPaused();
+            if (contentLength > 0L && totalBytes != contentLength) {
+                throw new IOException("Preset app package download is incomplete.");
+            }
             if (totalBytes <= 0L) {
                 deleteQuietly(temporaryFile);
                 throw new IOException("Preset app package is empty.");
@@ -167,6 +290,8 @@ public final class PresetAppInstaller {
                 deleteQuietly(temporaryFile);
                 throw new IOException("Unable to prepare preset app package.");
             }
+            deleteQuietly(resumeFile);
+            notifyProgress(100, listener);
             return apkFile;
         }
     }
@@ -279,5 +404,68 @@ public final class PresetAppInstaller {
                 }
             }
         });
+    }
+
+    private void notifyPaused(final Listener listener) {
+        mMainHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                listener.onPaused();
+            }
+        });
+    }
+
+    private static class PauseException extends IOException {
+    }
+
+    static final class DownloadTask {
+        private Call mCall;
+        private boolean mPaused;
+        private boolean mInstalling;
+        private boolean mFinished;
+
+        Response execute(OkHttpClient client, Request request) throws IOException {
+            Call call = client.newCall(request);
+            synchronized (this) {
+                checkPaused();
+                mCall = call;
+            }
+            return call.execute();
+        }
+
+        synchronized boolean pause() {
+            if (mInstalling || mFinished) {
+                return false;
+            }
+            mPaused = true;
+            if (mCall != null) {
+                mCall.cancel();
+            }
+            return true;
+        }
+
+        synchronized void checkPaused() throws IOException {
+            if (mPaused) {
+                throw new PauseException();
+            }
+        }
+
+        synchronized boolean isPaused() {
+            return mPaused;
+        }
+
+        synchronized boolean isInstalling() {
+            return mInstalling;
+        }
+
+        synchronized void beginInstallation() throws IOException {
+            checkPaused();
+            mInstalling = true;
+        }
+
+        synchronized void finish() {
+            mFinished = true;
+            mCall = null;
+        }
     }
 }

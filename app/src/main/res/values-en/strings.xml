@@ -59,6 +59,14 @@
     <string name="system_apps_downloading_preparing">Downloading %1$s...</string>
     <string name="system_apps_downloading">Downloading %1$s (%2$d%%)</string>
     <string name="system_apps_installing">Installing %1$s...</string>
+    <string name="system_apps_status_waiting">Waiting...</string>
+    <string name="system_apps_status_loading">Downloading...</string>
+    <string name="system_apps_status_installing">Installing...</string>
+    <string name="system_apps_status_install_failed">Install failed</string>
+    <string name="system_apps_pause_download">Tap to pause download</string>
+    <string name="system_apps_resume_download">Tap to resume download</string>
+    <string name="system_apps_status_paused">Paused</string>
+    <string name="system_apps_status_download_failed_short">Download failed</string>
     <string name="system_apps_download_failed">Download failed, please check the network and try again</string>
     <string name="system_apps_install_failed">Installation failed, please try again later</string>
     <string name="system_apps_download_unavailable">%1$s download is not available yet</string>

@@ -15,18 +15,19 @@ import com.hivi.launcher.databinding.FragmentSystemAppsBinding;
 import com.hivi.launcher.databinding.ItemAppGridBinding;
 import com.hivi.launcher.main.ui.MainActivity;
 import com.hivi.launcher.systemapps.model.AppEntry;
+import com.hivi.launcher.systemapps.model.AppDownloadStatus;
 import com.hivi.launcher.systemapps.presenter.SystemAppsPresenter;
 import com.hivi.launcher.utils.UiUtils;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
         implements SystemAppsView {
     private static final int APP_GRID_COLUMN_COUNT = 5;
-    /** 未安装预置应用占位图标的置灰透明度。 */
-    private static final float NOT_INSTALLED_ICON_ALPHA = 0.4f;
-
     private FragmentSystemAppsBinding mBinding;
+    private final Map<String, ItemAppGridBinding> mAppItems = new HashMap<>();
 
     @Override
     protected SystemAppsPresenter createPresenter() {
@@ -51,9 +52,6 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         mBinding = FragmentSystemAppsBinding.bind(view);
-        mBinding.appsProgressOverlay.setOnClickListener(ignored -> {
-            // 下载安装进行中拦截点击，避免误触底部网格
-        });
         SystemAppsPresenter presenter = getPresenter();
         if (presenter != null) {
             presenter.loadApps();
@@ -62,6 +60,7 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
 
     @Override
     public void onDestroyView() {
+        mAppItems.clear();
         mBinding = null;
         super.onDestroyView();
     }
@@ -72,6 +71,7 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
             return;
         }
         mBinding.appsGrid.removeAllViews();
+        mAppItems.clear();
         mBinding.appsGrid.setColumnCount(APP_GRID_COLUMN_COUNT);
         mBinding.appsGrid.setRowCount(
                 (apps.size() + APP_GRID_COLUMN_COUNT - 1) / APP_GRID_COLUMN_COUNT);
@@ -86,24 +86,51 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
             params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
             params.topMargin = index >= APP_GRID_COLUMN_COUNT ? dp(64) : 0;
             mBinding.appsGrid.addView(item, params);
+            mAppItems.put(app.getPackageName(), ItemAppGridBinding.bind(item));
+            renderDownloadStatus(app, getPresenter() == null
+                    ? new AppDownloadStatus(AppDownloadStatus.State.NOT_DOWNLOADED, -1)
+                    : getPresenter().getDownloadStatus(app));
         }
     }
 
     @Override
-    public void showInstallProgress(String message) {
+    public void showDownloadStatus(AppEntry app, AppDownloadStatus status) {
         if (mBinding == null) {
             return;
         }
-        mBinding.appsProgressText.setText(message);
-        mBinding.appsProgressOverlay.setVisibility(View.VISIBLE);
+        renderDownloadStatus(app, status);
     }
 
-    @Override
-    public void hideInstallProgress() {
-        if (mBinding == null) {
+    private void renderDownloadStatus(AppEntry app, AppDownloadStatus status) {
+        ItemAppGridBinding itemBinding = mAppItems.get(app.getPackageName());
+        if (itemBinding == null) {
             return;
         }
-        mBinding.appsProgressOverlay.setVisibility(View.GONE);
+        AppDownloadPresentation presentation = new AppDownloadPresentation(status);
+        itemBinding.appIcon.setAlpha(presentation.isDimmed() ? 0.55f : 1f);
+        itemBinding.appDownloadScrim.setVisibility(
+                presentation.isDimmed() ? View.VISIBLE : View.GONE);
+        itemBinding.appDownload.setVisibility(
+                presentation.showsDownloadIcon() ? View.VISIBLE : View.GONE);
+        itemBinding.appProgress.setVisibility(
+                presentation.showsProgress() ? View.VISIBLE : View.GONE);
+        itemBinding.appProgress.setStatus(status);
+        int labelResId = presentation.getLabelResId();
+        String label = labelResId == 0 ? app.getLabel() : getString(labelResId);
+        itemBinding.appLabel.setText(label);
+        boolean downloading = status.getState() == AppDownloadStatus.State.DOWNLOADING;
+        boolean paused = status.getState() == AppDownloadStatus.State.PAUSED;
+        String description = app.getLabel() + (labelResId == 0 ? "" : ", " + label);
+        if ((downloading || paused) && status.getProgress() >= 0) {
+            description += ", " + status.getProgress() + "%";
+        }
+        if (downloading || paused) {
+            description += ", " + getString(downloading
+                    ? R.string.system_apps_pause_download : R.string.system_apps_resume_download);
+        }
+        itemBinding.appGridItem.setContentDescription(description);
+        itemBinding.appGridItem.setEnabled(
+                status.getState() != AppDownloadStatus.State.INSTALLING);
     }
 
     @Override
@@ -132,10 +159,6 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
         });
         itemBinding.appIcon.setImageDrawable(app.getIcon());
         itemBinding.appLabel.setText(app.getLabel());
-        if (!app.isInstalled()) {
-            itemBinding.appIcon.setAlpha(NOT_INSTALLED_ICON_ALPHA);
-            itemBinding.appBadge.setVisibility(View.VISIBLE);
-        }
         return itemBinding.getRoot();
     }
 

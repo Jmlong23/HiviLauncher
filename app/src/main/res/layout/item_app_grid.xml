@@ -22,22 +22,28 @@
             android:contentDescription="@null"
             android:scaleType="fitCenter" />
 
-        <TextView
-            android:id="@+id/app_badge"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom|end"
-            android:layout_margin="4dp"
-            android:background="@drawable/bg_app_badge_not_installed"
-            android:includeFontPadding="false"
-            android:paddingLeft="5dp"
-            android:paddingTop="2dp"
-            android:paddingRight="5dp"
-            android:paddingBottom="2dp"
-            android:singleLine="true"
-            android:text="@string/system_apps_badge_not_installed"
-            android:textColor="#FFFFFFFF"
-            android:textSize="10sp"
+        <View
+            android:id="@+id/app_download_scrim"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#44000000"
+            android:importantForAccessibility="no"
+            android:visibility="gone" />
+
+        <ImageView
+            android:id="@+id/app_download"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:layout_gravity="center"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_download"
+            android:visibility="gone" />
+
+        <com.hivi.launcher.customview.AppDownloadProgressView
+            android:id="@+id/app_progress"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:layout_gravity="center"
             android:visibility="gone" />
     </FrameLayout>
 
