@@ -2,10 +2,12 @@ package com.hivi.launcher.systemapps;
 
 import android.app.Instrumentation;
 import android.app.Activity;
+import android.app.Fragment;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -19,6 +21,7 @@ import android.widget.TextView;
 import com.hivi.launcher.R;
 import com.hivi.launcher.main.model.MainPage;
 import com.hivi.launcher.main.ui.MainActivity;
+import com.hivi.launcher.settings.ui.SettingsFragment;
 import com.hivi.launcher.systemapps.model.AppDownloadState;
 import com.hivi.launcher.systemapps.model.AppEntry;
 import com.hivi.launcher.systemapps.model.SupportedApp;
@@ -31,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 
 public final class SystemAppsUiInstrumentation extends Instrumentation {
     private final CountDownLatch mActivityResumed = new CountDownLatch(1);
@@ -58,19 +62,39 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
             getTargetContext().startActivity(new Intent(getTargetContext(), MainActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             require(mActivityResumed.await(20L, TimeUnit.SECONDS), "Launcher did not resume");
-            MainActivity activity = mActivity;
             waitForIdleSync();
+            awaitCondition(() -> mActivity.hasWindowFocus());
+            MainActivity activity = mActivity;
+            runOnMainSync(activity::showHomePage);
+            awaitPage(false);
+            for (int iteration = 0; iteration < 3; iteration++) {
+                verifyHomeTransition(true);
+                if (iteration < 2) {
+                    verifyHomeTransition(false);
+                }
+            }
+            verifyHomeTransition(false);
             runOnMainSync(() -> {
                 activity.showPage(MainPage.SYSTEM_APPS);
+                activity.showPage(MainPage.SYSTEM_APPS);
                 activity.getFragmentManager().executePendingTransactions();
-                View container = activity.findViewById(R.id.fragment_container);
-                container.animate().cancel();
-                container.setTranslationX(0f);
-                container.setAlpha(1f);
+                require(activity.getFragmentManager().getBackStackEntryCount() == 1,
+                        "Repeated taps must not enqueue duplicate app pages");
+                activity.navigateBack();
             });
+            awaitPage(false);
+            verifyPageStackAcrossContainers();
+            verifyHomeTransition(true);
+            runOnMainSync(() -> {
+                activity.navigateBack();
+                activity.showPage(MainPage.SYSTEM_APPS);
+            });
+            awaitPage(true);
             waitForIdleSync();
             View decor = activity.getWindow().getDecorView();
             runOnMainSync(() -> assertCatalog(decor));
+            runOnMainSync(this::assertCatalogViewsAreReused);
+            runOnMainSync(this::assertGridResizesWithoutRebuilding);
             capture("catalog.png");
             runOnMainSync(this::assertHeaderDesignParameters);
             capturePressedButton(decor.findViewById(R.id.apps_back_button), "back-pressed.png");
@@ -87,18 +111,180 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
             });
             runOnMainSync(() -> {
                 SystemAppsFragment fragment = (SystemAppsFragment) activity.getFragmentManager()
-                        .findFragmentById(R.id.fragment_container);
+                        .findFragmentById(R.id.system_apps_container);
                 fragment.closePage();
             });
-            waitForIdleSync();
+            awaitPage(false);
             result.putString("stream", "Nine-app catalog, cloud badges, black inset pressed states "
                     + "for back and volume, unchanged alpha contours and outer shadows, design parameters and "
-                    + "all download state layouts passed. Screenshots: files/system-app-ui-tests\n");
+                    + "all download state layouts passed. Repeated page transitions keep home geometry, "
+                    + "opaque page layers and app item identities stable. "
+                    + "Screenshots: files/system-app-ui-tests\n");
             finish(Activity.RESULT_OK, result);
         } catch (Throwable throwable) {
             result.putString("stream", "App UI verification failed: " + throwable + "\n");
             finish(Activity.RESULT_CANCELED, result);
         }
+    }
+
+    private void verifyHomeTransition(boolean entering) throws Exception {
+        View decor = mActivity.getWindow().getDecorView();
+        View home = decor.findViewById(R.id.launcher_content);
+        View cards = decor.findViewById(R.id.cards_row);
+        View body = decor.findViewById(R.id.page_body);
+        View container = decor.findViewById(R.id.system_apps_container);
+        Rect[] originalBounds = new Rect[1];
+        int[] originalPadding = new int[4];
+        runOnMainSync(() -> {
+            originalBounds[0] = bounds(cards);
+            originalPadding[0] = home.getPaddingLeft();
+            originalPadding[1] = home.getPaddingTop();
+            originalPadding[2] = home.getPaddingRight();
+            originalPadding[3] = home.getPaddingBottom();
+            if (entering) {
+                mActivity.showPage(MainPage.SYSTEM_APPS);
+            } else {
+                mActivity.navigateBack();
+            }
+        });
+        CountDownLatch finished = new CountDownLatch(1);
+        Throwable[] failure = new Throwable[1];
+        long deadline = SystemClock.uptimeMillis() + 5000L;
+        runOnMainSync(() -> decor.postOnAnimation(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    require(originalBounds[0].equals(bounds(cards)),
+                            "Home cards must not resize or jump during app navigation");
+                    require(home.getPaddingLeft() == originalPadding[0]
+                            && home.getPaddingTop() == originalPadding[1]
+                            && home.getPaddingRight() == originalPadding[2]
+                            && home.getPaddingBottom() == originalPadding[3],
+                            "App navigation must not mutate the shared home padding");
+                    require(body.getTranslationX() == 0f && body.getAlpha() == 1f,
+                            "The home layer must remain stationary and opaque");
+                    require(container.getAlpha() == 1f,
+                            "The app page must not cross-fade with home content");
+                    boolean complete = entering
+                            ? home.getVisibility() == View.INVISIBLE
+                            && container.getTranslationX() == 0f
+                            : container.getVisibility() == View.GONE;
+                    if (complete) {
+                        if (entering) {
+                            require(decor.findViewById(R.id.apps_grid).getWidth() > 0,
+                                    "App items must be laid out before entry finishes");
+                        }
+                        finished.countDown();
+                    } else if (SystemClock.uptimeMillis() < deadline) {
+                        decor.postOnAnimation(this);
+                    }
+                } catch (Throwable throwable) {
+                    failure[0] = throwable;
+                    finished.countDown();
+                }
+            }
+        }));
+        require(finished.await(6L, TimeUnit.SECONDS), "App page transition did not finish");
+        if (failure[0] != null) {
+            throw new AssertionError("App transition regression", failure[0]);
+        }
+        waitForIdleSync();
+    }
+
+    private void awaitPage(boolean appsVisible) throws Exception {
+        awaitCondition(() -> {
+            View container = mActivity.findViewById(R.id.system_apps_container);
+            View home = mActivity.findViewById(R.id.launcher_content);
+            return appsVisible ? container.getVisibility() == View.VISIBLE
+                    && container.getTranslationX() == 0f
+                    && home.getVisibility() == View.INVISIBLE
+                    : container.getVisibility() == View.GONE
+                    && mActivity.findViewById(R.id.fragment_container).getVisibility() == View.GONE
+                    && home.getVisibility() == View.VISIBLE;
+        });
+    }
+
+    private void awaitCondition(BooleanSupplier condition) throws Exception {
+        CountDownLatch ready = new CountDownLatch(1);
+        View decor = mActivity.getWindow().getDecorView();
+        long deadline = SystemClock.uptimeMillis() + 5000L;
+        runOnMainSync(() -> decor.postOnAnimation(new Runnable() {
+            @Override
+            public void run() {
+                if (condition.getAsBoolean()) {
+                    ready.countDown();
+                } else if (SystemClock.uptimeMillis() < deadline) {
+                    decor.postOnAnimation(this);
+                }
+            }
+        }));
+        require(ready.await(6L, TimeUnit.SECONDS), "Page did not reach its settled state");
+        waitForIdleSync();
+    }
+
+    private Rect bounds(View view) {
+        return new Rect(view.getLeft(), view.getTop(), view.getRight(), view.getBottom());
+    }
+
+    private void assertCatalogViewsAreReused() {
+        SystemAppsFragment fragment = (SystemAppsFragment) mActivity.getFragmentManager()
+                .findFragmentById(R.id.system_apps_container);
+        GridLayout grid = mActivity.findViewById(R.id.apps_grid);
+        View[] items = new View[grid.getChildCount()];
+        for (int index = 0; index < items.length; index++) {
+            items[index] = grid.getChildAt(index);
+        }
+        renderStates(mActivity);
+        for (int index = 0; index < items.length; index++) {
+            require(items[index] == grid.getChildAt(index),
+                    "Refreshing app states must reuse existing grid items");
+        }
+        fragment.getView().requestLayout();
+    }
+
+    private void assertGridResizesWithoutRebuilding() {
+        View root = mActivity.findViewById(R.id.apps_dialog_root);
+        GridLayout grid = mActivity.findViewById(R.id.apps_grid);
+        View firstItem = grid.getChildAt(0);
+        int originalWidth = root.getWidth();
+        int heightSpec = View.MeasureSpec.makeMeasureSpec(root.getHeight(), View.MeasureSpec.EXACTLY);
+        int smallerWidth = originalWidth * 3 / 4;
+        root.measure(View.MeasureSpec.makeMeasureSpec(smallerWidth, View.MeasureSpec.EXACTLY),
+                heightSpec);
+        require(firstItem.findViewById(R.id.app_icon_frame).getLayoutParams().width
+                == Math.round(136f * smallerWidth / 1280f),
+                "App sizes must adapt in the measurement phase");
+        require(grid.getChildAt(0) == firstItem,
+                "Resizing the app page must not recreate its items");
+        root.measure(View.MeasureSpec.makeMeasureSpec(originalWidth, View.MeasureSpec.EXACTLY),
+                heightSpec);
+        root.requestLayout();
+    }
+
+    private void verifyPageStackAcrossContainers() throws Exception {
+        runOnMainSync(() -> mActivity.showPage(MainPage.SETTINGS));
+        awaitCondition(() -> mActivity.getFragmentManager()
+                .findFragmentById(R.id.fragment_container) instanceof SettingsFragment
+                && mActivity.findViewById(R.id.fragment_container).getAlpha() == 1f
+                && mActivity.findViewById(R.id.fragment_container).getTranslationX() == 0f);
+        Fragment[] settings = new Fragment[1];
+        runOnMainSync(() -> {
+            settings[0] = mActivity.getFragmentManager().findFragmentById(R.id.fragment_container);
+            mActivity.showPage(MainPage.SYSTEM_APPS);
+        });
+        awaitPage(true);
+        runOnMainSync(mActivity::navigateBack);
+        awaitCondition(() -> mActivity.findViewById(R.id.system_apps_container)
+                .getVisibility() == View.GONE);
+        runOnMainSync(() -> {
+            require(mActivity.getFragmentManager().findFragmentById(R.id.fragment_container)
+                    == settings[0], "Returning from apps must preserve the previous settings page");
+            require(settings[0].isAdded(), "The previous page must remain on the back stack");
+            mActivity.showPage(MainPage.SYSTEM_APPS);
+        });
+        awaitPage(true);
+        runOnMainSync(mActivity::showHomePage);
+        awaitPage(false);
     }
 
     private void assertHeaderDesignParameters() {
@@ -204,10 +390,13 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
                     SupportedApp.values()[index].getLabelResId())), "Catalog order must be fixed");
             assertLogoOverlay(grid.getChildAt(index));
         }
-        require(decor.findViewById(R.id.top_bar).getVisibility() == View.GONE,
+        require(!decor.findViewById(R.id.top_bar).isShown(),
                 "Original status bar must be hidden");
-        require(decor.findViewById(R.id.bottom_navigation).getVisibility() == View.GONE,
+        require(!decor.findViewById(R.id.bottom_navigation).isShown(),
                 "Original app navigation must be hidden");
+        require(decor.findViewById(R.id.launcher_content).getParent()
+                == decor.findViewById(R.id.system_apps_container).getParent(),
+                "The app overlay must not share the padded home content container");
     }
 
     private void assertLogoOverlay(View item) {
@@ -250,7 +439,7 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
                     activity.getDrawable(app.getIconResId()), states[index], index == 7 ? -1 : 37));
         }
         SystemAppsFragment fragment = (SystemAppsFragment) activity.getFragmentManager()
-                .findFragmentById(R.id.fragment_container);
+                .findFragmentById(R.id.system_apps_container);
         fragment.showApps(apps);
         GridLayout grid = activity.findViewById(R.id.apps_grid);
         for (int index = 0; index < states.length; index++) {

@@ -28,6 +28,8 @@ HiviLauncher 是面向智能安卓音响的专用 HOME 桌面，目标是替代�
 
 下载默认跟随“设置 → 关于”的正式服/测试服选择。`app/src/main/res/values/system_app_downloads.xml` 中的非空地址可覆盖对应应用的默认版本接口，支持 APK 直链或版本接口；留空即可使用后台发布的安装包，无需每次换包修改 Launcher。
 
+应用页使用独立全屏层，首屏测量布局就绪后不透明滑入，返回时滑出；不改变首页的 padding 或卡片尺寸。应用网格在测量阶段适配屏幕，下载状态刷新复用已有条目，避免布局回调中再次布局和重建。
+
 ## Android Studio 调试
 
 直接用 Android Studio 打开本目录：

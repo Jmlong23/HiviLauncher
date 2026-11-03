@@ -6,12 +6,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
-import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.GridLayout;
-import android.widget.LinearLayout;
 
 import androidx.annotation.Nullable;
 
@@ -38,7 +36,6 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
     private final Map<SupportedApp, ItemAppGridBinding> mAppBindings =
             new EnumMap<>(SupportedApp.class);
     private FragmentSystemAppsBinding mBinding;
-    private float mLayoutScale = 1f;
     private final BroadcastReceiver mPackageReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -91,16 +88,6 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
         if (activity instanceof MainActivity) {
             renderVolume(((MainActivity) activity).getDisplayedVolumePercent());
         }
-        view.addOnLayoutChangeListener((root, left, top, right, bottom,
-                oldLeft, oldTop, oldRight, oldBottom) -> {
-            if (right - left > 0 && right - left != oldRight - oldLeft) {
-                applyPageLayout(right - left);
-            }
-        });
-        SystemAppsPresenter presenter = getPresenter();
-        if (presenter != null) {
-            presenter.loadApps();
-        }
     }
 
     @Override
@@ -141,9 +128,29 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
     public void showApps(List<AppEntry> apps) {
         mApps.clear();
         mApps.addAll(apps);
-        if (mBinding != null && mBinding.getRoot().getWidth() > 0) {
-            applyPageLayout(mBinding.getRoot().getWidth());
+        if (mBinding == null) {
+            return;
         }
+        boolean sameCatalog = mAppBindings.size() == apps.size();
+        for (AppEntry app : apps) {
+            sameCatalog &= mAppBindings.containsKey(app.getSupportedApp());
+        }
+        if (sameCatalog) {
+            for (AppEntry app : apps) {
+                renderApp(mAppBindings.get(app.getSupportedApp()), app);
+            }
+            return;
+        }
+        mBinding.appsGrid.removeAllViews();
+        mAppBindings.clear();
+        for (int index = 0; index < apps.size(); index++) {
+            View item = createAppGridItem(apps.get(index), mBinding.appsGrid);
+            GridLayout.LayoutParams params = new GridLayout.LayoutParams(
+                    GridLayout.spec(index / COLUMN_COUNT),
+                    GridLayout.spec(index % COLUMN_COUNT));
+            mBinding.appsGrid.addView(item, params);
+        }
+        mBinding.getRoot().onItemsChanged();
     }
 
     @Override
@@ -182,18 +189,6 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
     private View createAppGridItem(final AppEntry app, ViewGroup parent) {
         ItemAppGridBinding itemBinding = ItemAppGridBinding.inflate(
                 LayoutInflater.from(getActivity()), parent, false);
-        setSize(itemBinding.appIconFrame, scaled(136), scaled(136));
-        setSize(itemBinding.appIconContent, scaled(84), scaled(84));
-        setSize(itemBinding.appLabelRow, ViewGroup.LayoutParams.MATCH_PARENT, scaled(42));
-        LinearLayout.LayoutParams labelParams =
-                (LinearLayout.LayoutParams) itemBinding.appLabelRow.getLayoutParams();
-        labelParams.topMargin = scaled(18);
-        itemBinding.appLabelRow.setLayoutParams(labelParams);
-        itemBinding.appLabelRow.setPadding(scaled(4), 0, scaled(4), 0);
-        itemBinding.appLabel.setTextSize(TypedValue.COMPLEX_UNIT_PX, scaled(30));
-        setSize(itemBinding.appDownloadIcon, scaled(48), scaled(48));
-        setSize(itemBinding.appStatus, ViewGroup.LayoutParams.MATCH_PARENT, scaled(30));
-        itemBinding.appStatus.setTextSize(TypedValue.COMPLEX_UNIT_PX, scaled(20));
         mAppBindings.put(app.getSupportedApp(), itemBinding);
         renderApp(itemBinding, app);
         return itemBinding.getRoot();
@@ -209,7 +204,6 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
         itemBinding.appIcon.setImageDrawable(app.getIcon());
         itemBinding.appIcon.setAlpha(showDownloadIcon ? 0.35f : 1f);
         itemBinding.appLabel.setText(app.getLabel());
-        itemBinding.appLabel.setMaxWidth(scaled(212));
         itemBinding.appDownloadIcon.setVisibility(showDownloadIcon ? View.VISIBLE : View.GONE);
         itemBinding.appDownloadProgress.setVisibility(active ? View.VISIBLE : View.GONE);
         itemBinding.appDownloadProgress.setDownloadState(state, app.getDownloadProgress());
@@ -272,55 +266,4 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
         }
     }
 
-    private void applyPageLayout(int width) {
-        if (mBinding == null) {
-            return;
-        }
-        mLayoutScale = width / 1280f;
-        mBinding.appsDialogRoot.setPadding(scaled(54), scaled(30), scaled(54), 0);
-        setSize(mBinding.appsDialogHeader, ViewGroup.LayoutParams.MATCH_PARENT, scaled(66));
-        setSize(mBinding.appsBackButton, scaled(156), ViewGroup.LayoutParams.MATCH_PARENT);
-        setSize(mBinding.appsBackIcon, scaled(30), scaled(30));
-        setSize(mBinding.appsVolumeButton, scaled(132), ViewGroup.LayoutParams.MATCH_PARENT);
-        setSize(mBinding.appsVolumeIcon, scaled(38), scaled(38));
-        setStartMargin(mBinding.appsVolumeButton, scaled(28));
-        setStartMargin(mBinding.appsBackText, scaled(14));
-        setStartMargin(mBinding.appsVolumeText, scaled(14));
-        mBinding.appsBackText.setTextSize(TypedValue.COMPLEX_UNIT_PX, scaled(26));
-        mBinding.appsVolumeText.setTextSize(TypedValue.COMPLEX_UNIT_PX, scaled(26));
-        LinearLayout.LayoutParams scrollParams =
-                (LinearLayout.LayoutParams) mBinding.appsScrollView.getLayoutParams();
-        scrollParams.topMargin = scaled(56);
-        mBinding.appsScrollView.setLayoutParams(scrollParams);
-        mBinding.appsScrollView.setPadding(scaled(16), 0, scaled(16), 0);
-        int contentWidth = width - scaled(54) * 2 - scaled(16) * 2;
-        mAppBindings.clear();
-        mBinding.appsGrid.removeAllViews();
-        for (int index = 0; index < mApps.size(); index++) {
-            View item = createAppGridItem(mApps.get(index), mBinding.appsGrid);
-            GridLayout.LayoutParams params = new GridLayout.LayoutParams(
-                    GridLayout.spec(index / COLUMN_COUNT),
-                    GridLayout.spec(index % COLUMN_COUNT));
-            params.width = contentWidth / COLUMN_COUNT;
-            params.height = scaled(276);
-            mBinding.appsGrid.addView(item, params);
-        }
-    }
-
-    private void setSize(View view, int width, int height) {
-        ViewGroup.LayoutParams params = view.getLayoutParams();
-        params.width = width;
-        params.height = height;
-        view.setLayoutParams(params);
-    }
-
-    private void setStartMargin(View view, int margin) {
-        LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) view.getLayoutParams();
-        params.leftMargin = margin;
-        view.setLayoutParams(params);
-    }
-
-    private int scaled(int value) {
-        return Math.round(value * mLayoutScale);
-    }
 }
