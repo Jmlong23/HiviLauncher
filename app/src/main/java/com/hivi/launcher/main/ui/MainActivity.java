@@ -1155,14 +1155,17 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     private void showSettingsPage() {
+        boolean homePageVisible = getCurrentPageFragment() == null;
         int generation = ++mPageTransitionGeneration;
         cancelPageAnimations();
         mHomeNavigationPending = false;
         mSettingsEntryPending = true;
         View container = binding.settingsContainer;
+        int transitionOffset = dp(PAGE_TRANSITION_OFFSET_DP);
         binding.launcherContent.setVisibility(View.VISIBLE);
         setBottomNavigationVisibility(View.VISIBLE);
-        container.setTranslationX(binding.launcherRoot.getWidth());
+        container.setTranslationX(transitionOffset);
+        container.setAlpha(0f);
         container.setVisibility(View.VISIBLE);
         SettingsFragment fragment = new SettingsFragment();
         FragmentTransaction transaction = getFragmentManager().beginTransaction();
@@ -1184,8 +1187,12 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 return true;
             }
             removeSettingsPreDrawListener();
-            container.setTranslationX(container.getWidth());
-            container.animate().translationX(0f)
+            if (homePageVisible) {
+                prepareHomePageForStackedTransition();
+            }
+            container.setTranslationX(transitionOffset);
+            container.setAlpha(0f);
+            container.animate().translationX(0f).alpha(1f)
                     .setDuration(PAGE_TRANSITION_DURATION_MS)
                     .setInterpolator(mPageTransitionInterpolator)
                     .withLayer()
@@ -1205,6 +1212,12 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         int generation = ++mPageTransitionGeneration;
         View container = binding.settingsContainer;
         float translation = container.getTranslationX();
+        float alpha = container.getAlpha();
+        float homeTranslation = binding.pageBody.getTranslationX();
+        float homeAlpha = binding.pageBody.getAlpha();
+        boolean restoreHomePage = clearBackStack
+                || getFragmentManager().getBackStackEntryCount() == 1;
+        int transitionOffset = dp(PAGE_TRANSITION_OFFSET_DP);
         cancelPageAnimations();
         mHomeNavigationPending = true;
         mSettingsExitPending = true;
@@ -1214,12 +1227,16 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             updateLauncherBackground(false);
             showAiChatEntry();
         }
+        if (restoreHomePage) {
+            prepareHomePageForStackedReturn(homeTranslation, homeAlpha);
+        }
         container.setTranslationX(translation);
-        if (translation >= container.getWidth()) {
+        container.setAlpha(alpha);
+        if (container.getVisibility() != View.VISIBLE || translation >= transitionOffset) {
             popBackStack(clearBackStack);
             return;
         }
-        container.animate().translationX(container.getWidth())
+        container.animate().translationX(transitionOffset).alpha(0f)
                 .setDuration(PAGE_TRANSITION_DURATION_MS)
                 .setInterpolator(mPageTransitionInterpolator)
                 .withLayer()
@@ -1241,13 +1258,16 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     private void showSystemAppsPage() {
+        boolean homePageVisible = getCurrentPageFragment() == null;
         int generation = ++mPageTransitionGeneration;
         cancelPageAnimations();
         mHomeNavigationPending = false;
         mSystemAppsEntryPending = true;
         View container = binding.systemAppsContainer;
+        int transitionOffset = dp(PAGE_TRANSITION_OFFSET_DP);
         binding.launcherContent.setVisibility(View.VISIBLE);
-        container.setTranslationX(binding.launcherRoot.getWidth());
+        container.setTranslationX(transitionOffset);
+        container.setAlpha(0f);
         container.setVisibility(View.VISIBLE);
         SystemAppsFragment fragment = new SystemAppsFragment();
         getFragmentManager().beginTransaction()
@@ -1265,8 +1285,12 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 return true;
             }
             removeSystemAppsPreDrawListener();
-            container.setTranslationX(container.getWidth());
-            container.animate().translationX(0f)
+            if (homePageVisible) {
+                prepareHomePageForStackedTransition();
+            }
+            container.setTranslationX(transitionOffset);
+            container.setAlpha(0f);
+            container.animate().translationX(0f).alpha(1f)
                     .setDuration(PAGE_TRANSITION_DURATION_MS)
                     .setInterpolator(mPageTransitionInterpolator)
                     .withLayer()
@@ -1286,6 +1310,12 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         int generation = ++mPageTransitionGeneration;
         View container = binding.systemAppsContainer;
         float translation = container.getTranslationX();
+        float alpha = container.getAlpha();
+        float homeTranslation = binding.pageBody.getTranslationX();
+        float homeAlpha = binding.pageBody.getAlpha();
+        boolean restoreHomePage = clearBackStack
+                || getFragmentManager().getBackStackEntryCount() == 1;
+        int transitionOffset = dp(PAGE_TRANSITION_OFFSET_DP);
         cancelPageAnimations();
         mHomeNavigationPending = true;
         binding.launcherContent.setVisibility(View.VISIBLE);
@@ -1296,12 +1326,16 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             updateLauncherBackground(false);
             showAiChatEntry();
         }
+        if (restoreHomePage) {
+            prepareHomePageForStackedReturn(homeTranslation, homeAlpha);
+        }
         container.setTranslationX(translation);
-        if (translation >= container.getWidth()) {
+        container.setAlpha(alpha);
+        if (container.getVisibility() != View.VISIBLE || translation >= transitionOffset) {
             popBackStack(clearBackStack);
             return;
         }
-        container.animate().translationX(container.getWidth())
+        container.animate().translationX(transitionOffset).alpha(0f)
                 .setDuration(PAGE_TRANSITION_DURATION_MS)
                 .setInterpolator(mPageTransitionInterpolator)
                 .withLayer()
@@ -1875,6 +1909,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             binding.systemAppsContainer.setVisibility(View.VISIBLE);
             binding.launcherContent.setVisibility(mSystemAppsEntryPending || mHomeNavigationPending
                     ? View.VISIBLE : View.INVISIBLE);
+            if (!mSystemAppsEntryPending && !mHomeNavigationPending) {
+                setHomePageTransitionState(-dp(PAGE_TRANSITION_OFFSET_DP), HOME_PAGE_DIMMED_ALPHA);
+                hideAiChatEntry();
+            }
             return;
         }
         binding.systemAppsContainer.setVisibility(View.GONE);
@@ -1886,6 +1924,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             binding.settingsContainer.setVisibility(View.VISIBLE);
             setBottomNavigationVisibility(mSettingsEntryPending || mSettingsExitPending
                     ? View.VISIBLE : View.INVISIBLE);
+            if (!mSettingsEntryPending && !mSettingsExitPending) {
+                setHomePageTransitionState(-dp(PAGE_TRANSITION_OFFSET_DP), HOME_PAGE_DIMMED_ALPHA);
+                hideAiChatEntry();
+            }
             return;
         }
         binding.settingsContainer.setVisibility(View.GONE);
@@ -1895,6 +1937,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
                 && (mAiPageEntryPending || mHomeNavigationPending);
         if (!aiHomeTransitionPending) {
             mHomeNavigationPending = false;
+            setBottomNavigationTransitionState(0f, 1f);
         }
         updatePageLayerOrder(aiConversationVisible);
         setBottomNavigationVisibility(aiConversationVisible && !aiHomeTransitionPending
@@ -1924,6 +1967,24 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.bottomNavigation.setAlpha(alpha);
         binding.bottomNavigationDivider.setTranslationX(translationX);
         binding.bottomNavigationDivider.setAlpha(alpha);
+    }
+
+    private void setHomePageTransitionState(float translationX, float alpha) {
+        binding.pageBody.setTranslationX(translationX);
+        binding.pageBody.setAlpha(alpha);
+        setBottomNavigationTransitionState(translationX, alpha);
+    }
+
+    private void prepareHomePageForStackedTransition() {
+        hideAiChatEntry();
+        animateHomePageContent(-dp(PAGE_TRANSITION_OFFSET_DP), HOME_PAGE_DIMMED_ALPHA, true);
+    }
+
+    private void prepareHomePageForStackedReturn(float translationX, float alpha) {
+        setHomePageTransitionState(translationX, alpha);
+        setBottomNavigationVisibility(View.VISIBLE);
+        showAiChatEntry();
+        animateHomePageContent(0f, 1f, true);
     }
 
     private void animateHomePageContent(float translationX, float alpha,
