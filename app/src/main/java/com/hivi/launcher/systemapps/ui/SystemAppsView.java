@@ -10,5 +10,7 @@ public interface SystemAppsView extends BaseView {
 
     void updateApp(AppEntry app);
 
+    void showAppActions(AppEntry app);
+
     void closePage();
 }

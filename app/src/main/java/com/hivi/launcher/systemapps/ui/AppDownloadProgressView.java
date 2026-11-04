@@ -99,6 +99,7 @@ public final class AppDownloadProgressView extends View {
 
     private boolean isIndeterminate() {
         return mState == AppDownloadState.WAITING || mState == AppDownloadState.INSTALLING
+                || mState == AppDownloadState.UNINSTALLING
                 || (mState == AppDownloadState.DOWNLOADING && mProgress < 0);
     }
 

@@ -2,7 +2,9 @@ package com.hivi.launcher.systemapps;
 
 import android.app.Instrumentation;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.Fragment;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -30,6 +32,7 @@ import com.hivi.launcher.main.ui.MainActivity;
 import com.hivi.launcher.settings.ui.SettingsFragment;
 import com.hivi.launcher.systemapps.model.AppDownloadState;
 import com.hivi.launcher.systemapps.model.AppEntry;
+import com.hivi.launcher.systemapps.model.AppUninstallReceiver;
 import com.hivi.launcher.systemapps.model.SupportedApp;
 import com.hivi.launcher.systemapps.ui.SystemAppsFragment;
 import com.hivi.launcher.systemapps.ui.HeaderButtonBackgroundDrawable;
@@ -122,6 +125,8 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
                     assertLogoOverlay(grid.getChildAt(index));
                 }
             });
+            runOnMainSync(this::assertUninstallStateAndMenus);
+            capture("uninstall-state.png");
             runOnMainSync(() -> {
                 SystemAppsFragment fragment = (SystemAppsFragment) activity.getFragmentManager()
                         .findFragmentById(R.id.system_apps_container);
@@ -130,7 +135,8 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
             awaitPage(false);
             result.putString("stream", "Nine-app catalog, cloud badges, black inset pressed states "
                     + "for back and volume, unchanged alpha contours and outer shadows, design parameters and "
-                    + "all download state layouts passed. Repeated page transitions keep home geometry, "
+                    + "all download state layouts, uninstall state, protected app menus and private "
+                    + "uninstall receiver passed. Repeated page transitions keep home geometry, "
                     + "app item identities stable. Settings and app pages use the AI-style short slide "
                     + "and fade, with home cards, navigation and divider synchronized in both directions. "
                     + "Unauthorized AI entries preserve the current page and open authorization. "
@@ -795,6 +801,59 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
                         R.string.system_app_install_failed)),
                         "Installation failure must use its own status label");
             }
+        }
+    }
+
+    private void assertUninstallStateAndMenus() {
+        SystemAppsFragment fragment = (SystemAppsFragment) mActivity.getFragmentManager()
+                .findFragmentById(R.id.system_apps_container);
+        GridLayout grid = mActivity.findViewById(R.id.apps_grid);
+        SupportedApp app = SupportedApp.NETEASE_MUSIC;
+        int index = app.ordinal();
+        View item = grid.getChildAt(index);
+        require(item.isLongClickable(), "App items must register a long-press listener");
+        fragment.updateApp(new AppEntry(app, mActivity.getString(app.getLabelResId()),
+                app.getPackageNames()[0], "MainActivity", mActivity.getDrawable(app.getIconResId()),
+                AppDownloadState.UNINSTALLING, -1));
+        require(!item.isEnabled(), "Uninstalling apps must not accept repeated interaction");
+        require(item.findViewById(R.id.app_download_progress).getVisibility() == View.VISIBLE,
+                "Uninstalling must show a progress overlay");
+        require(item.findViewById(R.id.app_download_icon).getVisibility() == View.GONE,
+                "Uninstalling must not show a download icon");
+        TextView status = item.findViewById(R.id.app_status);
+        require(status.getVisibility() == View.VISIBLE && status.getText().toString().equals(
+                mActivity.getString(R.string.system_app_uninstalling)),
+                "Uninstalling must show its own status label");
+        require(item.getContentDescription().toString().contains(status.getText()),
+                "Accessibility must announce the uninstall state");
+        try {
+            require(!mActivity.getPackageManager().getReceiverInfo(
+                    new ComponentName(mActivity, AppUninstallReceiver.class), 0).exported,
+                    "Uninstall callbacks must use a private receiver");
+            Field field = SystemAppsFragment.class.getDeclaredField("mAppActionsDialog");
+            field.setAccessible(true);
+            for (SupportedApp selected : new SupportedApp[]{app, SupportedApp.QQ_MUSIC}) {
+                fragment.showAppActions(new AppEntry(selected,
+                        mActivity.getString(selected.getLabelResId()), selected.getPackageNames()[0],
+                        "MainActivity", mActivity.getDrawable(selected.getIconResId()),
+                        AppDownloadState.INSTALLED, 100));
+                AlertDialog dialog = (AlertDialog) field.get(fragment);
+                require(dialog != null && dialog.isShowing(), "Long-press menu must be visible");
+                int count = selected.isUninstallable() ? 2 : 1;
+                require(dialog.getListView().getCount() == count,
+                        "Protected apps must only offer app info");
+                require(dialog.getListView().getAdapter().getItem(count - 1).toString().equals(
+                        mActivity.getString(R.string.system_app_action_app_info)),
+                        "App info must be available for all installed apps");
+                if (selected.isUninstallable()) {
+                    require(dialog.getListView().getAdapter().getItem(0).toString().equals(
+                            mActivity.getString(R.string.system_app_action_uninstall)),
+                            "Uninstallable apps must offer an uninstall action");
+                }
+                dialog.dismiss();
+            }
+        } catch (Exception exception) {
+            throw new AssertionError("Cannot verify uninstall menus or receiver", exception);
         }
     }
 

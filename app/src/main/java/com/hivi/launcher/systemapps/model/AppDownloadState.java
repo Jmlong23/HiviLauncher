@@ -6,6 +6,7 @@ public enum AppDownloadState {
     DOWNLOADING,
     PAUSED,
     INSTALLING,
+    UNINSTALLING,
     INSTALLED,
     FAILED,
     INSTALL_FAILED

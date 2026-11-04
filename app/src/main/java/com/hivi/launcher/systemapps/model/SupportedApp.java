@@ -72,4 +72,8 @@ public enum SupportedApp {
         }
         return false;
     }
+
+    public boolean isUninstallable() {
+        return this != QQ_MUSIC;
+    }
 }

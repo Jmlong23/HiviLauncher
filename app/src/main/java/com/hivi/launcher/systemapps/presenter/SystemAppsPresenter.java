@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
+import android.provider.Settings;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.base.BasePresenter;
@@ -33,6 +35,18 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView> {
             if (getView() != null) {
                 loadApps();
                 launchApp(createEntry(app));
+            }
+        }
+
+        @Override
+        public void onAppUninstalled(SupportedApp app, boolean success) {
+            SystemAppsView view = getView();
+            if (view != null) {
+                loadApps();
+                view.showToast(success
+                        ? mContext.getString(R.string.system_app_uninstalled,
+                                mContext.getString(app.getLabelResId()))
+                        : mContext.getString(R.string.system_app_uninstall_failed));
             }
         }
     };
@@ -70,7 +84,7 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView> {
             launchApp(createEntry(app.getSupportedApp()));
         } else if (state == AppDownloadState.DOWNLOADING || state == AppDownloadState.WAITING) {
             mDownloadManager.pause(app.getSupportedApp());
-        } else if (state != AppDownloadState.INSTALLING
+        } else if (state != AppDownloadState.INSTALLING && state != AppDownloadState.UNINSTALLING
                 && !mDownloadManager.enqueue(app.getSupportedApp())) {
             SystemAppsView view = getView();
             if (view != null) {
@@ -81,6 +95,10 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView> {
     }
 
     public void launchApp(AppEntry app) {
+        if (mDownloadManager.getTask(app.getSupportedApp()).getState()
+                == AppDownloadState.UNINSTALLING) {
+            return;
+        }
         if (app.getPackageName().isEmpty() || app.getActivityName().isEmpty()) {
             loadApps();
             return;
@@ -102,6 +120,42 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView> {
                 view.showToast(mContext.getString(R.string.system_apps_launch_failed, app.getLabel()));
             }
             loadApps();
+        }
+    }
+
+    public void onAppLongPressed(AppEntry app) {
+        app = createEntry(app.getSupportedApp());
+        SystemAppsView view = getView();
+        if (view != null && app.getDownloadState() == AppDownloadState.INSTALLED
+                && !app.getPackageName().isEmpty()) {
+            view.showAppActions(app);
+        }
+    }
+
+    public void uninstallApp(AppEntry app) {
+        app = createEntry(app.getSupportedApp());
+        if (app.getDownloadState() == AppDownloadState.INSTALLED
+                && app.getSupportedApp().isUninstallable()) {
+            mDownloadManager.uninstall(app.getSupportedApp(), app.getPackageName());
+        }
+    }
+
+    public void openAppInfo(AppEntry app) {
+        app = createEntry(app.getSupportedApp());
+        if (app.getDownloadState() != AppDownloadState.INSTALLED
+                || app.getPackageName().isEmpty()) {
+            return;
+        }
+        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:" + app.getPackageName()));
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+        try {
+            mContext.startActivity(intent);
+        } catch (RuntimeException exception) {
+            SystemAppsView view = getView();
+            if (view != null) {
+                view.showToast(mContext.getString(R.string.system_app_open_info_failed));
+            }
         }
     }
 

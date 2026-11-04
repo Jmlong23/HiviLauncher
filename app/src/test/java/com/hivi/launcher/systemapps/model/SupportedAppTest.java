@@ -81,4 +81,11 @@ public class SupportedAppTest {
             assertEquals(expectedTypes[index], SupportedApp.values()[index].getServerType());
         }
     }
+
+    @Test
+    public void qqMusicIsProtectedWhileOtherCatalogAppsAreUninstallable() {
+        for (SupportedApp app : SupportedApp.values()) {
+            assertEquals(app != SupportedApp.QQ_MUSIC, app.isUninstallable());
+        }
+    }
 }

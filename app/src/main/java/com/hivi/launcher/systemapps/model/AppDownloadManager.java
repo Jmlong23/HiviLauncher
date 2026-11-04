@@ -1,8 +1,11 @@
 package com.hivi.launcher.systemapps.model;
 
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -31,6 +34,7 @@ import okhttp3.ResponseBody;
 
 public final class AppDownloadManager {
     private static final String TAG = "AppDownloadManager";
+    private static final int FLAG_MUTABLE = 1 << 25;
     private static final long MAX_PACKAGE_BYTES = 512L * 1024L * 1024L;
     private static AppDownloadManager sInstance;
 
@@ -38,6 +42,9 @@ public final class AppDownloadManager {
         void onAppDownloadChanged(SupportedApp app);
 
         default void onAppInstalled(SupportedApp app) {
+        }
+
+        default void onAppUninstalled(SupportedApp app, boolean success) {
         }
     }
 
@@ -111,6 +118,86 @@ public final class AppDownloadManager {
                 }
             }
             publish(app);
+        }
+    }
+
+    public boolean uninstall(SupportedApp app, String packageName) {
+        if (!app.isUninstallable() || !app.matchesPackage(packageName)) {
+            return false;
+        }
+        AppDownloadTask task = getTask(app);
+        int generation = task.beginUninstalling();
+        if (generation < 0) {
+            return false;
+        }
+        publish(app);
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O_MR1) {
+            new Thread(() -> uninstallLegacy(app, packageName, generation),
+                    "SystemAppUninstall").start();
+            return true;
+        }
+        PendingIntent pendingIntent = null;
+        try {
+            Intent callback = new Intent(mContext, AppUninstallReceiver.class)
+                    .setAction(AppUninstallReceiver.ACTION_UNINSTALL_RESULT)
+                    .putExtra(AppUninstallReceiver.EXTRA_APP, app.name())
+                    .putExtra(AppUninstallReceiver.EXTRA_GENERATION, generation);
+            int flags = PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_ONE_SHOT;
+            if (Build.VERSION.SDK_INT >= 31) {
+                flags |= FLAG_MUTABLE;
+            }
+            pendingIntent = PendingIntent.getBroadcast(mContext, app.ordinal(), callback, flags);
+            mContext.getPackageManager().getPackageInstaller()
+                    .uninstall(packageName, pendingIntent.getIntentSender());
+        } catch (Exception exception) {
+            if (pendingIntent != null) {
+                pendingIntent.cancel();
+            }
+            AppLog.w(TAG, "App uninstall request failed: " + packageName, exception);
+            onUninstallResult(app, generation, false);
+        }
+        return true;
+    }
+
+    void onUninstallResult(SupportedApp app, int generation, boolean success) {
+        mMainHandler.post(() -> {
+            if (!getTask(app).finishUninstalling(generation, success)) {
+                return;
+            }
+            for (Listener listener : mListeners) {
+                listener.onAppDownloadChanged(app);
+                listener.onAppUninstalled(app, success);
+            }
+        });
+    }
+
+    private void uninstallLegacy(SupportedApp app, String packageName, int generation) {
+        Process process = null;
+        boolean success = false;
+        try {
+            process = new ProcessBuilder("pm", "uninstall", "--user", "0", packageName)
+                    .redirectErrorStream(true).start();
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line);
+                }
+            }
+            int exitCode = process.waitFor();
+            success = exitCode == 0 && output.toString().contains("Success");
+            AppLog.i(TAG, "App shell uninstall " + packageName + ": exitCode=" + exitCode
+                    + ", output=" + output);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        } catch (Exception exception) {
+            AppLog.w(TAG, "App shell uninstall failed: " + packageName, exception);
+        } finally {
+            if (process != null) {
+                process.destroy();
+            }
+            onUninstallResult(app, generation, success);
         }
     }
 

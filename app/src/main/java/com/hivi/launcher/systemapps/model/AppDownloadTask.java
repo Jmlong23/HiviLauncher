@@ -17,7 +17,8 @@ public final class AppDownloadTask {
 
     public synchronized int enqueue() {
         if (mState == AppDownloadState.WAITING || mState == AppDownloadState.DOWNLOADING
-                || mState == AppDownloadState.INSTALLING || mState == AppDownloadState.INSTALLED) {
+                || mState == AppDownloadState.INSTALLING || mState == AppDownloadState.INSTALLED
+                || mState == AppDownloadState.UNINSTALLING) {
             return -1;
         }
         mState = AppDownloadState.WAITING;
@@ -78,6 +79,27 @@ public final class AppDownloadTask {
         return generation == mGeneration;
     }
 
+    public synchronized int beginUninstalling() {
+        if (mState != AppDownloadState.INSTALLED) {
+            return -1;
+        }
+        mState = AppDownloadState.UNINSTALLING;
+        return ++mGeneration;
+    }
+
+    public synchronized boolean finishUninstalling(int generation, boolean success) {
+        if (!isCurrent(generation) || mState != AppDownloadState.UNINSTALLING) {
+            return false;
+        }
+        mState = success ? AppDownloadState.NOT_INSTALLED : AppDownloadState.INSTALLED;
+        if (success) {
+            mDownloadedBytes = 0L;
+            mTotalBytes = -1L;
+        }
+        ++mGeneration;
+        return true;
+    }
+
     public synchronized void restorePaused(long downloaded, long total) {
         mDownloadedBytes = Math.max(0L, downloaded);
         mTotalBytes = total;
@@ -86,6 +108,9 @@ public final class AppDownloadTask {
     }
 
     public synchronized void reconcileInstalled(boolean installed) {
+        if (mState == AppDownloadState.UNINSTALLING) {
+            return;
+        }
         if (installed && mState != AppDownloadState.INSTALLED
                 && mState != AppDownloadState.INSTALLING) {
             mState = AppDownloadState.INSTALLED;

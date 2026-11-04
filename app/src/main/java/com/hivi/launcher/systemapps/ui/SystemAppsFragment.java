@@ -1,6 +1,7 @@
 package com.hivi.launcher.systemapps.ui;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -36,6 +37,7 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
     private final Map<SupportedApp, ItemAppGridBinding> mAppBindings =
             new EnumMap<>(SupportedApp.class);
     private FragmentSystemAppsBinding mBinding;
+    private AlertDialog mAppActionsDialog;
     private final BroadcastReceiver mPackageReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -112,12 +114,14 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
 
     @Override
     public void onStop() {
+        dismissAppActions();
         getActivity().unregisterReceiver(mPackageReceiver);
         super.onStop();
     }
 
     @Override
     public void onDestroyView() {
+        dismissAppActions();
         mAppBindings.clear();
         mApps.clear();
         mBinding = null;
@@ -186,6 +190,47 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
         }
     }
 
+    @Override
+    public void showAppActions(AppEntry app) {
+        Activity activity = getActivity();
+        if (activity == null || activity.isFinishing()) {
+            return;
+        }
+        dismissAppActions();
+        boolean uninstallable = app.getSupportedApp().isUninstallable();
+        CharSequence[] actions = uninstallable
+                ? new CharSequence[]{getString(R.string.system_app_action_uninstall),
+                        getString(R.string.system_app_action_app_info)}
+                : new CharSequence[]{getString(R.string.system_app_action_app_info)};
+        mAppActionsDialog = new AlertDialog.Builder(activity)
+                .setTitle(app.getLabel())
+                .setItems(actions, (dialog, which) -> {
+                    FeedbackSound.playClick();
+                    SystemAppsPresenter presenter = getPresenter();
+                    if (presenter != null) {
+                        if (uninstallable && which == 0) {
+                            presenter.uninstallApp(app);
+                        } else {
+                            presenter.openAppInfo(app);
+                        }
+                    }
+                })
+                .create();
+        mAppActionsDialog.setOnDismissListener(dialog -> {
+            if (mAppActionsDialog == dialog) {
+                mAppActionsDialog = null;
+            }
+        });
+        mAppActionsDialog.show();
+    }
+
+    private void dismissAppActions() {
+        if (mAppActionsDialog != null) {
+            mAppActionsDialog.dismiss();
+            mAppActionsDialog = null;
+        }
+    }
+
     private View createAppGridItem(final AppEntry app, ViewGroup parent) {
         ItemAppGridBinding itemBinding = ItemAppGridBinding.inflate(
                 LayoutInflater.from(getActivity()), parent, false);
@@ -198,7 +243,7 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
         AppDownloadState state = app.getDownloadState();
         boolean active = state == AppDownloadState.WAITING
                 || state == AppDownloadState.DOWNLOADING || state == AppDownloadState.PAUSED
-                || state == AppDownloadState.INSTALLING;
+                || state == AppDownloadState.INSTALLING || state == AppDownloadState.UNINSTALLING;
         boolean showDownloadIcon = state == AppDownloadState.NOT_INSTALLED
                 || state == AppDownloadState.FAILED || state == AppDownloadState.INSTALL_FAILED;
         itemBinding.appIcon.setImageDrawable(app.getIcon());
@@ -212,7 +257,8 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
         itemBinding.appStatus.setVisibility(active || state == AppDownloadState.FAILED
                 || state == AppDownloadState.INSTALL_FAILED
                 ? View.VISIBLE : View.GONE);
-        itemBinding.appGridItem.setEnabled(state != AppDownloadState.INSTALLING);
+        itemBinding.appGridItem.setEnabled(state != AppDownloadState.INSTALLING
+                && state != AppDownloadState.UNINSTALLING);
         itemBinding.appGridItem.setContentDescription(getString(R.string.system_app_accessibility,
                 app.getLabel(), status, getString(getAppAction(state))));
         itemBinding.appGridItem.setOnClickListener(ignored -> {
@@ -221,6 +267,14 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
             if (presenter != null) {
                 presenter.onAppClicked(app);
             }
+        });
+        itemBinding.appGridItem.setOnLongClickListener(ignored -> {
+            FeedbackSound.playClick();
+            SystemAppsPresenter presenter = getPresenter();
+            if (presenter != null) {
+                presenter.onAppLongPressed(app);
+            }
+            return true;
         });
     }
 
@@ -236,6 +290,8 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
                 return getString(R.string.system_app_paused);
             case INSTALLING:
                 return getString(R.string.system_app_installing);
+            case UNINSTALLING:
+                return getString(R.string.system_app_uninstalling);
             case FAILED:
                 return getString(R.string.system_app_failed);
             case INSTALL_FAILED:
@@ -261,6 +317,8 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
                 return R.string.system_app_action_open;
             case INSTALLING:
                 return R.string.system_app_installing;
+            case UNINSTALLING:
+                return R.string.system_app_uninstalling;
             default:
                 return R.string.system_app_action_download;
         }

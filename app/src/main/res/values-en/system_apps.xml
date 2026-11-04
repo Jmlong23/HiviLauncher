@@ -15,6 +15,12 @@
     <string name="system_app_download_progress">Downloading %1$d%%</string>
     <string name="system_app_paused">Paused</string>
     <string name="system_app_installing">Installing…</string>
+    <string name="system_app_uninstalling">Uninstalling…</string>
+    <string name="system_app_action_uninstall">Uninstall</string>
+    <string name="system_app_action_app_info">App info</string>
+    <string name="system_app_uninstalled">%1$s uninstalled</string>
+    <string name="system_app_uninstall_failed">Uninstall failed. Please try again later</string>
+    <string name="system_app_open_info_failed">Unable to open app info</string>
     <string name="system_app_failed">Download failed. Tap to retry</string>
     <string name="system_app_install_failed">Installation failed. Tap to retry</string>
     <string name="system_app_download_unavailable">No download URL configured for %1$s</string>

@@ -15,6 +15,12 @@
     <string name="system_app_download_progress">下载中 %1$d%%</string>
     <string name="system_app_paused">已暂停</string>
     <string name="system_app_installing">安装中…</string>
+    <string name="system_app_uninstalling">正在卸载…</string>
+    <string name="system_app_action_uninstall">卸载应用</string>
+    <string name="system_app_action_app_info">应用信息</string>
+    <string name="system_app_uninstalled">%1$s已卸载</string>
+    <string name="system_app_uninstall_failed">卸载失败，请稍后重试</string>
+    <string name="system_app_open_info_failed">无法打开应用信息</string>
     <string name="system_app_failed">下载失败，点按重试</string>
     <string name="system_app_install_failed">安装失败，点按重试</string>
     <string name="system_app_download_unavailable">暂未配置%1$s的下载地址</string>
