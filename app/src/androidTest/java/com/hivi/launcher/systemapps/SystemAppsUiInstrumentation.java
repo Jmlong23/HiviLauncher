@@ -131,8 +131,8 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
             result.putString("stream", "Nine-app catalog, cloud badges, black inset pressed states "
                     + "for back and volume, unchanged alpha contours and outer shadows, design parameters and "
                     + "all download state layouts passed. Repeated page transitions keep home geometry, "
-                    + "opaque page layers and app item identities stable. "
-                    + "Settings transitions preserve the stationary home and reveal navigation by sliding. "
+                    + "app item identities stable. Settings and app pages use the AI-style short slide "
+                    + "and fade, with home cards, navigation and divider synchronized in both directions. "
                     + "Unauthorized AI entries preserve the current page and open authorization. "
                     + "AI transitions keep navigation and its divider synchronized with home content, "
                     + "including repeated entry and interrupted returns. "
@@ -145,67 +145,7 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
     }
 
     private void verifyHomeTransition(boolean entering) throws Exception {
-        View decor = mActivity.getWindow().getDecorView();
-        View home = decor.findViewById(R.id.launcher_content);
-        View cards = decor.findViewById(R.id.cards_row);
-        View body = decor.findViewById(R.id.page_body);
-        View container = decor.findViewById(R.id.system_apps_container);
-        Rect[] originalBounds = new Rect[1];
-        int[] originalPadding = new int[4];
-        runOnMainSync(() -> {
-            originalBounds[0] = bounds(cards);
-            originalPadding[0] = home.getPaddingLeft();
-            originalPadding[1] = home.getPaddingTop();
-            originalPadding[2] = home.getPaddingRight();
-            originalPadding[3] = home.getPaddingBottom();
-            if (entering) {
-                mActivity.showPage(MainPage.SYSTEM_APPS);
-            } else {
-                mActivity.navigateBack();
-            }
-        });
-        CountDownLatch finished = new CountDownLatch(1);
-        Throwable[] failure = new Throwable[1];
-        long deadline = SystemClock.uptimeMillis() + 5000L;
-        runOnMainSync(() -> decor.postOnAnimation(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    require(originalBounds[0].equals(bounds(cards)),
-                            "Home cards must not resize or jump during app navigation");
-                    require(home.getPaddingLeft() == originalPadding[0]
-                            && home.getPaddingTop() == originalPadding[1]
-                            && home.getPaddingRight() == originalPadding[2]
-                            && home.getPaddingBottom() == originalPadding[3],
-                            "App navigation must not mutate the shared home padding");
-                    require(body.getTranslationX() == 0f && body.getAlpha() == 1f,
-                            "The home layer must remain stationary and opaque");
-                    require(container.getAlpha() == 1f,
-                            "The app page must not cross-fade with home content");
-                    boolean complete = entering
-                            ? home.getVisibility() == View.INVISIBLE
-                            && container.getTranslationX() == 0f
-                            : container.getVisibility() == View.GONE;
-                    if (complete) {
-                        if (entering) {
-                            require(decor.findViewById(R.id.apps_grid).getWidth() > 0,
-                                    "App items must be laid out before entry finishes");
-                        }
-                        finished.countDown();
-                    } else if (SystemClock.uptimeMillis() < deadline) {
-                        decor.postOnAnimation(this);
-                    }
-                } catch (Throwable throwable) {
-                    failure[0] = throwable;
-                    finished.countDown();
-                }
-            }
-        }));
-        require(finished.await(6L, TimeUnit.SECONDS), "App page transition did not finish");
-        if (failure[0] != null) {
-            throw new AssertionError("App transition regression", failure[0]);
-        }
-        waitForIdleSync();
+        verifyStackedHomeTransition(MainPage.SYSTEM_APPS, entering);
     }
 
     private void awaitPage(boolean appsVisible) throws Exception {
@@ -213,6 +153,7 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
             View container = mActivity.findViewById(R.id.system_apps_container);
             View home = mActivity.findViewById(R.id.launcher_content);
             return appsVisible ? container.getVisibility() == View.VISIBLE
+                    && container.getAlpha() == 1f
                     && container.getTranslationX() == 0f
                     && home.getVisibility() == View.INVISIBLE
                     : container.getVisibility() == View.GONE
@@ -251,67 +192,92 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
     }
 
     private void verifySettingsTransition(boolean entering) throws Exception {
+        verifyStackedHomeTransition(MainPage.SETTINGS, entering);
+    }
+
+    private void verifyStackedHomeTransition(MainPage page, boolean entering) throws Exception {
         View decor = mActivity.getWindow().getDecorView();
         View home = decor.findViewById(R.id.launcher_content);
         View cards = decor.findViewById(R.id.cards_row);
         View body = decor.findViewById(R.id.page_body);
         View navigation = decor.findViewById(R.id.bottom_navigation);
-        View container = decor.findViewById(R.id.settings_container);
-        Rect[] originalBounds = new Rect[2];
+        View divider = decor.findViewById(R.id.bottom_navigation_divider);
+        View topBar = decor.findViewById(R.id.top_bar);
+        boolean appsPage = page == MainPage.SYSTEM_APPS;
+        View container = decor.findViewById(appsPage
+                ? R.id.system_apps_container : R.id.settings_container);
+        int transitionOffset = Math.round(28f * getTargetContext().getResources()
+                .getDisplayMetrics().density);
+        Rect[] originalBounds = new Rect[3];
         int[] originalPadding = new int[4];
         runOnMainSync(() -> {
             originalBounds[0] = bounds(cards);
             originalBounds[1] = bounds(navigation);
+            originalBounds[2] = bounds(topBar);
             originalPadding[0] = home.getPaddingLeft();
             originalPadding[1] = home.getPaddingTop();
             originalPadding[2] = home.getPaddingRight();
             originalPadding[3] = home.getPaddingBottom();
             if (entering) {
-                mActivity.showPage(MainPage.SETTINGS);
+                mActivity.showPage(page);
             } else {
                 mActivity.navigateBack();
             }
-            require(navigation.getVisibility() == View.VISIBLE,
-                    "Navigation must stay behind the sliding settings page instead of flashing away");
+            assertBottomNavigationVisibility(View.VISIBLE);
         });
         CountDownLatch finished = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
-        boolean[] sawSlidingFrame = new boolean[1];
+        boolean[] sawTransitionFrame = new boolean[1];
+        boolean[] sawHomeTransitionFrame = new boolean[1];
         long deadline = SystemClock.uptimeMillis() + 5000L;
         runOnMainSync(() -> decor.postOnAnimation(new Runnable() {
             @Override
             public void run() {
                 try {
                     require(originalBounds[0].equals(bounds(cards))
-                            && originalBounds[1].equals(bounds(navigation)),
-                            "Settings transitions must not resize or move home cards and navigation");
+                            && originalBounds[1].equals(bounds(navigation))
+                            && originalBounds[2].equals(bounds(topBar)),
+                            "Page transitions must preserve home layout geometry");
                     require(home.getPaddingLeft() == originalPadding[0]
                             && home.getPaddingTop() == originalPadding[1]
                             && home.getPaddingRight() == originalPadding[2]
                             && home.getPaddingBottom() == originalPadding[3],
-                            "Settings must not mutate shared home padding");
-                    require(body.getTranslationX() == 0f && body.getAlpha() == 1f,
-                            "Home must remain stationary and opaque behind settings");
-                    require(container.getAlpha() == 1f
-                            && container.getBackground() instanceof ColorDrawable
+                            "Page transitions must not mutate shared home padding");
+                    assertHomeTransitionState(body, navigation, divider);
+                    require(topBar.getTranslationX() == 0f && topBar.getAlpha() == 1f,
+                            "The top status bar must remain stationary");
+                    require(container.getBackground() instanceof ColorDrawable
                             && Color.alpha(((ColorDrawable) container.getBackground()).getColor()) == 255,
-                            "Settings must use an opaque page rather than cross-fading with home");
+                            "Page backgrounds must stay opaque after the fade completes");
                     if (container.getVisibility() == View.VISIBLE
-                            && container.getTranslationX() > 0f) {
-                        require(navigation.getVisibility() == View.VISIBLE,
-                                "Navigation must remain visible until the settings page covers it");
-                        if (container.getTranslationX() < container.getWidth()) {
-                            sawSlidingFrame[0] = true;
-                        }
+                            && container.getAlpha() > 0f && container.getAlpha() < 1f) {
+                        assertBottomNavigationVisibility(View.VISIBLE);
+                        require(container.getTranslationX() > 0f
+                                && container.getTranslationX() <= transitionOffset,
+                                "Pages must slide a short distance while fading like AI");
+                        sawTransitionFrame[0] = true;
+                    }
+                    if (body.getTranslationX() < 0f && body.getAlpha() < 1f) {
+                        sawHomeTransitionFrame[0] = true;
                     }
                     boolean complete = entering
                             ? container.getVisibility() == View.VISIBLE
                             && container.getTranslationX() == 0f
-                            && navigation.getVisibility() == View.INVISIBLE
+                            && container.getAlpha() == 1f
+                            && (appsPage ? home.getVisibility() == View.INVISIBLE
+                            : navigation.getVisibility() == View.INVISIBLE)
                             : container.getVisibility() == View.GONE
                             && navigation.getVisibility() == View.VISIBLE;
                     if (complete) {
-                        require(sawSlidingFrame[0], "Settings must visibly slide instead of switching instantly");
+                        require(sawTransitionFrame[0] && sawHomeTransitionFrame[0],
+                                "Pages and home must visibly animate instead of switching instantly");
+                        require(body.getTranslationX() == (entering ? -transitionOffset : 0f)
+                                && body.getAlpha() == (entering ? 0.65f : 1f),
+                                "Home must settle into the matching AI transition state");
+                        if (entering && appsPage) {
+                            require(decor.findViewById(R.id.apps_grid).getWidth() > 0,
+                                    "App items must be laid out before entry finishes");
+                        }
                         finished.countDown();
                     } else if (SystemClock.uptimeMillis() < deadline) {
                         decor.postOnAnimation(this);
@@ -322,9 +288,9 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
                 }
             }
         }));
-        require(finished.await(6L, TimeUnit.SECONDS), "Settings transition did not finish");
+        require(finished.await(6L, TimeUnit.SECONDS), "Page transition did not finish: " + page);
         if (failure[0] != null) {
-            throw new AssertionError("Settings transition regression", failure[0]);
+            throw new AssertionError("Page transition regression: " + page, failure[0]);
         }
         waitForIdleSync();
     }
@@ -592,7 +558,7 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
                 mActivity.onBackPressed();
             }
             assertBottomNavigationVisibility(View.VISIBLE);
-            assertAiHomeTransitionState(body, navigation, divider);
+            assertHomeTransitionState(body, navigation, divider);
         });
         CountDownLatch finished = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
@@ -602,7 +568,7 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
             @Override
             public void run() {
                 try {
-                    assertAiHomeTransitionState(body, navigation, divider);
+                    assertHomeTransitionState(body, navigation, divider);
                     float pageAlpha = container.getAlpha();
                     if (pageAlpha > 0f && pageAlpha < 1f) {
                         assertBottomNavigationVisibility(View.VISIBLE);
@@ -631,13 +597,13 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
         }
     }
 
-    private void assertAiHomeTransitionState(View body, View navigation, View divider) {
+    private void assertHomeTransitionState(View body, View navigation, View divider) {
         require(Math.abs(body.getTranslationX() - navigation.getTranslationX()) < 0.01f
                 && Math.abs(body.getTranslationX() - divider.getTranslationX()) < 0.01f,
-                "AI transitions must move home cards, navigation and divider together");
+                "Page transitions must move home cards, navigation and divider together");
         require(Math.abs(body.getAlpha() - navigation.getAlpha()) < 0.001f
                 && Math.abs(body.getAlpha() - divider.getAlpha()) < 0.001f,
-                "AI transitions must fade home cards, navigation and divider together");
+                "Page transitions must fade home cards, navigation and divider together");
     }
 
     private void assertBottomNavigationVisibility(int visibility) {
