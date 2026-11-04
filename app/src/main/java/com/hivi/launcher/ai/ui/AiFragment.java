@@ -57,7 +57,6 @@ public final class AiFragment extends BaseFragment<AiPresenter>
         mBinding = FragmentAiConversationBinding.bind(view);
         // AI 页面与监听悬浮条不同时显示：手动进入页面时隐藏唤醒留下的悬浮条。
         AiListeningOverlay.getInstance().hide();
-        mBinding.aiConversationBack.setOnClickListener(ignored -> requestBackNavigation());
         mBinding.aiConversationParticle.setOnClickListener(ignored -> {
             AiPresenter presenter = getPresenter();
             if (presenter != null) {
@@ -175,13 +174,6 @@ public final class AiFragment extends BaseFragment<AiPresenter>
         Activity activity = getActivity();
         if (activity instanceof MainActivity) {
             ((MainActivity) activity).showPage(MainPage.WIFI);
-        }
-    }
-
-    private void requestBackNavigation() {
-        Activity activity = getActivity();
-        if (activity instanceof MainActivity) {
-            ((MainActivity) activity).onAiChatBackRequested();
         }
     }
 

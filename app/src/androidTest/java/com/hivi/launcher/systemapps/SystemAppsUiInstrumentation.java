@@ -3,7 +3,9 @@ package com.hivi.launcher.systemapps;
 import android.app.Instrumentation;
 import android.app.Activity;
 import android.app.Fragment;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -20,6 +22,9 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.hivi.launcher.R;
+import com.hivi.launcher.account.ui.AuthorizationDialog;
+import com.hivi.launcher.ai.ui.AiFragment;
+import com.hivi.launcher.ai.wakeup.AiWakeupController;
 import com.hivi.launcher.main.model.MainPage;
 import com.hivi.launcher.main.ui.MainActivity;
 import com.hivi.launcher.settings.ui.SettingsFragment;
@@ -31,6 +36,7 @@ import com.hivi.launcher.systemapps.ui.HeaderButtonBackgroundDrawable;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -90,6 +96,7 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
             }
             verifyInterruptedSettingsTransition();
             verifyPageStackAcrossContainers();
+            verifyAiAuthorizationAndNavigation();
             verifyHomeTransition(true);
             runOnMainSync(() -> {
                 activity.navigateBack();
@@ -126,6 +133,9 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
                     + "all download state layouts passed. Repeated page transitions keep home geometry, "
                     + "opaque page layers and app item identities stable. "
                     + "Settings transitions preserve the stationary home and reveal navigation by sliding. "
+                    + "Unauthorized AI entries preserve the current page and open authorization. "
+                    + "AI transitions keep navigation and its divider synchronized with home content, "
+                    + "including repeated entry and interrupted returns. "
                     + "Screenshots: files/system-app-ui-tests\n");
             finish(Activity.RESULT_OK, result);
         } catch (Throwable throwable) {
@@ -213,6 +223,10 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
     }
 
     private void awaitCondition(BooleanSupplier condition) throws Exception {
+        awaitCondition(condition, true);
+    }
+
+    private void awaitCondition(BooleanSupplier condition, boolean waitForIdle) throws Exception {
         CountDownLatch ready = new CountDownLatch(1);
         View decor = mActivity.getWindow().getDecorView();
         long deadline = SystemClock.uptimeMillis() + 5000L;
@@ -227,7 +241,9 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
             }
         }));
         require(ready.await(6L, TimeUnit.SECONDS), "Page did not reach its settled state");
-        waitForIdleSync();
+        if (waitForIdle) {
+            waitForIdleSync();
+        }
     }
 
     private Rect bounds(View view) {
@@ -410,6 +426,225 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
         runOnMainSync(() -> require(mActivity.findViewById(R.id.bottom_navigation)
                 .getVisibility() == View.VISIBLE,
                 "Returning home must restore the app navigation buttons"));
+    }
+
+    private void verifyAiAuthorizationAndNavigation() throws Exception {
+        SharedPreferences preferences = mActivity.getApplicationContext().getSharedPreferences(
+                "account_authorization", Context.MODE_PRIVATE);
+        String originalToken = preferences.getString("authorization_token", null);
+        try {
+            runOnMainSync(() -> require(preferences.edit().remove("authorization_token").commit(),
+                    "Cannot prepare unauthorized AI entry"));
+            verifyAiAuthorizationGate();
+            runOnMainSync(() -> require(preferences.edit()
+                    .putString("authorization_token", "Bearer ai-navigation-test").commit(),
+                    "Cannot prepare authorized AI navigation"));
+            verifyAiConversationNavigation();
+        } finally {
+            runOnMainSync(() -> {
+                require(preferences.edit().putString("authorization_token", originalToken).commit(),
+                        "Cannot restore the original authorization token");
+                AuthorizationDialog dialog = getAuthorizationDialog();
+                if (dialog != null) {
+                    dialog.dismiss();
+                }
+            });
+        }
+    }
+
+    private void verifyAiAuthorizationGate() throws Exception {
+        runOnMainSync(() -> {
+            mActivity.findViewById(R.id.ai_chat_entry).performClick();
+            AuthorizationDialog dialog = getAuthorizationDialog();
+            require(dialog != null && dialog.isShowing(),
+                    "Unauthorized AI click must open the authorization dialog");
+            mActivity.findViewById(R.id.ai_chat_entry).performClick();
+            require(dialog == getAuthorizationDialog() && dialog.isShowing(),
+                    "Repeated unauthorized AI clicks must reuse the authorization dialog");
+            mActivity.getFragmentManager().executePendingTransactions();
+            require(mActivity.getFragmentManager().getBackStackEntryCount() == 0,
+                    "Unauthorized AI clicks must not enqueue a page");
+            require(mActivity.getFragmentManager().findFragmentById(R.id.fragment_container) == null,
+                    "Unauthorized AI clicks must keep the home page active");
+            require(mActivity.findViewById(R.id.ai_chat_entry).getVisibility() == View.VISIBLE,
+                    "Unauthorized AI clicks must keep the home AI entry visible");
+            assertBottomNavigationVisibility(View.VISIBLE);
+            dialog.dismiss();
+            mActivity.showPage(MainPage.WIFI);
+            mActivity.getFragmentManager().executePendingTransactions();
+        });
+        waitForIdleSync();
+        runOnMainSync(() -> {
+            Fragment previous = mActivity.getFragmentManager()
+                    .findFragmentById(R.id.fragment_container);
+            int backStackCount = mActivity.getFragmentManager().getBackStackEntryCount();
+            mActivity.bringToFrontAndShowPage(MainPage.AI);
+            mActivity.getFragmentManager().executePendingTransactions();
+            require(mActivity.getFragmentManager().findFragmentById(R.id.fragment_container)
+                    == previous, "Unauthorized AI navigation must preserve the previous page");
+            require(mActivity.getFragmentManager().getBackStackEntryCount() == backStackCount,
+                    "Unauthorized AI navigation must preserve the back stack");
+            AuthorizationDialog dialog = getAuthorizationDialog();
+            require(dialog != null && dialog.isShowing(),
+                    "Programmatic AI navigation must require authorization too");
+            assertBottomNavigationVisibility(View.VISIBLE);
+            dialog.dismiss();
+            mActivity.onWakeupRejected(AiWakeupController.Reason.NOT_AUTHORIZED);
+            require(getAuthorizationDialog().isShowing(),
+                    "Unauthorized voice wakeup must open the authorization dialog");
+            dialog.dismiss();
+            mActivity.showHomePage();
+        });
+        awaitPage(false);
+    }
+
+    private AuthorizationDialog getAuthorizationDialog() {
+        try {
+            Field field = MainActivity.class.getDeclaredField("mAuthorizationDialog");
+            field.setAccessible(true);
+            return (AuthorizationDialog) field.get(mActivity);
+        } catch (ReflectiveOperationException exception) {
+            throw new AssertionError("Cannot inspect the authorization dialog", exception);
+        }
+    }
+
+    private void verifyAiConversationNavigation() throws Exception {
+        for (int iteration = 0; iteration < 3; iteration++) {
+            verifyAiHomeTransition(true);
+            if (iteration == 0) {
+                capture("ai-navigation-hidden.png");
+            }
+            verifyAiHomeTransition(false);
+        }
+        runOnMainSync(() -> {
+            assertBottomNavigationVisibility(View.VISIBLE);
+            mActivity.showPage(MainPage.AI);
+            assertBottomNavigationVisibility(View.VISIBLE);
+            mActivity.getFragmentManager().executePendingTransactions();
+            require(mActivity.getFragmentManager().findFragmentById(R.id.fragment_container)
+                    instanceof AiFragment, "AI conversation page must be active");
+            assertBottomNavigationVisibility(View.VISIBLE);
+            require(mActivity.findViewById(R.id.top_bar).getVisibility() == View.VISIBLE,
+                    "AI conversation must keep the top status bar visible");
+            mActivity.navigateBack();
+        });
+        awaitPage(false);
+        verifyAiHomeTransition(true);
+        runOnMainSync(() -> {
+            mActivity.navigateBack();
+            mActivity.showPage(MainPage.AI);
+        });
+        awaitCondition(() -> mActivity.findViewById(R.id.bottom_navigation)
+                .getVisibility() == View.GONE, false);
+        runOnMainSync(mActivity::onBackPressed);
+        awaitPage(false);
+        runOnMainSync(() -> {
+            assertBottomNavigationVisibility(View.VISIBLE);
+            mActivity.showPage(MainPage.WIFI);
+            mActivity.getFragmentManager().executePendingTransactions();
+            assertBottomNavigationVisibility(View.VISIBLE);
+            mActivity.showPage(MainPage.AI);
+            assertBottomNavigationVisibility(View.GONE);
+            mActivity.getFragmentManager().executePendingTransactions();
+            assertBottomNavigationVisibility(View.GONE);
+            mActivity.navigateBack();
+            mActivity.getFragmentManager().executePendingTransactions();
+            require(!(mActivity.getFragmentManager().findFragmentById(R.id.fragment_container)
+                    instanceof AiFragment), "Back must restore the previous input-mode page");
+            assertBottomNavigationVisibility(View.VISIBLE);
+            mActivity.showPage(MainPage.AI);
+            mActivity.getFragmentManager().executePendingTransactions();
+            assertBottomNavigationVisibility(View.GONE);
+            mActivity.showPage(MainPage.WIFI);
+            mActivity.getFragmentManager().executePendingTransactions();
+            assertBottomNavigationVisibility(View.VISIBLE);
+            mActivity.showHomePage();
+        });
+        awaitPage(false);
+        runOnMainSync(() -> assertBottomNavigationVisibility(View.VISIBLE));
+    }
+
+    private void verifyAiHomeTransition(boolean entering) throws Exception {
+        View decor = mActivity.getWindow().getDecorView();
+        View body = decor.findViewById(R.id.page_body);
+        View navigation = decor.findViewById(R.id.bottom_navigation);
+        View divider = decor.findViewById(R.id.bottom_navigation_divider);
+        View container = decor.findViewById(R.id.fragment_container);
+        runOnMainSync(() -> {
+            if (entering) {
+                mActivity.showPage(MainPage.AI);
+                mActivity.showPage(MainPage.AI);
+                mActivity.getFragmentManager().executePendingTransactions();
+                require(mActivity.getFragmentManager().getBackStackEntryCount() == 1,
+                        "Repeated AI taps must not enqueue duplicate pages");
+                int backButtonId = getTargetContext().getResources().getIdentifier(
+                        "ai_conversation_back", "id", getTargetContext().getPackageName());
+                require(backButtonId == 0 || mActivity.findViewById(backButtonId) == null,
+                        "AI conversation must not display an in-page back button");
+                View parent = (View) container.getParent();
+                require(parent instanceof android.view.ViewGroup,
+                        "The AI page and navigation must share a view group");
+                android.view.ViewGroup layers = (android.view.ViewGroup) parent;
+                require(layers.indexOfChild(container) > layers.indexOfChild(navigation)
+                        && layers.indexOfChild(container) > layers.indexOfChild(divider),
+                        "The AI page must cover navigation instead of hiding it ahead of home");
+            } else {
+                mActivity.onBackPressed();
+            }
+            assertBottomNavigationVisibility(View.VISIBLE);
+            assertAiHomeTransitionState(body, navigation, divider);
+        });
+        CountDownLatch finished = new CountDownLatch(1);
+        Throwable[] failure = new Throwable[1];
+        boolean[] sawTransitionFrame = new boolean[1];
+        long deadline = SystemClock.uptimeMillis() + 5000L;
+        runOnMainSync(() -> decor.postOnAnimation(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    assertAiHomeTransitionState(body, navigation, divider);
+                    float pageAlpha = container.getAlpha();
+                    if (pageAlpha > 0f && pageAlpha < 1f) {
+                        assertBottomNavigationVisibility(View.VISIBLE);
+                        sawTransitionFrame[0] = true;
+                    }
+                    boolean complete = entering
+                            ? pageAlpha == 1f && navigation.getVisibility() == View.GONE
+                            : container.getVisibility() == View.GONE;
+                    if (complete) {
+                        require(sawTransitionFrame[0],
+                                "AI navigation must follow rendered home transition frames");
+                        assertBottomNavigationVisibility(entering ? View.GONE : View.VISIBLE);
+                        finished.countDown();
+                    } else if (SystemClock.uptimeMillis() < deadline) {
+                        decor.postOnAnimation(this);
+                    }
+                } catch (Throwable throwable) {
+                    failure[0] = throwable;
+                    finished.countDown();
+                }
+            }
+        }));
+        require(finished.await(6L, TimeUnit.SECONDS), "AI home transition did not finish");
+        if (failure[0] != null) {
+            throw new AssertionError("AI home transition regression", failure[0]);
+        }
+    }
+
+    private void assertAiHomeTransitionState(View body, View navigation, View divider) {
+        require(Math.abs(body.getTranslationX() - navigation.getTranslationX()) < 0.01f
+                && Math.abs(body.getTranslationX() - divider.getTranslationX()) < 0.01f,
+                "AI transitions must move home cards, navigation and divider together");
+        require(Math.abs(body.getAlpha() - navigation.getAlpha()) < 0.001f
+                && Math.abs(body.getAlpha() - divider.getAlpha()) < 0.001f,
+                "AI transitions must fade home cards, navigation and divider together");
+    }
+
+    private void assertBottomNavigationVisibility(int visibility) {
+        require(mActivity.findViewById(R.id.bottom_navigation).getVisibility() == visibility,
+                "App navigation visibility must match the active page");
+        require(mActivity.findViewById(R.id.bottom_navigation_divider).getVisibility() == visibility,
+                "The divider must share app navigation visibility");
     }
 
     private void assertHeaderDesignParameters() {
