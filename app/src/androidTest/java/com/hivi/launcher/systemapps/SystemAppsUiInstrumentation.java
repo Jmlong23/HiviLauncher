@@ -3,7 +3,9 @@ package com.hivi.launcher.systemapps;
 import android.app.Instrumentation;
 import android.app.Activity;
 import android.app.Fragment;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -20,7 +22,9 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.hivi.launcher.R;
+import com.hivi.launcher.account.ui.AuthorizationDialog;
 import com.hivi.launcher.ai.ui.AiFragment;
+import com.hivi.launcher.ai.wakeup.AiWakeupController;
 import com.hivi.launcher.main.model.MainPage;
 import com.hivi.launcher.main.ui.MainActivity;
 import com.hivi.launcher.settings.ui.SettingsFragment;
@@ -32,6 +36,7 @@ import com.hivi.launcher.systemapps.ui.HeaderButtonBackgroundDrawable;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -91,7 +96,7 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
             }
             verifyInterruptedSettingsTransition();
             verifyPageStackAcrossContainers();
-            verifyAiConversationNavigation();
+            verifyAiAuthorizationAndNavigation();
             verifyHomeTransition(true);
             runOnMainSync(() -> {
                 activity.navigateBack();
@@ -128,6 +133,7 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
                     + "all download state layouts passed. Repeated page transitions keep home geometry, "
                     + "opaque page layers and app item identities stable. "
                     + "Settings transitions preserve the stationary home and reveal navigation by sliding. "
+                    + "Unauthorized AI entries preserve the current page and open authorization. "
                     + "AI transitions keep navigation and its divider synchronized with home content, "
                     + "including repeated entry and interrupted returns. "
                     + "Screenshots: files/system-app-ui-tests\n");
@@ -420,6 +426,86 @@ public final class SystemAppsUiInstrumentation extends Instrumentation {
         runOnMainSync(() -> require(mActivity.findViewById(R.id.bottom_navigation)
                 .getVisibility() == View.VISIBLE,
                 "Returning home must restore the app navigation buttons"));
+    }
+
+    private void verifyAiAuthorizationAndNavigation() throws Exception {
+        SharedPreferences preferences = mActivity.getApplicationContext().getSharedPreferences(
+                "account_authorization", Context.MODE_PRIVATE);
+        String originalToken = preferences.getString("authorization_token", null);
+        try {
+            runOnMainSync(() -> require(preferences.edit().remove("authorization_token").commit(),
+                    "Cannot prepare unauthorized AI entry"));
+            verifyAiAuthorizationGate();
+            runOnMainSync(() -> require(preferences.edit()
+                    .putString("authorization_token", "Bearer ai-navigation-test").commit(),
+                    "Cannot prepare authorized AI navigation"));
+            verifyAiConversationNavigation();
+        } finally {
+            runOnMainSync(() -> {
+                require(preferences.edit().putString("authorization_token", originalToken).commit(),
+                        "Cannot restore the original authorization token");
+                AuthorizationDialog dialog = getAuthorizationDialog();
+                if (dialog != null) {
+                    dialog.dismiss();
+                }
+            });
+        }
+    }
+
+    private void verifyAiAuthorizationGate() throws Exception {
+        runOnMainSync(() -> {
+            mActivity.findViewById(R.id.ai_chat_entry).performClick();
+            AuthorizationDialog dialog = getAuthorizationDialog();
+            require(dialog != null && dialog.isShowing(),
+                    "Unauthorized AI click must open the authorization dialog");
+            mActivity.findViewById(R.id.ai_chat_entry).performClick();
+            require(dialog == getAuthorizationDialog() && dialog.isShowing(),
+                    "Repeated unauthorized AI clicks must reuse the authorization dialog");
+            mActivity.getFragmentManager().executePendingTransactions();
+            require(mActivity.getFragmentManager().getBackStackEntryCount() == 0,
+                    "Unauthorized AI clicks must not enqueue a page");
+            require(mActivity.getFragmentManager().findFragmentById(R.id.fragment_container) == null,
+                    "Unauthorized AI clicks must keep the home page active");
+            require(mActivity.findViewById(R.id.ai_chat_entry).getVisibility() == View.VISIBLE,
+                    "Unauthorized AI clicks must keep the home AI entry visible");
+            assertBottomNavigationVisibility(View.VISIBLE);
+            dialog.dismiss();
+            mActivity.showPage(MainPage.WIFI);
+            mActivity.getFragmentManager().executePendingTransactions();
+        });
+        waitForIdleSync();
+        runOnMainSync(() -> {
+            Fragment previous = mActivity.getFragmentManager()
+                    .findFragmentById(R.id.fragment_container);
+            int backStackCount = mActivity.getFragmentManager().getBackStackEntryCount();
+            mActivity.bringToFrontAndShowPage(MainPage.AI);
+            mActivity.getFragmentManager().executePendingTransactions();
+            require(mActivity.getFragmentManager().findFragmentById(R.id.fragment_container)
+                    == previous, "Unauthorized AI navigation must preserve the previous page");
+            require(mActivity.getFragmentManager().getBackStackEntryCount() == backStackCount,
+                    "Unauthorized AI navigation must preserve the back stack");
+            AuthorizationDialog dialog = getAuthorizationDialog();
+            require(dialog != null && dialog.isShowing(),
+                    "Programmatic AI navigation must require authorization too");
+            assertBottomNavigationVisibility(View.VISIBLE);
+            dialog.dismiss();
+            mActivity.onWakeupRejected(AiWakeupController.Reason.NOT_AUTHORIZED);
+            require(getAuthorizationDialog().isShowing(),
+                    "Unauthorized voice wakeup must open the authorization dialog");
+            dialog.dismiss();
+            mActivity.showHomePage();
+        });
+        awaitPage(false);
+    }
+
+    private AuthorizationDialog getAuthorizationDialog() {
+        try {
+            Field field = MainActivity.class.getDeclaredField("mAuthorizationDialog");
+            field.setAccessible(true);
+            return (AuthorizationDialog) field.get(mActivity);
+        } catch (ReflectiveOperationException exception) {
+            throw new AssertionError("Cannot inspect the authorization dialog", exception);
+        }
     }
 
     private void verifyAiConversationNavigation() throws Exception {

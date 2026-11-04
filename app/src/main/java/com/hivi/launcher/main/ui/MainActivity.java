@@ -1001,6 +1001,11 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         if (binding == null) {
             return;
         }
+        if (page == MainPage.AI && !AuthorizationStore.hasToken(this)) {
+            showAuthorization();
+            showToast(getString(R.string.ai_conversation_authorize_required));
+            return;
+        }
         if (mInputModeAdapter != null && mInputModeAdapter.selectMode(page)) {
             scrollToSelectedMode();
         }
