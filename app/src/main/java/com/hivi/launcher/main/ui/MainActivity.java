@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
@@ -25,6 +26,7 @@ import android.view.MotionEvent;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.TextView;
@@ -88,6 +90,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private static final int AVATAR_MAX_SIZE_PX = 512;
     private static final long PAGE_TRANSITION_DURATION_MS = 240L;
     private static final float PAGE_TRANSITION_OFFSET_DP = 28f;
+    private static final float PAGE_TRANSITION_DIMMED_ALPHA = 0.65f;
     private static final long SYSTEM_MUSIC_VOLUME_CHECK_INTERVAL_MS = 10_000L;
     private static final long SCREEN_SAVER_MINUTE_MS = 60_000L;
     private AuthorizationDialog mAuthorizationDialog;
@@ -101,6 +104,11 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private int mAmplifierVolumePercent;
     private int mPageTransitionGeneration;
     private int mAiChatEntryTransitionGeneration;
+    private MainPage mPendingTransitionPage;
+    private ImageView mPageTransitionSnapshot;
+    private Fragment mPageTransitionSource;
+    private ViewTreeObserver.OnPreDrawListener mPageTransitionPreDrawListener;
+    private boolean mPageTransitionReturning;
     private boolean mAmplifierMuted;
     private boolean mAiConversationBackgroundVisible;
     private AiWakeupController mAiWakeupController;
@@ -945,13 +953,28 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     }
 
     private void showStackedPage(MainPage page) {
+        if (page == mPendingTransitionPage) {
+            return;
+        }
+        FragmentManager fragmentManager = getFragmentManager();
+        if (mPageTransitionSnapshot != null) {
+            fragmentManager.executePendingTransactions();
+        }
         Fragment currentFragment = findCurrentPageFragment();
         if (isFragmentForPage(currentFragment, page)) {
             syncPageUiWithCurrentFragment();
             return;
         }
+        boolean animatePage = currentFragment != null
+                && (page == MainPage.SETTINGS || page == MainPage.SYSTEM_APPS);
+        if (animatePage) {
+            preparePageTransition(false);
+            mPendingTransitionPage = page;
+        } else {
+            ++mPageTransitionGeneration;
+            cancelPageAnimations();
+        }
         resetBottomNavigationBackground();
-        FragmentManager fragmentManager = getFragmentManager();
         FragmentTransaction transaction = fragmentManager.beginTransaction();
         if (currentFragment instanceof WifiFragment && page == MainPage.SETTINGS) {
             Fragment settingsFragment = fragmentManager.findFragmentByTag(MainPage.SETTINGS.name());
@@ -967,6 +990,9 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             transaction.replace(R.id.fragment_container, createPageFragment(page), page.name());
         }
         transaction.addToBackStack(page.name()).commitAllowingStateLoss();
+        if (animatePage) {
+            startPageTransition();
+        }
     }
 
     private Fragment findCurrentPageFragment() {
@@ -982,10 +1008,13 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     @Override
     public void navigateBack() {
-        if (binding == null) {
+        if (binding == null || mPageTransitionReturning) {
             return;
         }
         FragmentManager fragmentManager = getFragmentManager();
+        if (mPendingTransitionPage != null) {
+            fragmentManager.executePendingTransactions();
+        }
         int backStackEntryCount = fragmentManager.getBackStackEntryCount();
         if (backStackEntryCount <= 1) {
             // 已到返回栈底：底部即 WiFi 音乐首页，停留即可。
@@ -997,7 +1026,19 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         releaseAiConversationIfVisible();
         resetBottomNavigationBackground();
+        Fragment currentFragment = findCurrentPageFragment();
+        boolean animatePage = currentFragment instanceof SettingsFragment
+                || currentFragment instanceof SystemAppsFragment;
+        if (animatePage) {
+            preparePageTransition(true);
+        } else {
+            ++mPageTransitionGeneration;
+            cancelPageAnimations();
+        }
         fragmentManager.popBackStack();
+        if (animatePage) {
+            startPageTransition();
+        }
     }
 
     @Override
@@ -1006,6 +1047,9 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             return;
         }
         FragmentManager fragmentManager = getFragmentManager();
+        if (mPendingTransitionPage != null) {
+            fragmentManager.executePendingTransactions();
+        }
         Fragment currentFragment = findCurrentPageFragment();
         if (currentFragment instanceof WifiFragment
                 && fragmentManager.getBackStackEntryCount() == 1) {
@@ -1023,14 +1067,24 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             return;
         }
         releaseAiConversationIfVisible();
-        ++mPageTransitionGeneration;
-        cancelPageAnimations();
+        Fragment currentFragment = findCurrentPageFragment();
+        boolean animatePage = currentFragment instanceof SettingsFragment
+                || currentFragment instanceof SystemAppsFragment;
+        if (animatePage) {
+            preparePageTransition(true);
+        } else {
+            ++mPageTransitionGeneration;
+            cancelPageAnimations();
+        }
         updateLauncherBackground(false);
         FragmentManager fragmentManager = getFragmentManager();
         if (fragmentManager.getBackStackEntryCount() > 0
                 && MainPage.WIFI.name().equals(fragmentManager.getBackStackEntryAt(0).getName())) {
             fragmentManager.popBackStackImmediate(MainPage.WIFI.name(), 0);
             syncPageUiWithCurrentFragment();
+            if (animatePage) {
+                startPageTransition();
+            }
             return;
         }
         popBackStackImmediately(true);
@@ -1046,6 +1100,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     @Override
     protected void onDestroy() {
+        if (binding != null) {
+            ++mPageTransitionGeneration;
+            cancelPageAnimations();
+        }
         if (mAiWakeupController != null) {
             mAiWakeupController.clearNavigator(this);
             mAiWakeupController = null;
@@ -1355,8 +1413,100 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         return true;
     }
 
+    private void preparePageTransition(boolean returning) {
+        ++mPageTransitionGeneration;
+        cancelPageAnimations();
+        View container = binding.fragmentContainer;
+        if (!container.isLaidOut() || container.getWidth() == 0 || container.getHeight() == 0) {
+            return;
+        }
+        Bitmap bitmap = Bitmap.createBitmap(container.getWidth(), container.getHeight(),
+                Bitmap.Config.ARGB_8888);
+        container.draw(new Canvas(bitmap));
+        ImageView snapshot = new ImageView(this);
+        snapshot.setImageBitmap(bitmap);
+        snapshot.setScaleType(ImageView.ScaleType.FIT_XY);
+        snapshot.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        snapshot.setClickable(true);
+        FrameLayout.LayoutParams snapshotParams = new FrameLayout.LayoutParams(
+                container.getWidth(), container.getHeight());
+        snapshotParams.leftMargin = binding.launcherContent.getLeft() + container.getLeft();
+        snapshotParams.topMargin = binding.launcherContent.getTop() + container.getTop();
+        int contentIndex = binding.launcherRoot.indexOfChild(binding.launcherContent);
+        binding.launcherRoot.addView(snapshot, contentIndex + (returning ? 1 : 0), snapshotParams);
+        mPageTransitionSnapshot = snapshot;
+        mPageTransitionSource = findCurrentPageFragment();
+        mPageTransitionReturning = returning;
+        container.setTranslationX(dp(PAGE_TRANSITION_OFFSET_DP) * (returning ? -1f : 1f));
+        container.setAlpha(returning ? PAGE_TRANSITION_DIMMED_ALPHA : 0f);
+    }
+
+    private void startPageTransition() {
+        if (mPageTransitionSnapshot == null) {
+            mPendingTransitionPage = null;
+            return;
+        }
+        int generation = mPageTransitionGeneration;
+        mPageTransitionPreDrawListener = () -> {
+            View container = binding.fragmentContainer;
+            Fragment fragment = findCurrentPageFragment();
+            View pageView = fragment == null ? null : fragment.getView();
+            if (fragment == mPageTransitionSource || pageView == null
+                    || !pageView.isLaidOut() || pageView.isLayoutRequested()
+                    || container.isLayoutRequested()) {
+                return true;
+            }
+            removePageTransitionPreDrawListener();
+            mPageTransitionSnapshot.animate()
+                    .translationX(dp(PAGE_TRANSITION_OFFSET_DP)
+                            * (mPageTransitionReturning ? 1f : -1f))
+                    .alpha(mPageTransitionReturning ? 0f : PAGE_TRANSITION_DIMMED_ALPHA)
+                    .setDuration(PAGE_TRANSITION_DURATION_MS)
+                    .setInterpolator(mPageTransitionInterpolator)
+                    .start();
+            container.animate().translationX(0f).alpha(1f)
+                    .setDuration(PAGE_TRANSITION_DURATION_MS)
+                    .setInterpolator(mPageTransitionInterpolator)
+                    .withLayer()
+                    .withEndAction(() -> {
+                        if (binding != null && generation == mPageTransitionGeneration) {
+                            clearPageTransitionSnapshot();
+                        }
+                    }).start();
+            return true;
+        };
+        binding.fragmentContainer.getViewTreeObserver()
+                .addOnPreDrawListener(mPageTransitionPreDrawListener);
+    }
+
+    private void removePageTransitionPreDrawListener() {
+        if (mPageTransitionPreDrawListener != null) {
+            ViewTreeObserver observer = binding.fragmentContainer.getViewTreeObserver();
+            if (observer.isAlive()) {
+                observer.removeOnPreDrawListener(mPageTransitionPreDrawListener);
+            }
+            mPageTransitionPreDrawListener = null;
+        }
+    }
+
+    private void clearPageTransitionSnapshot() {
+        removePageTransitionPreDrawListener();
+        if (mPageTransitionSnapshot != null) {
+            mPageTransitionSnapshot.animate().cancel();
+            binding.launcherRoot.removeView(mPageTransitionSnapshot);
+            mPageTransitionSnapshot.setImageDrawable(null);
+            mPageTransitionSnapshot = null;
+        }
+        mPendingTransitionPage = null;
+        mPageTransitionSource = null;
+        mPageTransitionReturning = false;
+    }
+
     private void cancelPageAnimations() {
         binding.fragmentContainer.animate().cancel();
+        binding.fragmentContainer.setTranslationX(0f);
+        binding.fragmentContainer.setAlpha(1f);
+        clearPageTransitionSnapshot();
         ++mAiChatEntryTransitionGeneration;
         binding.aiChatEntry.animate().cancel();
     }
