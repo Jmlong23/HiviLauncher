@@ -73,6 +73,9 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView>
     }
 
     public void launchApp(AppEntry app) {
+        if (isUninstalling(app)) {
+            return;
+        }
         BootAutoPlaySuppressor.getInstance().markUserInteraction();
         if (!app.isInstalled()) {
             if (TextUtils.isEmpty(app.getDownloadUrl())) {
@@ -106,7 +109,7 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView>
 
     /** 长按应用图标：已安装的弹出“卸载应用/应用信息”菜单（受保护应用仅有“应用信息”），其余不响应。 */
     public void onAppLongPressed(AppEntry app) {
-        if (!app.isInstalled()) {
+        if (!app.isInstalled() || isUninstalling(app)) {
             return;
         }
         SystemAppsView view = getView();
@@ -120,10 +123,15 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView>
      * 结果经广播异步回调；API 27 以下的老系统回退 pm 命令。完成后刷新列表。
      */
     public void uninstallApp(final AppEntry app) {
-        if (mUninstallingApp != null || !app.isUninstallable()) {
+        if (mUninstallingApp != null || !app.isInstalled() || !app.isUninstallable()) {
             return;
         }
         mUninstallingApp = app;
+        onChanged(app, getDownloadStatus(app));
+        requestUninstall(app);
+    }
+
+    void requestUninstall(final AppEntry app) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             packageInstallerUninstall(app);
             return;
@@ -159,8 +167,8 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView>
                 notifyUninstallResult(app, status == PackageInstaller.STATUS_SUCCESS);
             }
         };
-        mContext.registerReceiver(receiver, new IntentFilter(action));
         try {
+            mContext.registerReceiver(receiver, new IntentFilter(action));
             Intent callback = new Intent(action).setPackage(mContext.getPackageName());
             // FLAG_MUTABLE（字面值 1<<25）：系统要往回调 Intent 填 EXTRA_STATUS，不可 IMMUTABLE；
             // 该常量 API 31 才加入而 compileSdk 为 30，故用字面值。
@@ -173,24 +181,21 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView>
                 mContext.unregisterReceiver(receiver);
             } catch (IllegalArgumentException ignored) {
             }
-            mUninstallingApp = null;
-            SystemAppsView view = getView();
-            if (view != null) {
-                view.showToast(mContext.getString(R.string.system_apps_uninstall_failed));
-            }
+            notifyUninstallResult(app, false);
         }
     }
 
-    private void notifyUninstallResult(AppEntry app, final boolean success) {
+    void notifyUninstallResult(AppEntry app, final boolean success) {
         mUninstallingApp = null;
         SystemAppsView view = getView();
         if (view == null) {
             return;
         }
         if (success) {
-            view.showToast(mContext.getString(R.string.system_apps_uninstalled, app.getLabel()));
             loadApps();
+            view.showToast(mContext.getString(R.string.system_apps_uninstalled, app.getLabel()));
         } else {
+            view.showDownloadStatus(app, getDownloadStatus(app));
             view.showToast(mContext.getString(R.string.system_apps_uninstall_failed));
         }
     }
@@ -277,11 +282,19 @@ public class SystemAppsPresenter extends BasePresenter<SystemAppsView>
         if (view == null) {
             return;
         }
-        view.showDownloadStatus(app, status);
+        view.showDownloadStatus(app, isUninstalling(app) ? getDownloadStatus(app) : status);
     }
 
     public AppDownloadStatus getDownloadStatus(AppEntry app) {
+        if (isUninstalling(app)) {
+            return new AppDownloadStatus(AppDownloadStatus.State.UNINSTALLING, -1);
+        }
         return mDownloadManager.getStatus(app);
+    }
+
+    private boolean isUninstalling(AppEntry app) {
+        return mUninstallingApp != null
+                && mUninstallingApp.getPackageName().equals(app.getPackageName());
     }
 
     @Override

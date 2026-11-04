@@ -7,6 +7,7 @@ public final class AppDownloadStatus {
         DOWNLOADING,
         PAUSED,
         INSTALLING,
+        UNINSTALLING,
         DOWNLOAD_FAILED,
         INSTALL_FAILED,
         INSTALLED

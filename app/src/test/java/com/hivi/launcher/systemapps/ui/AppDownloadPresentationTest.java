@@ -32,7 +32,27 @@ public class AppDownloadPresentationTest {
         AppDownloadPresentation presentation = presentation(AppDownloadStatus.State.INSTALLING);
         assertFalse(presentation.showsDownloadIcon());
         assertTrue(presentation.showsProgress());
+        assertFalse(presentation.isEnabled());
         assertEquals(R.string.system_apps_status_installing, presentation.getLabelResId());
+    }
+
+    @Test
+    public void uninstallingShowsProgressAndDisablesInteraction() {
+        AppDownloadPresentation presentation = presentation(AppDownloadStatus.State.UNINSTALLING);
+        assertTrue(presentation.isDimmed());
+        assertTrue(presentation.showsProgress());
+        assertFalse(presentation.showsDownloadIcon());
+        assertFalse(presentation.isEnabled());
+        assertEquals(R.string.system_apps_status_uninstalling, presentation.getLabelResId());
+    }
+
+    @Test
+    public void onlyInstallingAndUninstallingDisableInteraction() {
+        for (AppDownloadStatus.State state : AppDownloadStatus.State.values()) {
+            boolean enabled = state != AppDownloadStatus.State.INSTALLING
+                    && state != AppDownloadStatus.State.UNINSTALLING;
+            assertEquals(state.name(), enabled, presentation(state).isEnabled());
+        }
     }
 
     @Test

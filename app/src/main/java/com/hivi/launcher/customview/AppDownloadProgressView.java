@@ -50,6 +50,7 @@ public final class AppDownloadProgressView extends View {
         mPaint.setColor(Color.WHITE);
         boolean installing = mState == AppDownloadStatus.State.INSTALLING;
         boolean animating = installing
+                || mState == AppDownloadStatus.State.UNINSTALLING
                 || (mState == AppDownloadStatus.State.DOWNLOADING && mProgress < 0);
         if (animating) {
             float startAngle = (SystemClock.uptimeMillis() % 1200L) * 360f / 1200f - 90f;

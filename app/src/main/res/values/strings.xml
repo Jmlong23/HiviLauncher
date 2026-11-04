@@ -64,6 +64,7 @@
     <string name="system_apps_status_waiting">等待中...</string>
     <string name="system_apps_status_loading">正在下载...</string>
     <string name="system_apps_status_installing">正在安装...</string>
+    <string name="system_apps_status_uninstalling">正在卸载...</string>
     <string name="system_apps_status_install_failed">安装失败</string>
     <string name="system_apps_pause_download">点击暂停下载</string>
     <string name="system_apps_resume_download">点击继续下载</string>

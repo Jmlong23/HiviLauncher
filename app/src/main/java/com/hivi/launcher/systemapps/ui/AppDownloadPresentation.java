@@ -26,6 +26,7 @@ public final class AppDownloadPresentation {
             case DOWNLOADING:
             case PAUSED:
             case INSTALLING:
+            case UNINSTALLING:
                 return true;
             default:
                 return false;
@@ -34,6 +35,11 @@ public final class AppDownloadPresentation {
 
     public boolean isDimmed() {
         return mStatus.getState() != AppDownloadStatus.State.INSTALLED;
+    }
+
+    public boolean isEnabled() {
+        return mStatus.getState() != AppDownloadStatus.State.INSTALLING
+                && mStatus.getState() != AppDownloadStatus.State.UNINSTALLING;
     }
 
     public int getLabelResId() {
@@ -46,6 +52,8 @@ public final class AppDownloadPresentation {
                 return R.string.system_apps_status_paused;
             case INSTALLING:
                 return R.string.system_apps_status_installing;
+            case UNINSTALLING:
+                return R.string.system_apps_status_uninstalling;
             case DOWNLOAD_FAILED:
                 return R.string.system_apps_status_download_failed_short;
             case INSTALL_FAILED:

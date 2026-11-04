@@ -129,8 +129,7 @@ public final class SystemAppsFragment extends BaseFragment<SystemAppsPresenter>
                     ? R.string.system_apps_pause_download : R.string.system_apps_resume_download);
         }
         itemBinding.appGridItem.setContentDescription(description);
-        itemBinding.appGridItem.setEnabled(
-                status.getState() != AppDownloadStatus.State.INSTALLING);
+        itemBinding.appGridItem.setEnabled(presentation.isEnabled());
     }
 
     @Override

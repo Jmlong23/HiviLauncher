@@ -62,6 +62,7 @@
     <string name="system_apps_status_waiting">Waiting...</string>
     <string name="system_apps_status_loading">Downloading...</string>
     <string name="system_apps_status_installing">Installing...</string>
+    <string name="system_apps_status_uninstalling">Uninstalling...</string>
     <string name="system_apps_status_install_failed">Install failed</string>
     <string name="system_apps_pause_download">Tap to pause download</string>
     <string name="system_apps_resume_download">Tap to resume download</string>

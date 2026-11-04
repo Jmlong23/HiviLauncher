@@ -44,6 +44,23 @@ public class AppDownloadQueueTest {
     }
 
     @Test
+    public void uninstallAfterDownloadAndInstallDoesNotLeaveCachedInstalledState() {
+        mQueue.toggle(mFirstApp);
+        mBackend.callback.onInstallStarted();
+        mBackend.callback.onInstalled("first");
+        AppEntry installed = new AppEntry("first", "first", "first.MainActivity", null);
+        assertEquals(AppDownloadStatus.State.INSTALLED, mQueue.getStatus(installed).getState());
+
+        AppEntry uninstalled = app("first");
+        assertEquals(AppDownloadStatus.State.NOT_DOWNLOADED,
+                mQueue.getStatus(uninstalled).getState());
+        assertEquals(-1, mQueue.getStatus(uninstalled).getProgress());
+        mQueue.toggle(uninstalled);
+        assertEquals(AppDownloadStatus.State.DOWNLOADING,
+                mQueue.getStatus(uninstalled).getState());
+    }
+
+    @Test
     public void secondAppWaitsUntilFirstInstallCompletes() {
         mQueue.toggle(mFirstApp);
         mQueue.toggle(mSecondApp);
