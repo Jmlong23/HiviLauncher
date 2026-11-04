@@ -133,6 +133,15 @@ Manifest 中已声明：
 ./gradlew clean assembleRelease
 ```
 
+设置弹窗实机回归（覆盖音量、下拉菜单、WiFi、产品信息、恢复出厂、日志上报及系统更新的相关状态；音量验证使用隔离回调，不改变实际音量，也不连接 WiFi、上传日志、执行恢复出厂或安装更新）：
+
+```powershell
+.\gradlew.bat :app:assembleDebug :app:assembleDebugAndroidTest "-PtestInstrumentationRunner=com.hivi.launcher.settings.ui.SettingsDialogInstrumentation"
+adb install -r app/build/outputs/apk/debug/hivi-launcher-v1.0.0-debug.apk
+adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell am instrument -w com.hivi.launcher.test/com.hivi.launcher.settings.ui.SettingsDialogInstrumentation
+```
+
 ## 后续建议
 
 - 天气时钟屏保已下线，屏保样式现支持简约时钟、翻页时钟和夜间息屏三种横向滑动选择。

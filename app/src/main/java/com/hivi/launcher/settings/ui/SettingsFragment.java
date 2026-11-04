@@ -525,7 +525,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         });
         prepareSystemUpdateDialogWindow(dialog);
         mSystemUpdateConfirmationDialog = dialog;
-        showSystemUpdateDialog(dialog);
+        showSystemUpdateDialog(dialog, dp(460), dp(225));
     }
 
     @Override
@@ -558,7 +558,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         mSystemUpdateProgressBinding.systemUpdateProgressPercent.setText(
                 getString(R.string.system_update_progress_percent_format, safeProgress));
         mSystemUpdateProgressBinding.systemUpdateProgressStatus.setText(status);
-        showSystemUpdateDialog(mSystemUpdateProgressDialog);
+        showSystemUpdateDialog(mSystemUpdateProgressDialog, dp(620), dp(330));
     }
 
     @Override
@@ -588,7 +588,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         mLogUploadBinding.logUploadConfirmationContent.setVisibility(View.VISIBLE);
         mLogUploadBinding.logUploadProgressContent.setVisibility(View.GONE);
         mLogUploadBinding.logUploadSuccessContent.setVisibility(View.GONE);
-        showSystemUpdateDialog(mLogUploadDialog);
+        showSystemUpdateDialog(mLogUploadDialog, dp(520), dp(280));
     }
 
     @Override
@@ -607,7 +607,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         mLogUploadBinding.logUploadProgressPercent.setText(
                 getString(R.string.log_upload_progress_percent_format, safeProgress));
         mLogUploadBinding.logUploadProgressStatus.setText(status);
-        showSystemUpdateDialog(mLogUploadDialog);
+        showSystemUpdateDialog(mLogUploadDialog, dp(520), dp(280));
     }
 
     @Override
@@ -618,7 +618,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         mLogUploadBinding.logUploadConfirmationContent.setVisibility(View.GONE);
         mLogUploadBinding.logUploadProgressContent.setVisibility(View.GONE);
         mLogUploadBinding.logUploadSuccessContent.setVisibility(View.VISIBLE);
-        showSystemUpdateDialog(mLogUploadDialog);
+        showSystemUpdateDialog(mLogUploadDialog, dp(520), dp(280));
         mBrightnessSettingsHandler.removeCallbacks(mLogUploadSuccessDismissRunnable);
         mBrightnessSettingsHandler.postDelayed(mLogUploadSuccessDismissRunnable,
                 LOG_UPLOAD_SUCCESS_DISMISS_DELAY_MS);
@@ -648,7 +648,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         mFactoryResetBinding.factoryResetFinalConfirmationContent.setVisibility(View.VISIBLE);
         mFactoryResetBinding.factoryResetProgressContent.setVisibility(View.GONE);
         mFactoryResetBinding.factoryResetSuccessContent.setVisibility(View.GONE);
-        showSystemUpdateDialog(mFactoryResetDialog);
+        showSystemUpdateDialog(mFactoryResetDialog, dp(620), dp(330));
     }
 
     @Override
@@ -669,7 +669,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         mFactoryResetBinding.factoryResetProgressPercent.setText(
                 getString(R.string.factory_reset_progress_percent_format, safeProgress));
         mFactoryResetBinding.factoryResetProgressStatus.setText(status);
-        showSystemUpdateDialog(mFactoryResetDialog);
+        showSystemUpdateDialog(mFactoryResetDialog, dp(620), dp(330));
     }
 
     @Override
@@ -683,7 +683,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         mFactoryResetBinding.factoryResetFinalConfirmationContent.setVisibility(View.GONE);
         mFactoryResetBinding.factoryResetProgressContent.setVisibility(View.GONE);
         mFactoryResetBinding.factoryResetSuccessContent.setVisibility(View.VISIBLE);
-        showSystemUpdateDialog(mFactoryResetDialog);
+        showSystemUpdateDialog(mFactoryResetDialog, dp(620), dp(330));
         startFactoryResetSuccessLoadingAnimation();
         mBrightnessSettingsHandler.removeCallbacks(mFactoryResetSuccessTransitionRunnable);
         mBrightnessSettingsHandler.postDelayed(mFactoryResetSuccessTransitionRunnable,
@@ -915,7 +915,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         });
         prepareSystemUpdateDialogWindow(dialog);
         mProductInformationDialog = dialog;
-        showSystemUpdateDialog(dialog);
+        showSystemUpdateDialog(dialog, dp(460), dp(225));
     }
 
     private String getCurrentIpAddress() {
@@ -1090,9 +1090,13 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     }
 
     private PopupWindow createDisplayOptionsPopup(View content, int widthDp) {
-        PopupWindow popupWindow = new PopupWindow(content, dp(widthDp),
-                WindowManager.LayoutParams.WRAP_CONTENT, true);
+        int width = dp(widthDp);
+        content.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        PopupWindow popupWindow = new PopupWindow(content, width,
+                content.getMeasuredHeight(), true);
         popupWindow.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        popupWindow.setInputMethodMode(PopupWindow.INPUT_METHOD_NOT_NEEDED);
         popupWindow.setOutsideTouchable(true);
         popupWindow.setTouchable(true);
         popupWindow.setElevation(dp(8));
@@ -1421,6 +1425,11 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
     }
 
     private void showSystemUpdateDialog(Dialog dialog) {
+        showSystemUpdateDialog(dialog, WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT);
+    }
+
+    private void showSystemUpdateDialog(Dialog dialog, int width, int height) {
         if (dialog == null || dialog.isShowing()) {
             return;
         }
@@ -1430,8 +1439,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             return;
         }
         UiUtils.applyImmersiveVisibility(dialogWindow.getDecorView());
-        dialogWindow.setLayout(WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT);
+        dialogWindow.setLayout(width, height);
     }
 
     private String formatSystemVersion(String versionName) {

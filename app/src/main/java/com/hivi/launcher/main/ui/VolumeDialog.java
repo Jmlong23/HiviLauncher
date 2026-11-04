@@ -121,6 +121,6 @@ public final class VolumeDialog {
         window.setAttributes(attributes);
         window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
         UiUtils.applyImmersiveVisibility(window.getDecorView());
-        window.setLayout(UiUtils.dp(mActivity, 500), UiUtils.dp(mActivity, 120));
+        window.setLayout(UiUtils.dp(mActivity, 500), WindowManager.LayoutParams.WRAP_CONTENT);
     }
 }

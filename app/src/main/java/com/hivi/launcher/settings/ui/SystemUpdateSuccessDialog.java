@@ -37,8 +37,7 @@ public final class SystemUpdateSuccessDialog {
         dialog.show();
         Window window = dialog.getWindow();
         if (window != null) {
-            window.setLayout(WindowManager.LayoutParams.WRAP_CONTENT,
-                    WindowManager.LayoutParams.WRAP_CONTENT);
+            window.setLayout(UiUtils.dp(activity, 600), UiUtils.dp(activity, 250));
         }
         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
             @Override
