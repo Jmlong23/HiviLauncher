@@ -835,7 +835,8 @@
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:paddingLeft="21dp"
-                    android:paddingRight="21dp">
+                    android:paddingRight="21dp"
+                    android:visibility="gone">
 
                     <TextView
                         android:id="@+id/settings_current_server"

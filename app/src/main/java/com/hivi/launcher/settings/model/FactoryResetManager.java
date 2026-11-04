@@ -200,7 +200,7 @@ public final class FactoryResetManager {
         if (!AuthorizationStore.clear(mApplicationContext)) {
             throw new IOException("Unable to clear account authorization state.");
         }
-        if (!Constants.setTestEnvironment(mApplicationContext, true)) {
+        if (!Constants.setTestEnvironment(mApplicationContext, false)) {
             throw new IOException("Unable to reset server environment.");
         }
         NetworkManager.resetApiService();

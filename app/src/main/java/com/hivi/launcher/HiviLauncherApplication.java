@@ -5,7 +5,9 @@ import android.content.Context;
 import android.content.res.Configuration;
 
 import com.hivi.audionativelib.NativeLog;
+import com.hivi.launcher.utils.Constants;
 import com.hivi.launcher.utils.LocaleHelper;
+import com.hivi.launcher.utils.log.AppLog;
 import com.hivi.launcher.utils.log.DailyAppLogWriter;
 import com.hivi.launcher.utils.log.PersistentLogcatMirror;
 import com.hivi.launcher.utils.network.NetworkManager;
@@ -39,6 +41,11 @@ public class HiviLauncherApplication extends Application {
             }
         });
         installCrashLogHandler();
+        if (Constants.migrateOldTestEnvironmentDefault(deviceProtectedContext)) {
+            AppLog.i("HiviLauncherApplication",
+                    "Migrated server environment default to production: "
+                            + Constants.getCurrentBaseUrl(deviceProtectedContext));
+        }
         NetworkManager.initialize(deviceProtectedContext);
         PersistentLogcatMirror.start(deviceProtectedContext);
         BootAutoPlaySuppressor.getInstance().start(this);
