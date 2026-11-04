@@ -5,4 +5,6 @@ import com.hivi.launcher.bluetooth.model.BluetoothPageState;
 
 public interface BluetoothView extends BaseView {
     void renderBluetoothPage(BluetoothPageState state);
+
+    void renderBluetoothFftData(byte[] fftData);
 }

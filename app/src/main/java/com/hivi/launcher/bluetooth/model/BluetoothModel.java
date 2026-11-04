@@ -2,21 +2,21 @@ package com.hivi.launcher.bluetooth.model;
 
 import android.content.Context;
 
-import com.hivi.launcher.audio.AudioRouteController;
+import com.hivi.launcher.audio.SpectrumSubscription;
 
 /**
- * Owns the MCU Bluetooth state and amplifier-volume integrations used by the input page.
+ * Owns the MCU Bluetooth state and the FFT capture used by the input page's spectrum.
  */
 public final class BluetoothModel implements McuBluetoothController.Listener {
     public interface Listener {
         void onBluetoothPageStateChanged(BluetoothPageState state);
+
+        void onBluetoothFftData(byte[] fftData);
     }
 
     private final McuBluetoothController mMcuBluetoothController =
             McuBluetoothController.getInstance();
-    private final AudioRouteController mAudioRouteController = AudioRouteController.getInstance();
-    private final AudioRouteController.AmplifierVolumeListener mAmplifierVolumeListener =
-            (volumePercent, muted) -> dispatchState();
+    private final SpectrumSubscription mSpectrumSubscription = new SpectrumSubscription();
 
     private Listener mListener;
 
@@ -27,13 +27,18 @@ public final class BluetoothModel implements McuBluetoothController.Listener {
         mListener = listener;
         mMcuBluetoothController.start(context);
         mMcuBluetoothController.addListener(this);
-        mAudioRouteController.addAmplifierVolumeListener(mAmplifierVolumeListener);
+        mSpectrumSubscription.start(fftData -> {
+            Listener currentListener = mListener;
+            if (currentListener != null) {
+                currentListener.onBluetoothFftData(fftData);
+            }
+        });
         dispatchState();
     }
 
     public void stop() {
         mMcuBluetoothController.removeListener(this);
-        mAudioRouteController.removeAmplifierVolumeListener(mAmplifierVolumeListener);
+        mSpectrumSubscription.stop();
         mListener = null;
     }
 
@@ -61,18 +66,6 @@ public final class BluetoothModel implements McuBluetoothController.Listener {
         mMcuBluetoothController.clearPairings();
     }
 
-    public void adjustVolume(int direction) {
-        mAudioRouteController.adjustAmplifierVolume(direction);
-    }
-
-    public void setVolumePercent(int volumePercent) {
-        mAudioRouteController.setAmplifierVolume(volumePercent);
-    }
-
-    public void toggleMute() {
-        mAudioRouteController.toggleAmplifierMute();
-    }
-
     @Override
     public void onBluetoothStateChanged() {
         dispatchState();
@@ -95,8 +88,6 @@ public final class BluetoothModel implements McuBluetoothController.Listener {
                 mMcuBluetoothController.getPhoneName(),
                 mMcuBluetoothController.isConnected(),
                 mMcuBluetoothController.isPlaying(),
-                mAudioRouteController.getAmplifierVolumePercent(),
-                mAudioRouteController.isAmplifierMuted(),
                 mMcuBluetoothController.getTrackTitle(),
                 mMcuBluetoothController.getTrackLyric()));
     }

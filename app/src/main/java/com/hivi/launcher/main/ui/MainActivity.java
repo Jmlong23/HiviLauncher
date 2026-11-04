@@ -902,8 +902,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         if (mInputModeDialog != null) {
             mInputModeDialog.updateState(mInputModeAdapter == null
-                            ? null : mInputModeAdapter.getSelectedPage(),
-                    mBluetoothConnected, mWifiConnected);
+                    ? null : mInputModeAdapter.getSelectedPage());
         }
     }
 
@@ -1682,8 +1681,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         updateModeTextFromSelectedInputMode();
         scrollToSelectedMode();
         if (mInputModeDialog != null) {
-            mInputModeDialog.updateState(mInputModeAdapter.getSelectedPage(),
-                    mBluetoothConnected, mWifiConnected);
+            mInputModeDialog.updateState(mInputModeAdapter.getSelectedPage());
         }
     }
 
@@ -1772,8 +1770,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             });
         }
         mInputModeDialog.show(mInputModeAdapter == null
-                        ? null : mInputModeAdapter.getSelectedPage(),
-                mBluetoothConnected, mWifiConnected);
+                ? null : mInputModeAdapter.getSelectedPage());
     }
 
     private void cancelPageAnimations() {

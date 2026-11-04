@@ -10,4 +10,19 @@ public final class CoaxPresenter extends BasePresenter<CoaxView> {
     public CoaxPresenter(CoaxView view) {
         super(view);
     }
+
+    public void init() {
+        mModel.start(fftData -> runOnUiThread(() -> {
+            CoaxView view = getView();
+            if (view != null) {
+                view.renderCoaxFftData(fftData);
+            }
+        }));
+    }
+
+    @Override
+    public void detach() {
+        mModel.stop();
+        super.detach();
+    }
 }

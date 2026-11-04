@@ -10,4 +10,19 @@ public final class OpticalPresenter extends BasePresenter<OpticalView> {
     public OpticalPresenter(OpticalView view) {
         super(view);
     }
+
+    public void init() {
+        mModel.start(fftData -> runOnUiThread(() -> {
+            OpticalView view = getView();
+            if (view != null) {
+                view.renderOpticalFftData(fftData);
+            }
+        }));
+    }
+
+    @Override
+    public void detach() {
+        mModel.stop();
+        super.detach();
+    }
 }

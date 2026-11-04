@@ -10,4 +10,19 @@ public final class LinePresenter extends BasePresenter<LineView> {
     public LinePresenter(LineView view) {
         super(view);
     }
+
+    public void init() {
+        mModel.start(fftData -> runOnUiThread(() -> {
+            LineView view = getView();
+            if (view != null) {
+                view.renderLineFftData(fftData);
+            }
+        }));
+    }
+
+    @Override
+    public void detach() {
+        mModel.stop();
+        super.detach();
+    }
 }

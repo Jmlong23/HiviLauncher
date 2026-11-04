@@ -66,21 +66,6 @@
                 android:text="@string/input_mode_line"
                 android:textColor="@color/text_color"
                 android:textSize="13sp" />
-
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="21dp"
-                android:layout_gravity="bottom|start"
-                android:layout_marginLeft="13dp"
-                android:layout_marginBottom="11dp"
-                android:background="@drawable/status_background"
-                android:gravity="center"
-                android:paddingLeft="6dp"
-                android:paddingRight="6dp"
-                android:text="@string/input_mode_status_no_signal"
-                android:textColor="@color/text_color"
-                android:textSize="13sp" />
         </FrameLayout>
 
         <FrameLayout
@@ -109,22 +94,6 @@
                 android:ellipsize="end"
                 android:singleLine="true"
                 android:text="@string/input_mode_microphone"
-                android:textColor="@color/text_color"
-                android:textSize="13sp" />
-
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="21dp"
-                android:layout_gravity="bottom|start"
-                android:layout_marginLeft="13dp"
-                android:layout_marginBottom="11dp"
-                android:background="@drawable/status_background"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:paddingLeft="6dp"
-                android:paddingRight="6dp"
-                android:text="@string/input_mode_status_no_signal"
                 android:textColor="@color/text_color"
                 android:textSize="13sp" />
         </FrameLayout>
@@ -157,22 +126,6 @@
                 android:text="@string/input_mode_optical"
                 android:textColor="@color/text_color"
                 android:textSize="13sp" />
-
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="21dp"
-                android:layout_gravity="bottom|start"
-                android:layout_marginLeft="13dp"
-                android:layout_marginBottom="11dp"
-                android:background="@drawable/status_background"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:paddingLeft="6dp"
-                android:paddingRight="6dp"
-                android:text="@string/input_mode_status_no_signal"
-                android:textColor="@color/text_color"
-                android:textSize="13sp" />
         </FrameLayout>
 
         <FrameLayout
@@ -201,22 +154,6 @@
                 android:includeFontPadding="false"
                 android:singleLine="true"
                 android:text="@string/input_mode_coax"
-                android:textColor="@color/text_color"
-                android:textSize="13sp" />
-
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="21dp"
-                android:layout_gravity="bottom|start"
-                android:layout_marginLeft="13dp"
-                android:layout_marginBottom="11dp"
-                android:background="@drawable/status_background"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:paddingLeft="6dp"
-                android:paddingRight="6dp"
-                android:text="@string/input_mode_status_no_signal"
                 android:textColor="@color/text_color"
                 android:textSize="13sp" />
         </FrameLayout>
@@ -249,23 +186,6 @@
                 android:text="@string/input_mode_hdmi"
                 android:textColor="@color/text_color"
                 android:textSize="13sp" />
-
-
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="21dp"
-                android:layout_gravity="bottom|start"
-                android:layout_marginLeft="13dp"
-                android:layout_marginBottom="11dp"
-                android:background="@drawable/status_background"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:paddingLeft="6dp"
-                android:paddingRight="6dp"
-                android:text="@string/input_mode_status_no_signal"
-                android:textColor="@color/text_color"
-                android:textSize="13sp" />
         </FrameLayout>
 
         <FrameLayout
@@ -293,21 +213,6 @@
                 android:ellipsize="end"
                 android:singleLine="true"
                 android:text="@string/input_mode_bluetooth"
-                android:textColor="@color/text_color"
-                android:textSize="13sp" />
-
-            <TextView
-                android:id="@+id/input_mode_dialog_bluetooth_status"
-                android:layout_width="wrap_content"
-                android:layout_height="21dp"
-                android:layout_gravity="bottom|start"
-                android:layout_marginLeft="13dp"
-                android:layout_marginBottom="11dp"
-                android:background="@drawable/status_background"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:paddingLeft="6dp"
-                android:paddingRight="6dp"
                 android:textColor="@color/text_color"
                 android:textSize="13sp" />
         </FrameLayout>
@@ -338,22 +243,6 @@
                 android:includeFontPadding="false"
                 android:singleLine="true"
                 android:text="@string/input_mode_wifi_music"
-                android:textColor="@color/text_color"
-                android:textSize="13sp" />
-
-
-            <TextView
-                android:id="@+id/input_mode_dialog_wifi_status"
-                android:layout_width="wrap_content"
-                android:layout_height="21dp"
-                android:layout_gravity="bottom|start"
-                android:layout_marginLeft="13dp"
-                android:layout_marginBottom="11dp"
-                android:background="@drawable/status_background"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:paddingLeft="6dp"
-                android:paddingRight="6dp"
                 android:textColor="@color/text_color"
                 android:textSize="13sp" />
         </FrameLayout>

@@ -1,11 +1,9 @@
 package com.hivi.launcher.bluetooth.ui;
 
 import android.app.AlertDialog;
-import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
-import android.widget.SeekBar;
 
 import androidx.annotation.Nullable;
 
@@ -17,11 +15,7 @@ import com.hivi.launcher.databinding.FragmentBluetoothBinding;
 
 public final class BluetoothFragment extends BaseFragment<BluetoothPresenter>
         implements BluetoothView {
-    private static final int VOLUME_ADJUST_LOWER = -1;
-    private static final int VOLUME_ADJUST_RAISE = 1;
-
     private FragmentBluetoothBinding mBinding;
-    private boolean mBindingVolume;
     private boolean mConnected;
     private AlertDialog mResetConfirmDialog;
 
@@ -68,16 +62,6 @@ public final class BluetoothFragment extends BaseFragment<BluetoothPresenter>
         }
 
         boolean connected = state.isConnected();
-        String deviceName = state.getDeviceName();
-        // The connected-device field always shows the phone-side name reported by the MCU;
-        // it falls back to a generic label only while connected but not yet named.
-        if (connected && TextUtils.isEmpty(deviceName)) {
-            mBinding.connectedDeviceName.setText(R.string.bluetooth_connected_device_default);
-        } else if (TextUtils.isEmpty(deviceName)) {
-            mBinding.connectedDeviceName.setText(R.string.bluetooth_device_disconnected);
-        } else {
-            mBinding.connectedDeviceName.setText(deviceName);
-        }
         mConnected = connected;
         mBinding.disconnectButton.setText(connected
                 ? R.string.bluetooth_disconnect : R.string.bluetooth_connect);
@@ -109,17 +93,13 @@ public final class BluetoothFragment extends BaseFragment<BluetoothPresenter>
         setActionEnabled(mBinding.btnPlayOrPause, playbackControlAvailable);
         setActionEnabled(mBinding.btnPreviousSong, playbackControlAvailable);
         setActionEnabled(mBinding.btnNextSong, playbackControlAvailable);
+    }
 
-        int volumePercent = state.getVolumePercent();
-        mBinding.volumeValue.setText(String.valueOf(volumePercent));
-        mBinding.volumeMuteButton.setSelected(state.isMuted());
-        mBinding.volumeMuteButton.setContentDescription(getString(state.isMuted()
-                ? R.string.main_volume_unmute : R.string.main_volume_mute));
-        setActionEnabled(mBinding.volumeDownButton, volumePercent > 0);
-        setActionEnabled(mBinding.volumeUpButton, volumePercent < 100);
-        mBindingVolume = true;
-        mBinding.volumeSeekBar.setProgress(volumePercent);
-        mBindingVolume = false;
+    @Override
+    public void renderBluetoothFftData(byte[] fftData) {
+        if (mBinding != null) {
+            mBinding.bluetoothVisualizerPanel.setFftData(fftData);
+        }
     }
 
     private void bindClickListeners() {
@@ -151,46 +131,6 @@ public final class BluetoothFragment extends BaseFragment<BluetoothPresenter>
             BluetoothPresenter presenter = getPresenter();
             if (presenter != null) {
                 presenter.nextTrack();
-            }
-        });
-        mBinding.volumeMuteButton.setOnClickListener(view -> {
-            BluetoothPresenter presenter = getPresenter();
-            if (presenter != null) {
-                presenter.toggleMute();
-            }
-        });
-        mBinding.volumeDownButton.setOnClickListener(view -> {
-            BluetoothPresenter presenter = getPresenter();
-            if (presenter != null) {
-                presenter.adjustVolume(VOLUME_ADJUST_LOWER);
-            }
-        });
-        mBinding.volumeUpButton.setOnClickListener(view -> {
-            BluetoothPresenter presenter = getPresenter();
-            if (presenter != null) {
-                presenter.adjustVolume(VOLUME_ADJUST_RAISE);
-            }
-        });
-        mBinding.volumeSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (!fromUser || mBindingVolume) {
-                    return;
-                }
-                BluetoothPresenter presenter = getPresenter();
-                if (presenter != null) {
-                    presenter.setVolumePercent(progress);
-                }
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-                // Volume is applied continuously while dragging.
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-                // The final value was applied by onProgressChanged.
             }
         });
     }

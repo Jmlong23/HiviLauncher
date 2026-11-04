@@ -9,7 +9,6 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.TextView;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.databinding.DialogInputModeBinding;
@@ -38,9 +37,9 @@ final class InputModeDialog {
         mListener = listener;
     }
 
-    void show(MainPage selectedPage, boolean bluetoothConnected, boolean wifiConnected) {
+    void show(MainPage selectedPage) {
         if (isShowing()) {
-            updateState(selectedPage, bluetoothConnected, wifiConnected);
+            updateState(selectedPage);
             return;
         }
 
@@ -54,18 +53,17 @@ final class InputModeDialog {
             mDialog = null;
         });
         bindListeners();
-        updateState(selectedPage, bluetoothConnected, wifiConnected);
+        updateState(selectedPage);
         mDialog.show();
         configureWindow();
     }
 
-    void updateState(MainPage selectedPage, boolean bluetoothConnected, boolean wifiConnected) {
+    void updateState(MainPage selectedPage) {
         if (mBinding == null) {
             return;
         }
         mSelectedPage = selectedPage;
         updateCardBackgrounds();
-        updateConnectionStatus(bluetoothConnected, wifiConnected);
     }
 
     void dismiss() {
@@ -118,18 +116,6 @@ final class InputModeDialog {
             int defaultBackgroundResId, int selectedBackgroundResId) {
         background.setImageResource(mSelectedPage == page
                 ? selectedBackgroundResId : defaultBackgroundResId);
-    }
-
-    private void updateConnectionStatus(boolean bluetoothConnected, boolean wifiConnected) {
-        updateConnectionStatus(mBinding.inputModeDialogBluetoothStatus, bluetoothConnected);
-        updateConnectionStatus(mBinding.inputModeDialogWifiStatus, wifiConnected);
-    }
-
-    private void updateConnectionStatus(TextView status, boolean connected) {
-        status.setText(connected ? R.string.input_mode_status_connected
-                : R.string.input_mode_status_disconnected);
-        status.setTextColor(mActivity.getColor(connected
-                ? R.color.status_connected : R.color.text_color));
     }
 
     private void configureWindow() {

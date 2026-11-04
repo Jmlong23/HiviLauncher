@@ -4,6 +4,7 @@ import android.content.Context;
 
 import com.hivi.launcher.base.BasePresenter;
 import com.hivi.launcher.bluetooth.model.BluetoothModel;
+import com.hivi.launcher.bluetooth.model.BluetoothPageState;
 import com.hivi.launcher.bluetooth.ui.BluetoothView;
 
 public final class BluetoothPresenter extends BasePresenter<BluetoothView> {
@@ -19,10 +20,23 @@ public final class BluetoothPresenter extends BasePresenter<BluetoothView> {
             return;
         }
         mContext = context.getApplicationContext();
-        mModel.start(mContext, state -> {
-            BluetoothView view = getView();
-            if (view != null) {
-                view.renderBluetoothPage(state);
+        mModel.start(mContext, new BluetoothModel.Listener() {
+            @Override
+            public void onBluetoothPageStateChanged(BluetoothPageState state) {
+                BluetoothView view = getView();
+                if (view != null) {
+                    view.renderBluetoothPage(state);
+                }
+            }
+
+            @Override
+            public void onBluetoothFftData(byte[] fftData) {
+                runOnUiThread(() -> {
+                    BluetoothView view = getView();
+                    if (view != null) {
+                        view.renderBluetoothFftData(fftData);
+                    }
+                });
             }
         });
     }
@@ -49,18 +63,6 @@ public final class BluetoothPresenter extends BasePresenter<BluetoothView> {
 
     public void reset() {
         mModel.reset();
-    }
-
-    public void adjustVolume(int direction) {
-        mModel.adjustVolume(direction);
-    }
-
-    public void setVolumePercent(int volumePercent) {
-        mModel.setVolumePercent(volumePercent);
-    }
-
-    public void toggleMute() {
-        mModel.toggleMute();
     }
 
     @Override
