@@ -150,7 +150,8 @@
 
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="254dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:layout_marginTop="20dp"
             android:background="@drawable/settings_content_background">
 
@@ -277,11 +278,15 @@
             android:background="@drawable/wifi_connection_bg"
             android:gravity="center"/>
 
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="47" />
+
         <TextView
             android:id="@+id/first_use_wifi_connecting_step"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="47dp"
             android:includeFontPadding="false"
             android:text="@string/onboarding_wifi_connecting_step"
             android:textColor="@color/text_color"
@@ -295,11 +300,15 @@
             android:textColor="@color/text_color"
             android:textSize="13sp"/>
 
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="35" />
+
         <TextView
             android:id="@+id/first_use_wifi_connecting_cancel"
             android:layout_width="147dp"
             android:layout_height="42dp"
-            android:layout_marginTop="35dp"
             android:background="@drawable/secondary_button"
             android:clickable="true"
             android:focusable="true"
@@ -319,7 +328,8 @@
         
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="349dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:orientation="vertical"
             android:gravity="center"
             android:background="@drawable/dialog_background">
@@ -419,7 +429,8 @@
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="250dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:layout_marginTop="25dp"
             android:background="@drawable/first_use_volume_bg"
             android:gravity="center_vertical"
@@ -559,10 +570,14 @@
             android:textColor="@color/text_color"
             android:textSize="15sp" />
 
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="34" />
+
         <GridLayout
             android:layout_width="match_parent"
             android:layout_height="241dp"
-            android:layout_marginTop="34dp"
             android:columnCount="4"
             android:rowCount="2">
 
@@ -880,10 +895,14 @@
             </FrameLayout>
         </GridLayout>
 
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="23" />
+
         <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="23dp">
+            android:layout_height="wrap_content">
             <TextView
                 android:id="@+id/first_use_input_mode_back"
                 android:layout_width="117dp"
