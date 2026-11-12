@@ -210,6 +210,8 @@
     <string name="settings_time_value">2024-12-18</string>
     <string name="settings_device_diagnosis">设备诊断</string>
     <string name="settings_log_upload">日志上报</string>
+    <string name="settings_android_settings">设置</string>
+    <string name="settings_android_settings_unavailable">无法打开系统设置</string>
     <string name="settings_log_status">未有上报记录</string>
     <string name="log_upload_confirm_title">确认上报设备诊断日志？</string>
     <string name="log_upload_confirm_message">将收集并上报设备诊断日志。</string>

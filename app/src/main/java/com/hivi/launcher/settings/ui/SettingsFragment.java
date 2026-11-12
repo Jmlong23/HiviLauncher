@@ -4,6 +4,7 @@ import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.app.Application;
 import android.app.Dialog;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
@@ -881,12 +882,28 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
                 presenter.onLogUploadSelected();
             }
         });
+        mBinding.settingsAndroidSettings.setOnClickListener(
+                view -> openAndroidSystemSettings());
         mBinding.settingsRestoreFactory.setOnClickListener(view -> {
             SettingsPresenter presenter = getPresenter();
             if (presenter != null) {
                 presenter.onFactoryResetSelected();
             }
         });
+    }
+
+    private void openAndroidSystemSettings() {
+        Activity activity = getActivity();
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+            return;
+        }
+        Intent intent = new Intent(Settings.ACTION_SETTINGS);
+        try {
+            activity.startActivity(intent);
+        } catch (ActivityNotFoundException exception) {
+            AppLog.w(TAG, "Unable to open Android system settings.", exception);
+            showToast(getString(R.string.settings_android_settings_unavailable));
+        }
     }
 
     private void setupAboutSettings() {

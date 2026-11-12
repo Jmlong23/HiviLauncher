@@ -261,6 +261,8 @@
     <string name="settings_time_value">2024-12-18</string>
     <string name="settings_device_diagnosis">Device diagnosis</string>
     <string name="settings_log_upload">Log upload</string>
+    <string name="settings_android_settings">Settings</string>
+    <string name="settings_android_settings_unavailable">Unable to open system settings</string>
     <string name="settings_log_status">No upload records</string>
     <string name="log_upload_confirm_title">Report diagnostic logs?</string>
     <string name="log_upload_confirm_message">The device diagnostic logs will be collected and reported.</string>

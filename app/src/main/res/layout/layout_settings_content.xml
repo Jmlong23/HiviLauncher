@@ -423,6 +423,35 @@
                         android:layout_marginLeft="9dp"
                         android:src="@drawable/ic_enter" />
                 </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/settings_android_settings"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/settings_row_min_height"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/item_medium_long_bg"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingLeft="21dp"
+                    android:paddingRight="21dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/settings_android_settings"
+                        android:textColor="@color/text_color"
+                        android:textSize="@dimen/settings_text_body" />
+
+                    <ImageView
+                        android:layout_width="23dp"
+                        android:layout_height="23dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_enter" />
+                </LinearLayout>
             </LinearLayout>
 
             <LinearLayout
