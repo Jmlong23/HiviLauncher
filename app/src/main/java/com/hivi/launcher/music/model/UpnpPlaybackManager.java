@@ -58,7 +58,7 @@ import io.reactivex.disposables.Disposable;
 public final class UpnpPlaybackManager implements MediaSessionPlaybackManager.Listener {
     private static final String TAG = "UpnpPlaybackManager";
     /** 恢复出厂/未改名时的默认设备名称 */
-    private static final String DEVICE_NAME = "Soundbar";
+    private static final String DEVICE_NAME = "MC200-Pro";
     /** 设备名称偏好，控制端 setDeviceName 改名后持久化于此，重启后仍生效 */
     private static final String PREFS_NAME_DEVICE = "hivinetwork";
     public static final String PREF_KEY_DEVICE_NAME = "device_name";
