@@ -3,13 +3,12 @@ package com.hivi.launcher.audio;
 import androidx.annotation.Nullable;
 
 /**
- * Computes spectrum frames from the interleaved PCM captured by the wakeup ALSA recorder.
+ * Computes spectrum frames from the mono PCM captured by {@link PlaybackSpectrumSource}.
  *
  * <p>Bluetooth playback is mixed by the MCU/DSP and never reaches Android's audio framework, so
- * the system {@code Visualizer} cannot see it. The PDM stream opened by the wakeup recorder
- * carries the speaker reference channels, which follow whatever the DSP is currently playing.
- * This analyzer turns those samples into the same packed FFT layout the spectrum views already
- * consume.</p>
+ * the system {@code Visualizer} cannot see it. The i2s capture opened through {@code AudioRecord}
+ * carries the DSP playback mix (the same path Hivi-Audio uses), so this analyzer turns those
+ * samples into the packed FFT layout the spectrum views already consume.</p>
  */
 public final class PcmSpectrumAnalyzer {
     private static final int FFT_SIZE = 1024;
@@ -17,7 +16,7 @@ public final class PcmSpectrumAnalyzer {
     private static final int HOP_SIZE = FFT_SIZE / 2;
     private static final int PACKED_FFT_SIZE = 2 + (BIN_COUNT - 1) * 2;
     private static final double BYTE_SCALE_MAX = 127d;
-    /** The reference channels idle at roughly +/-24 LSB while playback is paused. */
+    /** Idle capture oscillates at roughly +/-24 LSB, so anything below this is treated as silence. */
     private static final int SILENCE_PEAK = 96;
 
     public interface Listener {
@@ -51,7 +50,8 @@ public final class PcmSpectrumAnalyzer {
     }
 
     /**
-     * Feeds an interleaved PCM frame. Only the two reference channels are mixed down to mono.
+     * Feeds an interleaved PCM frame. The capture is mono, but the channel selection keeps this
+     * usable for multi-channel sources as well.
      */
     public void feed(short[] pcm, int frameSize, int channels, int referenceChannelA,
             int referenceChannelB) {

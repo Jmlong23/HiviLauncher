@@ -160,6 +160,7 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
             final int section = i;
             mSectionTabs[i].setOnClickListener(v -> presenter.onSectionSelected(section));
         }
+        mBinding.settingsTabBluetooth.setOnClickListener(v -> openBluetoothModePage());
         setupWifiRefreshAction();
         showWifiInitializationPending();
         scheduleWifiSettingsInitialization();
@@ -207,6 +208,13 @@ public final class SettingsFragment extends BaseFragment<SettingsPresenter>
         mSectionPanels = null;
         mBinding = null;
         super.onDestroyView();
+    }
+
+    private void openBluetoothModePage() {
+        Activity activity = getActivity();
+        if (activity instanceof MainActivity) {
+            ((MainActivity) activity).openBluetoothModeFromSettings();
+        }
     }
 
     @Override

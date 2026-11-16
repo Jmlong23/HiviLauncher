@@ -7,7 +7,6 @@ import com.hivi.audionativelib.AudioNativeManager;
 import com.hivi.audionativelib.manager.audioAlsa.AudioAlsaRecorder;
 import com.hivi.audionativelib.manager.audioAlsa.AudioAlsaRecorderListener;
 import com.hivi.launcher.ai.wakeup.EngineConstants;
-import com.hivi.launcher.audio.PlaybackSpectrumSource;
 import com.hivi.launcher.ai.wakeup.utils.AudioAmplify;
 import com.hivi.launcher.ai.wakeup.utils.AudioFilter;
 import com.hivi.launcher.utils.log.AppLog;
@@ -263,7 +262,6 @@ public final class SingleAlsaRecorder implements AudioRecorder {
             return;
         }
         accumulateChannelLevels(pcm, frameSize);
-        PlaybackSpectrumSource.feed(pcm, frameSize, EngineConstants.CHANNEL);
 
         byte[] audioData = ensureAudioData(frameSize * 2);
         shortToBytes(pcm, frameSize, audioData);

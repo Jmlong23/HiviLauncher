@@ -175,6 +175,8 @@
     <string name="settings_title">System Settings</string>
     <string name="settings_network">Network</string>
     <string name="settings_network_summary">Home-5G</string>
+    <string name="settings_bluetooth">Bluetooth</string>
+    <string name="settings_bluetooth_summary">Bluetooth mode</string>
     <string name="settings_display">Display</string>
     <string name="settings_display_summary">Simplified Chinese</string>
     <string name="settings_system">System</string>

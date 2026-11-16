@@ -6,33 +6,6 @@
     android:orientation="vertical">
 
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="37dp"
-        android:gravity="center"
-        android:orientation="horizontal">
-
-        <View
-            android:layout_width="139dp"
-            android:layout_height="0.5dp"
-            android:layout_marginEnd="14dp"
-            android:background="@color/line_color" />
-
-        <TextView
-            android:id="@+id/page_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="@color/text_color"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-
-        <View
-            android:layout_width="139dp"
-            android:layout_height="0.5dp"
-            android:layout_marginStart="14dp"
-            android:background="@color/line_color" />
-    </LinearLayout>
-
-    <LinearLayout
         android:layout_width="500dp"
         android:layout_height="278dp"
         android:layout_marginTop="30dp"

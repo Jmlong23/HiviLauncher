@@ -85,8 +85,21 @@ public class MainPresenter extends BasePresenter<MainView> {
         mMcuBluetoothController.start(mContext);
         mLastNotifiedConnected = mMcuBluetoothController.isConnected();
         mMcuBluetoothController.addListener(mMcuBluetoothListener);
+        migrateLegacyInputMode();
         updateClock();
         updateDeviceStatus();
+    }
+
+    /**
+     * 首页固定为 Wi-Fi 音乐页，升级后把旧版本保存的蓝牙/LINE/光纤/同轴/HDMI 等模式
+     * 统一回落到 Wi-Fi（蓝牙模式改为从左上角图标进入）。
+     */
+    private void migrateLegacyInputMode() {
+        MainPage storedMode = mAudioRouteController.getSelectedMode(mContext);
+        if (storedMode != null && storedMode != MainPage.WIFI) {
+            AppLog.i(TAG, "Migrating stored input mode " + storedMode + " to WIFI");
+            mAudioRouteController.selectMode(MainPage.WIFI);
+        }
     }
 
     public void startTicker() {
@@ -230,9 +243,20 @@ public class MainPresenter extends BasePresenter<MainView> {
         navigateToPage(MainPage.AI);
     }
 
-    public void onInputModeClicked(MainPage page) {
-        AppLog.d(TAG, "Input mode clicked: " + page);
-        navigateToPage(page);
+    public void onBluetoothModeClicked() {
+        AppLog.d(TAG, "Bluetooth mode entry clicked");
+        navigateToPage(MainPage.BLUETOOTH);
+    }
+
+    /**
+     * 蓝牙模式页是首页上的子页面，回到首页即代表回到 Wi-Fi 输入通道。
+     */
+    public void onHomePageShown() {
+        MainPage selectedMode = mAudioRouteController.getSelectedMode(mContext);
+        if (selectedMode != MainPage.WIFI) {
+            AppLog.i(TAG, "Home shown, switching input mode back to WIFI");
+            mAudioRouteController.selectMode(MainPage.WIFI);
+        }
     }
 
     @Override

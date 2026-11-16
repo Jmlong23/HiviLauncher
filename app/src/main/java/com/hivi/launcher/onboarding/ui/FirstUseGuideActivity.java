@@ -3,10 +3,7 @@ package com.hivi.launcher.onboarding.ui;
 import android.animation.ObjectAnimator;
 import android.app.Application;
 import android.app.Dialog;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
@@ -22,7 +19,6 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.base.BaseActivity;
-import com.hivi.launcher.bluetooth.model.McuBluetoothController;
 import com.hivi.launcher.databinding.ActivityFirstUseGuideBinding;
 import com.hivi.launcher.databinding.DialogWifiPasswordBinding;
 import com.hivi.launcher.main.model.MainPage;
@@ -31,7 +27,6 @@ import com.hivi.launcher.onboarding.model.FirstUseGuideStore;
 import com.hivi.launcher.onboarding.presenter.OnboardingPresenter;
 import com.hivi.launcher.utils.LocaleHelper;
 import com.hivi.launcher.utils.UiUtils;
-import com.hivi.launcher.wifi.model.WifiConnectionStatus;
 import com.hivi.launcher.wifi.model.WifiNetwork;
 import com.hivi.launcher.wifi.ui.WifiNetworkAdapter;
 
@@ -51,42 +46,14 @@ public final class FirstUseGuideActivity
         implements OnboardingView {
     private static final String STATE_PAGE = "page";
     private static final String STATE_LANGUAGE = "language";
-    private static final String STATE_SELECTED_INPUT = "selected_input";
 
     private enum Page {
         LANGUAGE,
         WIFI,
         WIFI_CONNECTING,
         WIFI_FAILED,
-        VOLUME,
-        INPUT_MODE
+        VOLUME
     }
-
-    private final BroadcastReceiver mConnectivityReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (mCurrentPage == Page.INPUT_MODE) {
-                refreshInputModeConnectionStatus();
-            }
-        }
-    };
-
-    private final McuBluetoothController.Listener mMcuBluetoothStateListener =
-            new McuBluetoothController.Listener() {
-                @Override
-                public void onBluetoothStateChanged() {
-                    runOnUiThread(() -> {
-                        if (mCurrentPage == Page.INPUT_MODE) {
-                            refreshInputModeConnectionStatus();
-                        }
-                    });
-                }
-
-                @Override
-                public void onBluetoothPairingsCleared() {
-                    // No pairing actions exist on the guide page; state refresh is enough.
-                }
-            };
 
     private WifiNetworkAdapter mWifiNetworkAdapter;
     private ObjectAnimator mWifiRefreshAnimator;
@@ -95,12 +62,10 @@ public final class FirstUseGuideActivity
 
     private Page mCurrentPage = Page.LANGUAGE;
     private String mSelectedLanguage;
-    private MainPage mSelectedInputMode = MainPage.LINE;
     private boolean mInitialized;
     private boolean mLanguageSwitchInProgress;
     private boolean mWifiRefreshing;
     private boolean mHasWifiNetworks;
-    private boolean mConnectivityReceiverRegistered;
 
     @Override
     protected ActivityFirstUseGuideBinding createBinding() {
@@ -121,7 +86,6 @@ public final class FirstUseGuideActivity
         binding.firstUseWifiList.setAdapter(mWifiNetworkAdapter);
         bindClickListeners();
         renderLanguageSelection();
-        renderInputModeSelection();
         showPage(mCurrentPage);
     }
 
@@ -130,19 +94,6 @@ public final class FirstUseGuideActivity
         presenter.init(this);
         mInitialized = true;
         onCurrentPageActivated();
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        registerConnectivityReceiver();
-        refreshInputModeConnectionStatus();
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        unregisterConnectivityReceiver();
     }
 
     @Override
@@ -164,9 +115,6 @@ public final class FirstUseGuideActivity
                 break;
             case VOLUME:
                 showPage(Page.WIFI);
-                break;
-            case INPUT_MODE:
-                showPage(Page.VOLUME);
                 break;
             default:
                 super.onBackPressed();
@@ -275,13 +223,11 @@ public final class FirstUseGuideActivity
         super.onSaveInstanceState(outState);
         outState.putString(STATE_PAGE, mCurrentPage.name());
         outState.putString(STATE_LANGUAGE, mSelectedLanguage);
-        outState.putString(STATE_SELECTED_INPUT, mSelectedInputMode.name());
     }
 
     @Override
     protected void onDestroy() {
         mInitialized = false;
-        unregisterConnectivityReceiver();
         dismissWifiPasswordDialog();
         stopWifiRefreshAnimation();
         if (mLanguageSwitchExecutor != null) {
@@ -342,19 +288,7 @@ public final class FirstUseGuideActivity
             public void onStopTrackingTouch(SeekBar seekBar) {
             }
         });
-        binding.firstUseVolumeContinue.setOnClickListener(view -> showPage(Page.INPUT_MODE));
-
-        binding.firstUseInputModeBack.setOnClickListener(view -> showPage(Page.VOLUME));
-        binding.firstUseInputModeLine.setOnClickListener(view -> selectInputMode(MainPage.LINE));
-        binding.firstUseInputModeMicrophone.setOnClickListener(view ->
-                selectInputMode(MainPage.MICROPHONE));
-        binding.firstUseInputModeOptical.setOnClickListener(view -> selectInputMode(MainPage.OPTICAL));
-        binding.firstUseInputModeCoax.setOnClickListener(view -> selectInputMode(MainPage.COAX));
-        binding.firstUseInputModeHdmi.setOnClickListener(view -> selectInputMode(MainPage.HDMI));
-        binding.firstUseInputModeBluetooth.setOnClickListener(view ->
-                selectInputMode(MainPage.BLUETOOTH));
-        binding.firstUseInputModeWifi.setOnClickListener(view -> selectInputMode(MainPage.WIFI));
-        binding.firstUseInputModeContinue.setOnClickListener(view -> completeGuide());
+        binding.firstUseVolumeContinue.setOnClickListener(view -> completeGuide());
     }
 
     private void continueFromLanguage() {
@@ -476,21 +410,13 @@ public final class FirstUseGuideActivity
     }
 
     private void completeGuide() {
-        presenter.selectInputMode(mSelectedInputMode);
+        // 不再让用户选择输入模式，首页固定为 Wi-Fi 音乐页。
+        presenter.selectInputMode(MainPage.WIFI);
         FirstUseGuideStore.markCompleted(this);
         Intent intent = new Intent(this, MainActivity.class)
-                .putExtra(MainActivity.EXTRA_INITIAL_MODE, mSelectedInputMode.name())
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);
         finish();
-    }
-
-    private void selectInputMode(MainPage page) {
-        if (page == null) {
-            return;
-        }
-        mSelectedInputMode = page;
-        renderInputModeSelection();
     }
 
     private void showPage(Page page) {
@@ -505,8 +431,6 @@ public final class FirstUseGuideActivity
                 ? View.VISIBLE : View.GONE);
         binding.firstUsePageVolume.setVisibility(mCurrentPage == Page.VOLUME
                 ? View.VISIBLE : View.GONE);
-        binding.firstUsePageInputMode.setVisibility(mCurrentPage == Page.INPUT_MODE
-                ? View.VISIBLE : View.GONE);
         if (mInitialized) {
             onCurrentPageActivated();
         }
@@ -519,9 +443,6 @@ public final class FirstUseGuideActivity
                 break;
             case VOLUME:
                 renderAmplifierVolume(presenter.getAmplifierVolume(), presenter.isAmplifierMuted());
-                break;
-            case INPUT_MODE:
-                renderInputModeSelection();
                 break;
             default:
                 break;
@@ -553,75 +474,6 @@ public final class FirstUseGuideActivity
         binding.firstUseLanguageChinese.setAlpha(alpha);
         binding.firstUseLanguageEnglish.setAlpha(alpha);
         binding.firstUseLanguageContinue.setAlpha(alpha);
-    }
-
-    private void renderInputModeSelection() {
-        updateInputModeCard(binding.firstUseInputModeLine, mSelectedInputMode == MainPage.LINE,
-                R.drawable.card_mode_line, R.drawable.card_mode_line_selected);
-        updateInputModeCard(binding.firstUseInputModeMicrophone,
-                mSelectedInputMode == MainPage.MICROPHONE, R.drawable.card_mode_microphone,
-                R.drawable.card_mode_microphone_selected);
-        updateInputModeCard(binding.firstUseInputModeOptical,
-                mSelectedInputMode == MainPage.OPTICAL, R.drawable.card_mode_optical,
-                R.drawable.card_mode_optical_selected);
-        updateInputModeCard(binding.firstUseInputModeCoax, mSelectedInputMode == MainPage.COAX,
-                R.drawable.card_mode_coax, R.drawable.card_mode_coax_selected);
-        updateInputModeCard(binding.firstUseInputModeHdmi, mSelectedInputMode == MainPage.HDMI,
-                R.drawable.card_mode_hdmi, R.drawable.card_mode_hdmi_selected);
-        updateInputModeCard(binding.firstUseInputModeBluetooth,
-                mSelectedInputMode == MainPage.BLUETOOTH, R.drawable.card_mode_bluetooth,
-                R.drawable.card_mode_bluetooth_selected);
-        updateInputModeCard(binding.firstUseInputModeWifi, mSelectedInputMode == MainPage.WIFI,
-                R.drawable.card_mode_wifi, R.drawable.card_mode_wifi_selected);
-        refreshInputModeConnectionStatus();
-    }
-
-    private void updateInputModeCard(android.widget.ImageView view, boolean selected,
-            int normalResId, int selectedResId) {
-        view.setSelected(selected);
-        view.setImageResource(selected ? selectedResId : normalResId);
-    }
-
-    private void refreshInputModeConnectionStatus() {
-        if (binding == null) {
-            return;
-        }
-        boolean bluetoothConnected = McuBluetoothController.getInstance().isConnected();
-        boolean wifiConnected = !TextUtils.isEmpty(WifiConnectionStatus.getConnectedSsid(this));
-        binding.firstUseInputModeBluetoothStatus.setText(bluetoothConnected
-                ? R.string.input_mode_status_connected : R.string.input_mode_status_disconnected);
-        binding.firstUseInputModeBluetoothStatus.setTextColor(getColor(bluetoothConnected
-                ? R.color.status_connected : R.color.text_color2));
-        binding.firstUseInputModeWifiStatus.setText(wifiConnected
-                ? R.string.input_mode_status_connected : R.string.input_mode_status_disconnected);
-        binding.firstUseInputModeWifiStatus.setTextColor(getColor(wifiConnected
-                ? R.color.status_connected : R.color.text_color2));
-    }
-
-    private void registerConnectivityReceiver() {
-        if (mConnectivityReceiverRegistered) {
-            return;
-        }
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(android.net.wifi.WifiManager.NETWORK_STATE_CHANGED_ACTION);
-        filter.addAction(android.net.wifi.WifiManager.WIFI_STATE_CHANGED_ACTION);
-        registerReceiver(mConnectivityReceiver, filter);
-        McuBluetoothController.getInstance().start(this);
-        McuBluetoothController.getInstance().addListener(mMcuBluetoothStateListener);
-        mConnectivityReceiverRegistered = true;
-    }
-
-    private void unregisterConnectivityReceiver() {
-        if (!mConnectivityReceiverRegistered) {
-            return;
-        }
-        McuBluetoothController.getInstance().removeListener(mMcuBluetoothStateListener);
-        try {
-            unregisterReceiver(mConnectivityReceiver);
-        } catch (IllegalArgumentException ignored) {
-            // The system may already have unregistered the receiver during teardown.
-        }
-        mConnectivityReceiverRegistered = false;
     }
 
     private void startWifiRefreshAnimation() {
@@ -669,6 +521,9 @@ public final class FirstUseGuideActivity
             if ("ACCESSORIES".equals(pageName)) {
                 // Resume older saved guide state at the next remaining page after this step.
                 mCurrentPage = Page.VOLUME;
+            } else if ("INPUT_MODE".equals(pageName)) {
+                // 旧版本停留在输入模式选择页，升级后直接进入完成前的音量页。
+                mCurrentPage = Page.VOLUME;
             } else {
                 try {
                     mCurrentPage = Page.valueOf(pageName);
@@ -681,23 +536,6 @@ public final class FirstUseGuideActivity
         if (LocaleHelper.LANGUAGE_EN.equals(language) || LocaleHelper.LANGUAGE_ZH.equals(language)) {
             mSelectedLanguage = language;
         }
-        String selectedInput = state.getString(STATE_SELECTED_INPUT);
-        if (!TextUtils.isEmpty(selectedInput)) {
-            try {
-                MainPage page = MainPage.valueOf(selectedInput);
-                if (isSelectableInputMode(page)) {
-                    mSelectedInputMode = page;
-                }
-            } catch (IllegalArgumentException ignored) {
-                mSelectedInputMode = MainPage.LINE;
-            }
-        }
-    }
-
-    private boolean isSelectableInputMode(MainPage page) {
-        return page == MainPage.LINE || page == MainPage.MICROPHONE || page == MainPage.OPTICAL
-                || page == MainPage.COAX || page == MainPage.HDMI || page == MainPage.BLUETOOTH
-                || page == MainPage.WIFI;
     }
 
     private String displaySsid(String ssid) {

@@ -34,9 +34,6 @@ import android.widget.ImageView;
 import android.view.animation.DecelerateInterpolator;
 
 import androidx.annotation.Nullable;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.LinearSnapHelper;
-import androidx.recyclerview.widget.RecyclerView;
 
 import com.hivi.launcher.R;
 import com.hivi.launcher.audio.AudioRouteController;
@@ -48,6 +45,7 @@ import com.hivi.launcher.ai.ui.AiHeadlessConversationView;
 import com.hivi.launcher.ai.ui.AiListeningOverlay;
 import com.hivi.launcher.ai.wakeup.AiWakeupController;
 import com.hivi.launcher.base.BaseActivity;
+import com.hivi.launcher.bluetooth.ui.BluetoothFragment;
 import com.hivi.launcher.customview.FrostedTextView;
 import com.hivi.launcher.customview.FlipLayout;
 import com.hivi.launcher.databinding.ActivityMainBinding;
@@ -55,12 +53,6 @@ import com.hivi.launcher.main.model.MainPage;
 import com.hivi.launcher.main.presenter.MainPresenter;
 import com.hivi.launcher.onboarding.model.FirstUseGuideStore;
 import com.hivi.launcher.onboarding.ui.FirstUseGuideActivity;
-import com.hivi.launcher.bluetooth.ui.BluetoothFragment;
-import com.hivi.launcher.coax.ui.CoaxFragment;
-import com.hivi.launcher.hdmi.ui.HdmiFragment;
-import com.hivi.launcher.line.ui.LineFragment;
-import com.hivi.launcher.microphone.ui.MicrophoneFragment;
-import com.hivi.launcher.optical.ui.OpticalFragment;
 import com.hivi.launcher.settings.ui.SettingsFragment;
 import com.hivi.launcher.settings.model.ScreenSaverSettings;
 import com.hivi.launcher.settings.model.SettingsModel;
@@ -89,8 +81,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private static final String TAG = "MainActivity";
     public static final String EXTRA_SHOW_VOLUME_DIALOG =
             "com.hivi.launcher.extra.SHOW_VOLUME_DIALOG";
-    public static final String EXTRA_INITIAL_MODE =
-            "com.hivi.launcher.main.ui.MainActivity.initial_mode";
     private static final int AVATAR_CONNECT_TIMEOUT_MS = 8_000;
     private static final int AVATAR_READ_TIMEOUT_MS = 10_000;
     private static final int AVATAR_MAX_SIZE_PX = 512;
@@ -102,8 +92,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private static final long SYSTEM_MUSIC_VOLUME_CHECK_INTERVAL_MS = 10_000L;
     private static final long SCREEN_SAVER_MINUTE_MS = 60_000L;
     private AuthorizationDialog mAuthorizationDialog;
-    private InputModeDialog mInputModeDialog;
-    private InputModeAdapter mInputModeAdapter;
     private final ExecutorService mAccountAvatarExecutor = Executors.newSingleThreadExecutor();
     private final Handler mSystemVolumeHandler = new Handler(Looper.getMainLooper());
     private final DecelerateInterpolator mPageTransitionInterpolator =
@@ -130,7 +118,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private boolean mSuppressBackStackUiSync;
     private boolean mActivityResumed;
     private boolean mPendingSystemUpdateSuccess;
-    private MainPage mPendingInitialMode;
     /** 后台时请求打开的页面（如 QQ 音乐前台期间收到 AI 应答），onResume 时消费。 */
     private MainPage mPendingPageToShow;
     private final FragmentManager.OnBackStackChangedListener mBackStackChangedListener =
@@ -192,7 +179,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             startActivity(new Intent(this, FirstUseGuideActivity.class));
             finish();
         } else {
-            mPendingInitialMode = consumeInitialModeIntent(getIntent());
             handleHomeIntent(getIntent());
         }
     }
@@ -205,8 +191,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     @Override
     protected void initView(@Nullable Bundle savedInstanceState) {
         binding.accountImg.setClipToOutline(true);
-        setupInputModeCarousel();
-        restoreSelectedInputMode();
+        setupHomeWifiFragment();
         bindMainClickListeners();
         getFragmentManager().addOnBackStackChangedListener(mBackStackChangedListener);
         syncPageUiWithCurrentFragment();
@@ -282,7 +267,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         presenter.onSystemStateChanged();
         presenter.startTicker();
         syncPageUiWithCurrentFragment();
-        applyPendingInitialMode();
         applyPendingPageToShow();
         handleSystemUpdateInstallResult(getIntent());
         handleVolumeDialogIntent(getIntent());
@@ -328,13 +312,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         setIntent(intent);
         startVoiceWakeupIfGuideCompleted();
         handleSystemUpdateInstallResult(intent);
-        MainPage initialMode = consumeInitialModeIntent(intent);
-        if (initialMode != null) {
-            mPendingInitialMode = initialMode;
-            if (mActivityResumed) {
-                applyPendingInitialMode();
-            }
-        }
         handleHomeIntent(intent);
         if (mActivityResumed) {
             handleVolumeDialogIntent(intent);
@@ -360,9 +337,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         hideScreenSaver();
         if (mAuthorizationDialog != null) {
             mAuthorizationDialog.dismiss();
-        }
-        if (mInputModeDialog != null) {
-            mInputModeDialog.dismiss();
         }
         // HOME can arrive while stopped; clear pages only after Fragment state is writable.
         ++mPageTransitionGeneration;
@@ -897,14 +871,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         // 未连接时左上角状态（图标+文字）整体置灰（测试问题 #16）
         binding.wifiStatusPill.setAlpha(mWifiConnected ? 1f : DISCONNECTED_STATUS_ALPHA);
         binding.bluetoothStatusPill.setAlpha(bluetoothConnected ? 1f : DISCONNECTED_STATUS_ALPHA);
-        if (mInputModeAdapter != null
-                && mInputModeAdapter.updateConnectivityState(bluetoothConnected, wifiLabel)) {
-            scrollToSelectedMode();
-        }
-        if (mInputModeDialog != null) {
-            mInputModeDialog.updateState(mInputModeAdapter == null
-                    ? null : mInputModeAdapter.getSelectedPage());
-        }
     }
 
     public void updateWifiConnectionStatus(String ssid) {
@@ -995,6 +961,16 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         presenter.onVolumeClicked();
     }
 
+    /**
+     * 设置页里的“蓝牙”入口：从设置页切到蓝牙模式页，返回时回到设置页。
+     */
+    public void openBluetoothModeFromSettings() {
+        if (binding == null || presenter == null) {
+            return;
+        }
+        presenter.onBluetoothModeClicked();
+    }
+
     @Override
     public void showPage(MainPage page) {
         if (binding == null) {
@@ -1005,16 +981,14 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             showToast(getString(R.string.ai_conversation_authorize_required));
             return;
         }
-        if (mInputModeAdapter != null && mInputModeAdapter.selectMode(page)) {
-            scrollToSelectedMode();
+        if (page == MainPage.WIFI) {
+            // Wi-Fi 页面即首页，不再作为独立页面打开。
+            showHomePage();
+            return;
         }
         Fragment currentFragment = getCurrentPageFragment();
         if (currentFragment instanceof AiFragment && page != MainPage.AI) {
             removeAiPageBeforeNavigating();
-        }
-        if (isInputModePage(page)) {
-            showInputModePage(page);
-            return;
         }
         showStackedPage(page);
     }
@@ -1050,25 +1024,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         mPendingPageToShow = null;
         showPage(page);
-    }
-
-    private void showInputModePage(MainPage page) {
-        FragmentManager fragmentManager = getFragmentManager();
-        Fragment currentFragment = getCurrentPageFragment();
-        if (isFragmentForPage(currentFragment, page)
-                && fragmentManager.getBackStackEntryCount() == 1) {
-            ++mPageTransitionGeneration;
-            cancelPageAnimations();
-            syncPageUiWithCurrentFragment();
-            return;
-        }
-        mHomeNavigationPending = false;
-        ++mPageTransitionGeneration;
-        cancelPageAnimations();
-        if (fragmentManager.getBackStackEntryCount() > 0) {
-            popBackStackImmediately(true);
-        }
-        showStackedPage(page);
     }
 
     private void showStackedPage(MainPage page) {
@@ -1471,10 +1426,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             mAuthorizationDialog.release();
             mAuthorizationDialog = null;
         }
-        if (mInputModeDialog != null) {
-            mInputModeDialog.dismiss();
-            mInputModeDialog = null;
-        }
         mAccountAvatarExecutor.shutdownNow();
         super.onDestroy();
     }
@@ -1521,7 +1472,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
     private void applyLocalizedTexts() {
         binding.wifiText.setText(R.string.main_disconnected);
         binding.bluetoothText.setText(R.string.main_disconnected);
-        updateModeTextFromSelectedInputMode();
         updateAccountText();
     }
 
@@ -1542,9 +1492,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             com.hivi.launcher.utils.FeedbackSound.playClick();
             presenter.onVolumeClicked();
         });
-        binding.modeText.setOnClickListener(view -> {
+        // 蓝牙模式页保留，点击左上角蓝牙状态进入。
+        binding.bluetoothStatusPill.setOnClickListener(view -> {
             com.hivi.launcher.utils.FeedbackSound.playClick();
-            showInputModeDialog();
+            presenter.onBluetoothModeClicked();
         });
         binding.aiChatEntry.setOnClickListener(view -> {
             com.hivi.launcher.utils.FeedbackSound.playClick();
@@ -1680,70 +1631,15 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         return sampleSize;
     }
 
-    private void setupInputModeCarousel() {
-        LinearLayoutManager layoutManager = new LinearLayoutManager(this,
-                RecyclerView.HORIZONTAL, false);
-        binding.cardsRow.setLayoutManager(layoutManager);
-        binding.cardsRow.setHasFixedSize(true);
-        binding.cardsRow.setItemAnimator(null);
-        mInputModeAdapter = new InputModeAdapter(this,
-                new InputModeAdapter.OnModeSelectedListener() {
-                    @Override
-                    public void onModeSelected(int topLabelResId) {
-                        updateModeText(topLabelResId);
-                    }
-                }, new InputModeAdapter.OnModeClickListener() {
-                    @Override
-                    public void onModeClicked(MainPage page) {
-                        presenter.onInputModeClicked(page);
-                    }
-                });
-        binding.cardsRow.setAdapter(mInputModeAdapter);
-        new LinearSnapHelper().attachToRecyclerView(binding.cardsRow);
-    }
-
-    private void restoreSelectedInputMode() {
-        if (mInputModeAdapter != null
-                && mInputModeAdapter.selectMode(
-                AudioRouteController.getInstance().getSelectedMode(this))) {
-            scrollToSelectedMode();
-        }
-    }
-
-    private void applyPendingInitialMode() {
-        if (binding == null || mInputModeAdapter == null || mPendingInitialMode == null) {
+    /** Wi-Fi 页面直接作为首页常驻，不再经过模式选择页。 */
+    private void setupHomeWifiFragment() {
+        Fragment existing = getFragmentManager().findFragmentById(R.id.home_wifi_container);
+        if (existing != null) {
             return;
         }
-        MainPage initialMode = mPendingInitialMode;
-        mPendingInitialMode = null;
-        mInputModeAdapter.selectMode(initialMode);
-        updateModeTextFromSelectedInputMode();
-        scrollToSelectedMode();
-        if (mInputModeDialog != null) {
-            mInputModeDialog.updateState(mInputModeAdapter.getSelectedPage());
-        }
-    }
-
-    @Nullable
-    private MainPage consumeInitialModeIntent(Intent intent) {
-        if (intent == null) {
-            return null;
-        }
-        String modeName = intent.getStringExtra(EXTRA_INITIAL_MODE);
-        intent.removeExtra(EXTRA_INITIAL_MODE);
-        if (TextUtils.isEmpty(modeName)) {
-            return null;
-        }
-        try {
-            MainPage mode = MainPage.valueOf(modeName);
-            return isInputModePage(mode) ? mode : null;
-        } catch (IllegalArgumentException ignored) {
-            return null;
-        }
-    }
-
-    private void updateModeText(int topLabelResId) {
-        binding.modeText.setText(topLabelResId == 0 ? R.string.select_mode : topLabelResId);
+        getFragmentManager().beginTransaction()
+                .add(R.id.home_wifi_container, new WifiFragment(), "home_wifi")
+                .commitAllowingStateLoss();
     }
 
     private void updateLauncherBackground(boolean aiConversationVisible) {
@@ -1787,29 +1683,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         }
         AppLog.i(TAG, "Android music volume already at maximum: " + maxVolume);
         return true;
-    }
-
-    private void updateModeTextFromSelectedInputMode() {
-        updateModeText(mInputModeAdapter == null
-                ? 0 : mInputModeAdapter.getSelectedModeTopLabelResId());
-    }
-
-    private void showInputModeDialog() {
-        if (isFinishing() || isDestroyed()) {
-            return;
-        }
-        if (mInputModeDialog == null) {
-            mInputModeDialog = new InputModeDialog(this, new InputModeDialog.Listener() {
-                @Override
-                public void onModeSelected(MainPage page) {
-                    if (presenter != null) {
-                        presenter.onInputModeClicked(page);
-                    }
-                }
-            });
-        }
-        mInputModeDialog.show(mInputModeAdapter == null
-                ? null : mInputModeAdapter.getSelectedPage());
     }
 
     private void cancelPageAnimations() {
@@ -2011,7 +1884,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         binding.systemAppsContainer.setTranslationX(0f);
         binding.systemAppsContainer.setAlpha(1f);
         binding.launcherContent.setVisibility(View.VISIBLE);
-        updateModeTextFromSelectedInputMode();
         updateLauncherBackground(false);
         binding.fragmentContainer.setVisibility(View.GONE);
         binding.fragmentContainer.setTranslationX(0f);
@@ -2022,6 +1894,10 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             setBottomNavigationTransitionState(0f, 1f);
         }
         showAiChatEntry();
+        // 首页固定为 Wi-Fi 音乐页，从蓝牙模式等页面返回时把输入通道切回 Wi-Fi。
+        if (presenter != null) {
+            presenter.onHomePageShown();
+        }
     }
 
     private void hideAiChatEntry() {
@@ -2090,27 +1966,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         return VolumeOverlayService.isShowing();
     }
 
-    private boolean isInputModePage(MainPage page) {
-        if (page == null) {
-            return false;
-        }
-        switch (page) {
-            case LINE:
-            case MICROPHONE:
-            case OPTICAL:
-            case COAX:
-            case HDMI:
-            case BLUETOOTH:
-            case WIFI:
-                return true;
-            case SETTINGS:
-            case AI:
-            case SYSTEM_APPS:
-            default:
-                return false;
-        }
-    }
-
     @Nullable
     private Fragment getCurrentPageFragment() {
         Fragment appsFragment = getFragmentManager().findFragmentById(R.id.system_apps_container);
@@ -2131,20 +1986,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
             return false;
         }
         switch (page) {
-            case LINE:
-                return fragment instanceof LineFragment;
-            case MICROPHONE:
-                return fragment instanceof MicrophoneFragment;
-            case OPTICAL:
-                return fragment instanceof OpticalFragment;
-            case COAX:
-                return fragment instanceof CoaxFragment;
-            case HDMI:
-                return fragment instanceof HdmiFragment;
             case BLUETOOTH:
                 return fragment instanceof BluetoothFragment;
-            case WIFI:
-                return fragment instanceof WifiFragment;
             case SETTINGS:
                 return fragment instanceof SettingsFragment;
             case AI:
@@ -2160,23 +2003,6 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
         return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
-    private void scrollToSelectedMode() {
-        final int selectedPosition = mInputModeAdapter.getSelectedPosition();
-        if (selectedPosition == RecyclerView.NO_POSITION) {
-            return;
-        }
-        binding.cardsRow.post(new Runnable() {
-            @Override
-            public void run() {
-                RecyclerView.LayoutManager layoutManager = binding.cardsRow.getLayoutManager();
-                if (layoutManager instanceof LinearLayoutManager) {
-                    ((LinearLayoutManager) layoutManager).scrollToPositionWithOffset(
-                            selectedPosition, binding.cardsRow.getPaddingLeft());
-                }
-            }
-        });
-    }
-
     private String formatWifiStatus(String wifiLabel) {
         if (android.text.TextUtils.isEmpty(wifiLabel)
                 || android.text.TextUtils.equals(wifiLabel,
@@ -2188,20 +2014,8 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainPresente
 
     private Fragment createPageFragment(MainPage page) {
         switch (page) {
-            case LINE:
-                return new LineFragment();
-            case MICROPHONE:
-                return new MicrophoneFragment();
-            case OPTICAL:
-                return new OpticalFragment();
-            case COAX:
-                return new CoaxFragment();
-            case HDMI:
-                return new HdmiFragment();
             case BLUETOOTH:
                 return new BluetoothFragment();
-            case WIFI:
-                return new WifiFragment();
             case SETTINGS:
                 return new SettingsFragment();
             case AI:

@@ -81,10 +81,43 @@
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/settings_tab_bluetooth"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/settings_menu_item_background"
+                android:clickable="true"
+                android:elevation="8dp"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingLeft="21dp"
+                android:paddingRight="21dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:includeFontPadding="false"
+                    android:text="@string/settings_bluetooth"
+                    android:textColor="@color/white"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:text="@string/settings_bluetooth_summary"
+                    android:textColor="@color/text_color2"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <LinearLayout
                 android:id="@+id/settings_tab_display"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_marginTop="15dp"
+                android:layout_marginTop="10dp"
                 android:background="@drawable/settings_menu_item_background"
                 android:clickable="true"
                 android:elevation="8dp"
@@ -118,7 +151,7 @@
                 android:id="@+id/settings_tab_system"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_marginTop="15dp"
+                android:layout_marginTop="10dp"
                 android:background="@drawable/settings_menu_item_background"
                 android:clickable="true"
                 android:elevation="8dp"
@@ -152,7 +185,7 @@
                 android:id="@+id/settings_tab_about"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_marginTop="15dp"
+                android:layout_marginTop="10dp"
                 android:background="@drawable/settings_menu_item_background"
                 android:clickable="true"
                 android:elevation="8dp"
@@ -185,7 +218,7 @@
                 android:id="@+id/settings_tab_maintenance"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_marginTop="15dp"
+                android:layout_marginTop="10dp"
                 android:background="@drawable/settings_menu_item_background"
                 android:clickable="true"
                 android:elevation="8dp"
