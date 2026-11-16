@@ -8,10 +8,12 @@ import android.view.View;
 import androidx.annotation.Nullable;
 
 import com.hivi.launcher.R;
+import com.hivi.launcher.audio.AudioRouteController;
 import com.hivi.launcher.bluetooth.model.BluetoothPageState;
 import com.hivi.launcher.bluetooth.presenter.BluetoothPresenter;
 import com.hivi.launcher.base.BaseFragment;
 import com.hivi.launcher.databinding.FragmentBluetoothBinding;
+import com.hivi.launcher.main.model.MainPage;
 
 public final class BluetoothFragment extends BaseFragment<BluetoothPresenter>
         implements BluetoothView {
@@ -38,6 +40,7 @@ public final class BluetoothFragment extends BaseFragment<BluetoothPresenter>
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         mBinding = FragmentBluetoothBinding.bind(view);
+        AudioRouteController.getInstance().selectMode(MainPage.BLUETOOTH);
         bindClickListeners();
         BluetoothPresenter presenter = getPresenter();
         if (presenter != null) {
@@ -47,6 +50,9 @@ public final class BluetoothFragment extends BaseFragment<BluetoothPresenter>
 
     @Override
     public void onDestroyView() {
+        // 蓝牙页是输入通道页面，离开时无论回到首页还是设置页都要恢复 Wi-Fi 通道，
+        // 否则 MCU 仍停在蓝牙输入，Wi-Fi 音乐没有声音。
+        AudioRouteController.getInstance().selectMode(MainPage.WIFI);
         if (mResetConfirmDialog != null) {
             mResetConfirmDialog.dismiss();
             mResetConfirmDialog = null;

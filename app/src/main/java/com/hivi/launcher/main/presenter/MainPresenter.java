@@ -85,21 +85,19 @@ public class MainPresenter extends BasePresenter<MainView> {
         mMcuBluetoothController.start(mContext);
         mLastNotifiedConnected = mMcuBluetoothController.isConnected();
         mMcuBluetoothController.addListener(mMcuBluetoothListener);
-        migrateLegacyInputMode();
+        restoreWifiInputMode();
         updateClock();
         updateDeviceStatus();
     }
 
     /**
-     * 首页固定为 Wi-Fi 音乐页，升级后把旧版本保存的蓝牙/LINE/光纤/同轴/HDMI 等模式
-     * 统一回落到 Wi-Fi（蓝牙模式改为从左上角图标进入）。
+     * 首页固定为 Wi-Fi 音乐页：开机（或 Launcher 进程重新创建）时无条件把 MCU 输入
+     * 通道切到 Wi-Fi，不依赖 MCU 的上电默认值，也不受上次退出时所在页面影响。
      */
-    private void migrateLegacyInputMode() {
+    private void restoreWifiInputMode() {
         MainPage storedMode = mAudioRouteController.getSelectedMode(mContext);
-        if (storedMode != null && storedMode != MainPage.WIFI) {
-            AppLog.i(TAG, "Migrating stored input mode " + storedMode + " to WIFI");
-            mAudioRouteController.selectMode(MainPage.WIFI);
-        }
+        AppLog.i(TAG, "Restoring boot input mode to WIFI, storedMode=" + storedMode);
+        mAudioRouteController.selectMode(MainPage.WIFI);
     }
 
     public void startTicker() {
@@ -307,7 +305,7 @@ public class MainPresenter extends BasePresenter<MainView> {
         if (page == null) {
             return;
         }
-        mAudioRouteController.selectMode(page);
+        // 输入通道命令由蓝牙页自己在生命周期里发送：进入发 BT、离开发 WIFI。
         MainView view = getView();
         if (view != null) {
             view.showPage(page);
