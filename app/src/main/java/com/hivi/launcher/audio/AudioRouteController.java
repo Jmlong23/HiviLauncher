@@ -51,10 +51,9 @@ public final class AudioRouteController {
     private static final String MCU_EVENT_BLUETOOTH_CONNECTED = "MCU+BTC+001";
     private static final String MCU_EVENT_BLUETOOTH_DISCONNECTED = "MCU+BTC+000";
     private static final String MCU_EVENT_BLUETOOTH_CLEARED = "MCU+BTC+CLR";
-    // This device's MCU reports PST+001 for paused and PST+002 for playing — the opposite
-    // of the Hivi-Audio naming — as verified against the target hardware.
-    private static final String MCU_EVENT_BLUETOOTH_PAUSED = "MCU+PST+001";
-    private static final String MCU_EVENT_BLUETOOTH_PLAYING = "MCU+PST+002";
+    // Same convention as Hivi-Audio: PST+001 means playing, PST+002 means paused.
+    private static final String MCU_EVENT_BLUETOOTH_PLAYING = "MCU+PST+001";
+    private static final String MCU_EVENT_BLUETOOTH_PAUSED = "MCU+PST+002";
     private static final String MCU_EVENT_BLUETOOTH_PHONE_NAME = "MCU+PNM+";
     private static final String MCU_EVENT_BLUETOOTH_NAME = "MCU+BNM+";
     // Karaoke microphone link state; the MCU re-sends the current state continuously, so
