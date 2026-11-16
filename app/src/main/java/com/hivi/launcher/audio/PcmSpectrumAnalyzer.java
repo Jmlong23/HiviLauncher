@@ -16,8 +16,13 @@ public final class PcmSpectrumAnalyzer {
     private static final int HOP_SIZE = FFT_SIZE / 2;
     private static final int PACKED_FFT_SIZE = 2 + (BIN_COUNT - 1) * 2;
     private static final double BYTE_SCALE_MAX = 127d;
-    /** Idle capture oscillates at roughly +/-24 LSB, so anything below this is treated as silence. */
-    private static final int SILENCE_PEAK = 96;
+    /**
+     * The playback reference always carries a low noise floor (about 400 RMS mixed down) even
+     * while the DSP outputs nothing, so frames only count as signal once they rise clearly above
+     * it. The hysteresis keeps quiet passages from flickering the bars off and on.
+     */
+    private static final int SIGNAL_RMS_ON = 1200;
+    private static final int SIGNAL_RMS_OFF = 700;
 
     public interface Listener {
         void onFftData(byte[] fftData);
@@ -30,6 +35,7 @@ public final class PcmSpectrumAnalyzer {
     private final byte[] mPackedFft = new byte[PACKED_FFT_SIZE];
 
     private int mSampleCount;
+    private boolean mSignalActive;
     private volatile Listener mListener;
 
     public PcmSpectrumAnalyzer() {
@@ -42,6 +48,7 @@ public final class PcmSpectrumAnalyzer {
         mListener = listener;
         synchronized (this) {
             mSampleCount = 0;
+            mSignalActive = false;
         }
     }
 
@@ -80,16 +87,15 @@ public final class PcmSpectrumAnalyzer {
     }
 
     private void publishFrame() {
-        int peak = 0;
+        long energy = 0L;
         for (int index = 0; index < FFT_SIZE; index++) {
-            int magnitude = Math.abs(mSamples[index]);
-            if (magnitude > peak) {
-                peak = magnitude;
-            }
+            energy += (long) mSamples[index] * mSamples[index];
             mReal[index] = mSamples[index] * mWindow[index];
             mImag[index] = 0d;
         }
-        if (peak < SILENCE_PEAK) {
+        int rms = (int) Math.sqrt(energy / (double) FFT_SIZE);
+        mSignalActive = mSignalActive ? rms >= SIGNAL_RMS_OFF : rms >= SIGNAL_RMS_ON;
+        if (!mSignalActive) {
             publishSilence();
             return;
         }
